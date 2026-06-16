@@ -55,28 +55,28 @@ export default function DialoguePractice({ dialogue, stats: _s, onBack, onComple
           <img src={dialogue.imageUrl} alt="" className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/50 to-transparent" />
           <div className="absolute inset-0 flex flex-col justify-end p-5">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{dialogue.level}</span>
+            <span className="text-[10px] font-bold text-slate-200 uppercase tracking-wider">{dialogue.level}</span>
             <h1 className="text-xl font-extrabold text-white mt-0.5">{dialogue.title}</h1>
-            <p className="text-[11px] text-slate-400 mt-1">{dialogue.situation}</p>
+            <p className="text-[11px] text-slate-200 mt-1">{dialogue.situation}</p>
           </div>
           <button onClick={onBack} className="absolute top-3 right-3 w-8 h-8 bg-black/40 backdrop-blur rounded-lg flex items-center justify-center"><ArrowLeft className="w-4 h-4 text-white" /></button>
         </div>
       ) : (
         <div className="flex items-center gap-3">
-          <button onClick={onBack} className="w-8 h-8 bg-slate-900 border border-slate-800 rounded-lg flex items-center justify-center"><ArrowLeft className="w-4 h-4 text-slate-400" /></button>
-          <div><p className="text-lg font-extrabold text-slate-100">{dialogue.title}</p><p className="text-[11px] text-slate-500">{dialogue.situation}</p></div>
+          <button onClick={onBack} className="w-8 h-8 bg-slate-900 border border-slate-800 rounded-lg flex items-center justify-center"><ArrowLeft className="w-4 h-4 text-slate-200" /></button>
+          <div><p className="text-lg font-extrabold text-slate-100">{dialogue.title}</p><p className="text-[11px] text-slate-300">{dialogue.situation}</p></div>
         </div>
       )}
 
       {/* Controls */}
       <div className="flex items-center gap-2">
         <div className="flex gap-0.5 flex-1">{dialogue.lines.map(l => <div key={l.id} className={`h-1 flex-1 rounded-full ${fbs[l.id] ? fbs[l.id].score >= 80 ? 'bg-emerald-500' : fbs[l.id].score >= 60 ? 'bg-teal-400' : 'bg-red-400' : listened.includes(l.id) ? 'bg-blue-500/40' : isStu(l) ? 'bg-cyan-500/20' : 'bg-slate-800'}`} />)}</div>
-        <button onClick={() => setVocab(!vocab)} className={`flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold transition ${vocab ? 'bg-cyan-500 text-white' : 'bg-slate-900 text-slate-500 border border-slate-800 hover:text-slate-300'}`}><BookOpen className="w-3 h-3" />Vocab</button>
+        <button onClick={() => setVocab(!vocab)} className={`flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold transition ${vocab ? 'bg-cyan-500 text-white' : 'bg-slate-900 text-slate-300 border border-slate-800 hover:text-slate-300'}`}><BookOpen className="w-3 h-3" />Vocab</button>
       </div>
 
       {vocab && vocabList.length > 0 && (
         <div className="bg-slate-900/60 rounded-xl p-3 border border-slate-800 grid grid-cols-1 sm:grid-cols-2 gap-1">
-          {vocabList.map((v, i) => <div key={i} className="flex items-center gap-2 text-[11px] bg-slate-800/50 rounded-md px-2.5 py-1.5"><span className="font-bold text-cyan-400">{v.word}</span><span className="text-slate-600">→</span><span className="text-slate-400">{v.translation}</span></div>)}
+          {vocabList.map((v, i) => <div key={i} className="flex items-center gap-2 text-[11px] bg-slate-800/50 rounded-md px-2.5 py-1.5"><span className="font-bold text-cyan-400">{v.word}</span><span className="text-slate-300">→</span><span className="text-slate-200">{v.translation}</span></div>)}
         </div>
       )}
 
@@ -94,18 +94,18 @@ export default function DialoguePractice({ dialogue, stats: _s, onBack, onComple
               <div className="px-3.5 py-2.5">
                 <div className="flex items-center justify-between mb-1">
                   <div className="flex items-center gap-1.5">
-                    <span className={`text-[10px] font-semibold ${stu ? 'text-blue-400' : 'text-slate-500'}`}>{stu ? '🎙️ Você' : l.speaker}</span>
+                    <span className={`text-[10px] font-semibold ${stu ? 'text-blue-400' : 'text-slate-300'}`}>{stu ? '🎙️ Você' : l.speaker}</span>
                     {fb && <span className={`text-[10px] font-bold ${scoreClr(fb.score)}`}>{fb.score}%</span>}
                   </div>
                   <div className="flex gap-1">
-                    <button onClick={() => speak(l)} disabled={!!speakingId} className={`w-6 h-6 rounded flex items-center justify-center ${spking ? 'bg-cyan-500 text-white animate-pulse' : 'text-slate-600 hover:text-slate-300 hover:bg-slate-800'}`}><Volume2 className="w-3.5 h-3.5" /></button>
+                    <button onClick={() => speak(l)} disabled={!!speakingId} className={`w-6 h-6 rounded flex items-center justify-center ${spking ? 'bg-cyan-500 text-white animate-pulse' : 'text-slate-300 hover:text-slate-300 hover:bg-slate-800'}`}><Volume2 className="w-3.5 h-3.5" /></button>
                     {stu && <button onClick={() => { setActive(isAct ? null : l); setCurFb(null); setTrans(''); setErr(''); setManual(false); setManTxt(''); }}
-                      className={`w-6 h-6 rounded flex items-center justify-center ${isAct ? 'bg-cyan-500 text-white' : 'text-cyan-500/60 hover:text-cyan-400 hover:bg-slate-800'}`}><Mic className="w-3.5 h-3.5" /></button>}
+                      className={`w-6 h-6 rounded flex items-center justify-center ${isAct ? 'bg-cyan-500 text-white' : 'text-cyan-300 hover:text-cyan-400 hover:bg-slate-800'}`}><Mic className="w-3.5 h-3.5" /></button>}
                   </div>
                 </div>
                 <p className="text-[13px] font-medium text-slate-200 leading-relaxed">{l.text}</p>
-                <p className="text-[11px] text-slate-600 mt-0.5">{l.translation}</p>
-                {l.pronunciationGuide && <p className="text-[10px] text-purple-400/50 font-mono mt-1">🔊 {l.pronunciationGuide}</p>}
+                <p className="text-[11px] text-slate-300 mt-0.5">{l.translation}</p>
+                {l.pronunciationGuide && <p className="text-[10px] text-purple-300 font-mono mt-1">🔊 {l.pronunciationGuide}</p>}
               </div>
 
               {isAct && stu && (
@@ -117,15 +117,15 @@ export default function DialoguePractice({ dialogue, stats: _s, onBack, onComple
                     {trans && !rec && <button onClick={() => evalSpoken()} disabled={evaluating} className="px-3 py-2 bg-emerald-600 text-white rounded-lg text-xs font-bold disabled:opacity-50 flex items-center gap-1">
                       {evaluating ? <RotateCcw className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}Avaliar</button>}
                   </div>
-                  <button onClick={() => setManual(!manual)} className="text-[10px] text-slate-600 hover:text-slate-400">⌨️ {manual ? 'Ocultar' : 'Digitar'}</button>
+                  <button onClick={() => setManual(!manual)} className="text-[10px] text-slate-300 hover:text-slate-200">⌨️ {manual ? 'Ocultar' : 'Digitar'}</button>
                   {manual && <div className="flex gap-1.5"><input value={manTxt} onChange={e => setManTxt(e.target.value)} placeholder="Type in English..." className="flex-1 px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-xs text-slate-200 outline-none focus:border-slate-700" onKeyDown={e => { if (e.key === 'Enter' && manTxt.trim()) { setTrans(manTxt); evalSpoken(manTxt); } }} /><button onClick={() => { if (manTxt.trim()) { setTrans(manTxt); evalSpoken(manTxt); } }} className="w-7 h-7 bg-cyan-500 text-white rounded-lg flex items-center justify-center"><Send className="w-3 h-3" /></button></div>}
-                  {trans && <div className="bg-slate-900/60 rounded-lg p-2 border border-slate-800"><p className="text-[10px] text-slate-500">Sua fala:</p><p className="text-xs text-slate-300">"{trans}"</p></div>}
+                  {trans && <div className="bg-slate-900/60 rounded-lg p-2 border border-slate-800"><p className="text-[10px] text-slate-300">Sua fala:</p><p className="text-xs text-slate-300">"{trans}"</p></div>}
                   {err && <p className="text-[10px] text-red-400">{err}</p>}
                   {curFb && (
                     <div className={`rounded-lg border p-2.5 space-y-1.5 ${curFb.score >= 80 ? 'bg-emerald-500/5 border-emerald-500/15' : curFb.score >= 60 ? 'bg-teal-500/5 border-teal-500/15' : 'bg-red-500/5 border-red-500/15'}`}>
                       <div className="flex items-center gap-1.5"><Star className={`w-4 h-4 ${scoreClr(curFb.score)}`} /><span className={`text-base font-extrabold ${scoreClr(curFb.score)}`}>{curFb.score}%</span></div>
                       <div className="flex flex-wrap gap-0.5">{curFb.words.map((w, i) => <span key={i} className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${w.isCorrect ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>{w.word}{w.isCorrect ? ' ✓' : ' ✗'}</span>)}</div>
-                      <p className="text-[11px] text-slate-500">{curFb.generalVerdict}</p>
+                      <p className="text-[11px] text-slate-300">{curFb.generalVerdict}</p>
                       <button onClick={() => { setCurFb(null); setTrans(''); setManTxt(''); }} className="text-[10px] text-cyan-400 font-semibold flex items-center gap-1"><RotateCcw className="w-2.5 h-2.5" />Repetir</button>
                     </div>
                   )}
