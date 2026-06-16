@@ -86,21 +86,60 @@ export default function SettingsView({ stats, dialogues, onImportDialogues, onDe
   const totalLines = dialogues.reduce((s, d) => s + d.lines.length, 0);
   const pct = dialogues.length > 0 ? Math.round((stats.completedDialogues.length / dialogues.length) * 100) : 0;
 
+  const [batchProg, setBatchProg] = useState<{ c: number; t: number; name: string } | null>(null);
+
   const handlePDF = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]; if (!file) return;
-    if (file.name.endsWith('.json') || file.type === 'application/json') { const r = new FileReader(); r.onload = ev => { setImportText(ev.target?.result as string || ''); setImportStatus('idle'); setPdfPreview(''); }; r.readAsText(file); return; }
-    if (file.name.endsWith('.pdf') || file.type === 'application/pdf') {
-      setParsing(true); setImportStatus('idle'); setImportMsg('');
-      try {
-        const txt = await extractPDF(file);
-        setPdfPreview(txt.substring(0, 800) + (txt.length > 800 ? '\n...' : ''));
-        const parsed = parseTextToDialogues(txt);
-        if (parsed.length > 0) { setImportText(JSON.stringify(parsed, null, 2)); setImportMsg(`✅ ${parsed.length} diálogo(s) extraído(s). Revise e confirme.`); setImportStatus('success'); }
-        else { setImportText(txt); setImportMsg(`⚠️ Texto extraído (${txt.length} chars). Edite para JSON e importe.`); setImportStatus('error'); }
-      } catch (err: any) { setImportMsg(`❌ ${err.message}`); setImportStatus('error'); }
-      setParsing(false); return;
+    const files = Array.from(e.target.files || []); if (!files.length) return;
+    setImportStatus('idle'); setImportMsg(''); setPdfPreview('');
+
+    // JSON / TXT path (one file at a time keeps it simple)
+    if (files.length === 1 && (files[0].name.endsWith('.json') || files[0].name.endsWith('.txt'))) {
+      const r = new FileReader();
+      r.onload = ev => { setImportText(ev.target?.result as string || ''); };
+      r.readAsText(files[0]);
+      e.target.value = ''; return;
     }
-    const r = new FileReader(); r.onload = ev => { setImportText(ev.target?.result as string || ''); setImportStatus('idle'); setPdfPreview(''); }; r.readAsText(file);
+
+    setParsing(true);
+    const all: Dialogue[] = []; const errors: string[] = [];
+    let firstPreview = '';
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      setBatchProg({ c: i + 1, t: files.length, name: file.name });
+      try {
+        if (file.name.endsWith('.json')) {
+          const txt = await file.text();
+          const parsed = JSON.parse(txt);
+          if (Array.isArray(parsed)) all.push(...parsed);
+          continue;
+        }
+        const txt = await extractPDF(file);
+        if (!firstPreview) firstPreview = txt.substring(0, 600) + (txt.length > 600 ? '\n...' : '');
+        const parsed = parseTextToDialogues(txt);
+        if (parsed.length) {
+          parsed.forEach((d, k) => { d.id = `pdf-${Date.now()}-${i}-${k}`; });
+          all.push(...parsed);
+        } else {
+          errors.push(`${file.name}: nenhum diálogo extraído`);
+        }
+      } catch (err: any) {
+        errors.push(`${file.name}: ${err.message}`);
+      }
+    }
+
+    setPdfPreview(firstPreview);
+    setParsing(false); setBatchProg(null);
+    e.target.value = '';
+
+    if (all.length) {
+      setImportText(JSON.stringify(all, null, 2));
+      setImportMsg(`✅ ${all.length} diálogo(s) extraído(s) de ${files.length} arquivo(s).${errors.length ? ` ${errors.length} com problema.` : ''} Revise e clique Importar.`);
+      setImportStatus('success');
+    } else {
+      setImportMsg(`❌ Nada extraído. ${errors.join(' • ')}`);
+      setImportStatus('error');
+    }
   };
 
   const handleImport = () => {
@@ -168,12 +207,12 @@ export default function SettingsView({ stats, dialogues, onImportDialogues, onDe
           <FileText className="w-4 h-4 text-cyan-400" />
           <Label>Importar Diálogos (PDF / JSON)</Label>
         </div>
-        <p className="text-[11px] text-slate-500 leading-relaxed">Faça upload de um <strong className="text-cyan-400">PDF</strong> com diálogos ou um <strong className="text-cyan-400">JSON</strong>. O texto do PDF é extraído e convertido automaticamente.</p>
+        <p className="text-[11px] text-slate-500 leading-relaxed">Selecione <strong className="text-cyan-400">vários PDFs de uma vez</strong> (segure Ctrl/Cmd) ou um JSON. Cada PDF é processado em sequência.</p>
 
         <div className="flex gap-2">
           <label className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold cursor-pointer transition border ${parsing ? 'bg-teal-500/10 text-teal-400 border-teal-500/20 animate-pulse' : 'bg-red-500/5 text-cyan-400 border-cyan-500/20 hover:bg-cyan-500/10'}`}>
-            <FileText className="w-3.5 h-3.5" />{parsing ? 'Processando...' : '📄 Upload PDF'}
-            <input type="file" accept=".pdf" onChange={handlePDF} className="hidden" disabled={parsing} />
+            <FileText className="w-3.5 h-3.5" />{parsing ? 'Processando...' : '📄 Upload PDFs (vários)'}
+            <input type="file" accept=".pdf" multiple onChange={handlePDF} className="hidden" disabled={parsing} />
           </label>
           <label className="flex items-center gap-1.5 px-3 py-2 bg-slate-800/60 text-slate-400 rounded-lg text-xs font-semibold cursor-pointer border border-slate-800 hover:text-slate-300">
             <Upload className="w-3 h-3" />JSON / TXT
@@ -181,7 +220,13 @@ export default function SettingsView({ stats, dialogues, onImportDialogues, onDe
           </label>
         </div>
 
-        {pdfPreview && <div><p className="text-[10px] text-slate-600 font-semibold mb-1">Texto extraído do PDF:</p><pre className="text-[10px] text-slate-500 bg-slate-950 rounded-lg p-2 max-h-24 overflow-y-auto font-mono border border-slate-800 whitespace-pre-wrap">{pdfPreview}</pre></div>}
+        {batchProg && (
+          <div className="text-[11px] text-cyan-300 bg-cyan-500/5 border border-cyan-500/15 rounded-lg p-2">
+            Processando {batchProg.c}/{batchProg.t} — <span className="font-mono text-cyan-400">{batchProg.name}</span>
+          </div>
+        )}
+
+        {pdfPreview && <div><p className="text-[10px] text-slate-600 font-semibold mb-1">Prévia (primeiro PDF):</p><pre className="text-[10px] text-slate-500 bg-slate-950 rounded-lg p-2 max-h-24 overflow-y-auto font-mono border border-slate-800 whitespace-pre-wrap">{pdfPreview}</pre></div>}
 
         <textarea value={importText} onChange={e => { setImportText(e.target.value); setImportStatus('idle'); }} placeholder="Cole JSON ou faça upload acima..." className="w-full h-24 px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-xs font-mono text-slate-400 resize-none outline-none focus:border-slate-700 placeholder:text-slate-700" />
         <button onClick={handleImport} disabled={!importText.trim() || parsing} className="flex items-center gap-1.5 px-4 py-2 bg-cyan-500 text-white rounded-lg text-xs font-bold disabled:opacity-30"><Sparkles className="w-3.5 h-3.5" />Importar</button>
