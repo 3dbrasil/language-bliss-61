@@ -157,7 +157,10 @@ export default function SettingsView({ stats, dialogues, onImportDialogues, onDe
       const usedImageUrls = new Set(dialogues.map(d => d.imageUrl).filter(Boolean) as string[]);
       for (let i = 0; i < all.length; i++) {
         const d = all[i];
-        if (d.imageUrl) return;
+        if (d.imageUrl) {
+          usedImageUrls.add(d.imageUrl);
+          continue;
+        }
         try {
           d.imageUrl = await findCoverImage(d.title, d.situation, d.id, [...usedImageUrls]);
           if (d.imageUrl) usedImageUrls.add(d.imageUrl);
