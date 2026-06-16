@@ -125,6 +125,16 @@ export function markLearned(text: string, learned = true) {
   return s;
 }
 
+export function setLevel(text: string, level: SrsLevel) {
+  const all = loadAll();
+  const id = hashId(text);
+  const s = all[id] || getState(text);
+  s.level = level;
+  all[id] = s;
+  saveAll(all);
+  return s;
+}
+
 export const LEVEL_META: Record<SrsLevel, { label: string; emoji: string; cls: string }> = {
   easy: { label: 'Fácil', emoji: '🟢', cls: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' },
   medium: { label: 'Médio', emoji: '🟡', cls: 'bg-amber-500/10 text-amber-400 border-amber-500/30' },

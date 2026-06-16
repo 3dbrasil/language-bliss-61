@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, Volume2, Mic, MicOff, Check, RotateCcw, Star, BookOpen, Award, Send, Sparkles, CheckCircle2 } from 'lucide-react';
 import { Dialogue, DialogueLine, PronunciationFeedback, UserStats } from '../types';
 import { speakAmericanEnglish, evaluatePronunciation } from '../utils/speech';
-import { classifyDifficulty, getState, markLearned, recordResult, LEVEL_META, speakerAvatar } from '../utils/srs';
+import { classifyDifficulty, getState, markLearned, recordResult, setLevel, speakerAvatar, type SrsLevel } from '../utils/srs';
 import AriaChat from './AriaChat';
 
 
@@ -136,8 +136,16 @@ export default function DialoguePractice({ dialogue, stats: _s, onBack, onComple
                       <div className={`w-6 h-6 rounded-full ${a.color} flex items-center justify-center text-white text-[10px] font-bold shrink-0`}>{a.initial}</div>
                     ); })()}
                     <span className={`text-[10px] font-semibold ${stu ? 'text-blue-400' : 'text-slate-300'} truncate`}>{stu ? '🎙️ Você' : l.speaker}</span>
-                    {(() => { const m = LEVEL_META[classifyDifficulty(l.text)]; return (
-                      <span className={`text-[9px] font-bold px-1 py-0.5 rounded border ${m.cls}`} title={`Dificuldade: ${m.label}`}>{m.emoji}</span>
+                    {(() => { const cur = getState(l.text).level || classifyDifficulty(l.text); void srsTick; const dots: { v: SrsLevel; c: string; t: string }[] = [
+                      { v: 'easy', c: 'bg-emerald-400', t: 'Fácil' },
+                      { v: 'medium', c: 'bg-amber-400', t: 'Médio' },
+                      { v: 'hard', c: 'bg-red-400', t: 'Difícil' },
+                    ]; return (
+                      <div className="flex items-center gap-1 ml-0.5">
+                        {dots.map(d => (
+                          <button key={d.v} title={d.t} onClick={(e) => { e.stopPropagation(); setLevel(l.text, d.v); setSrsTick(x => x + 1); }} className={`w-2.5 h-2.5 rounded-full ${d.c} transition ${cur === d.v ? 'ring-2 ring-white/70 scale-110' : 'opacity-30 hover:opacity-70'}`} />
+                        ))}
+                      </div>
                     ); })()}
                     {fb && <span className={`text-[10px] font-bold ${scoreClr(fb.score)}`}>{fb.score}%</span>}
                   </div>
