@@ -338,11 +338,23 @@ export default function SettingsView({ stats, dialogues, onImportDialogues, onDe
                       </div>
                       {showDel === d.id ? (
                         <div className="flex gap-1 shrink-0">
-                          <button onClick={() => { onDeleteDialogue(d.id); setShowDel(null); }} className="text-[10px] bg-red-500 text-white px-2 py-0.5 rounded font-bold">Remover</button>
-                          <button onClick={() => setShowDel(null)} className="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded font-bold">Cancelar</button>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              const y = window.scrollY;
+                              onDeleteDialogue(d.id);
+                              setShowDel(null);
+                              requestAnimationFrame(() => window.scrollTo({ top: y, left: 0, behavior: 'auto' }));
+                            }}
+                            className="text-[10px] bg-red-500 text-white px-2 py-0.5 rounded font-bold"
+                          >
+                            Remover
+                          </button>
+                          <button type="button" onClick={() => setShowDel(null)} className="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded font-bold">Cancelar</button>
                         </div>
                       ) : (
-                        <button onClick={() => setShowDel(d.id)} className="text-slate-700 hover:text-red-400 shrink-0 p-1" aria-label="Remover diálogo">
+                        <button type="button" onClick={() => setShowDel(d.id)} className="text-slate-700 hover:text-red-400 shrink-0 p-1" aria-label="Remover diálogo">
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       )}
