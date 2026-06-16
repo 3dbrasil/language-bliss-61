@@ -26,6 +26,7 @@ export default function DialoguePractice({ dialogue, stats: _s, onBack, onComple
   const coverImage = !isLikelyBrokenCoverImageUrl(dialogue.imageUrl) && dialogue.imageUrl
     ? dialogue.imageUrl
     : fallbackCoverImage(dialogue.title, dialogue.situation, dialogue.id);
+  const fallbackImage = fallbackCoverImage(dialogue.title, dialogue.situation, dialogue.id);
 
   const isStu = useCallback((l: DialogueLine) => /you|student/i.test(l.speaker), []);
   const missingTranslation = useCallback(
@@ -158,15 +159,17 @@ export default function DialoguePractice({ dialogue, stats: _s, onBack, onComple
     <div className="max-w-3xl mx-auto space-y-5 animate-fade-in pb-10 relative">
       {/* Hero */}
       {coverImage ? (
-        <div className="relative rounded-3xl overflow-hidden h-48">
+        <div
+          className="relative rounded-3xl overflow-hidden h-48 bg-cover bg-center"
+          style={{ backgroundImage: `url(${fallbackImage})` }}
+        >
           <img
             src={coverImage}
             alt=""
             loading="lazy"
             decoding="async"
             onError={(event) => {
-              const fallback = fallbackCoverImage(dialogue.title, dialogue.situation, dialogue.id);
-              if (event.currentTarget.src !== fallback) event.currentTarget.src = fallback;
+              event.currentTarget.style.display = 'none';
             }}
             className="w-full h-full object-cover"
           />
