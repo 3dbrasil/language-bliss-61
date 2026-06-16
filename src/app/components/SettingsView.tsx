@@ -87,6 +87,7 @@ export default function SettingsView({ stats, dialogues, onImportDialogues, onDe
   const pct = dialogues.length > 0 ? Math.round((stats.completedDialogues.length / dialogues.length) * 100) : 0;
 
   const [batchProg, setBatchProg] = useState<{ c: number; t: number; name: string } | null>(null);
+  const [uploadLevel, setUploadLevel] = useState<'auto' | 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2'>('auto');
 
   const handlePDF = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []); if (!files.length) return;
