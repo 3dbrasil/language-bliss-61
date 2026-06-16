@@ -7,6 +7,7 @@ export interface ApiConfig {
   unrealSpeechVoice: string;
   ttsProvider: 'browser' | 'unreal';
   pronunciationProvider: 'local' | 'gemini';
+  unsplashAccessKey: string;
 }
 
 const STORAGE_KEY = 'speak_native_api_config';
@@ -18,6 +19,7 @@ const DEFAULT_CONFIG: ApiConfig = {
   unrealSpeechVoice: 'Scarlett',
   ttsProvider: 'browser',
   pronunciationProvider: 'local',
+  unsplashAccessKey: '',
 };
 
 export function getApiConfig(): ApiConfig {
