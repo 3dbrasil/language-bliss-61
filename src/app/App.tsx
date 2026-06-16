@@ -6,6 +6,7 @@ import DuolingoMap from './components/DuolingoMap';
 import CumulativeArena from './components/CumulativeArena';
 import { Sparkles, Trophy } from 'lucide-react';
 import { preloadVoices } from './utils/speech';
+import { fallbackCoverImage, isLikelyBrokenCoverImageUrl } from './utils/imageSearch';
 
 const DialoguePractice = lazy(() => import('./components/DialoguePractice'));
 const SettingsView = lazy(() => import('./components/SettingsView'));
@@ -60,9 +61,12 @@ function normalizeImportedDialogue(dialogue: Partial<Dialogue> | null | undefine
     situation: typeof dialogue.situation === 'string' && dialogue.situation.trim() ? dialogue.situation.trim() : `${lines.length} falas`,
     level: isLevel(dialogue.level) ? dialogue.level : 'A1',
     order: typeof dialogue.order === 'number' && Number.isFinite(dialogue.order) ? dialogue.order : 1,
-    imageUrl: typeof dialogue.imageUrl === 'string' ? dialogue.imageUrl : undefined,
     lines,
   };
+  const importedImageUrl = typeof dialogue.imageUrl === 'string' && !isLikelyBrokenCoverImageUrl(dialogue.imageUrl)
+    ? dialogue.imageUrl
+    : fallbackCoverImage(safeDialogue.title, safeDialogue.situation, safeDialogue.id);
+  safeDialogue.imageUrl = importedImageUrl;
   const hasStudent = lines.some(l => /you|student/i.test(l.speaker));
   if (!hasStudent) {
     const speakers = Array.from(new Set(lines.map(l => l.speaker).filter(Boolean)));
