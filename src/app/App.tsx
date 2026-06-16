@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { defaultDialogues } from './data/defaultDialogues';
 import { Dialogue, UserStats, Level, Badge } from './types';
-import Sidebar from './components/Sidebar';
+import TopNav from './components/TopNav';
 import DuolingoMap from './components/DuolingoMap';
 import DialoguePractice from './components/DialoguePractice';
 import CumulativeArena from './components/CumulativeArena';
