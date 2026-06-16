@@ -7,8 +7,8 @@ interface Props { dialogues: Dialogue[]; stats: UserStats; onSelectDialogue: (d:
 const META: Record<Level, { name: string; gradient: string; icon: string; dot: string }> = {
   A1: { name: 'Iniciante', gradient: 'from-emerald-500 to-teal-500', icon: '🌱', dot: 'bg-emerald-500' },
   A2: { name: 'Urbano', gradient: 'from-teal-500 to-cyan-500', icon: '🏙️', dot: 'bg-teal-500' },
-  B1: { name: 'Prático', gradient: 'from-amber-500 to-orange-500', icon: '🩺', dot: 'bg-amber-500' },
-  B2: { name: 'Profissional', gradient: 'from-orange-500 to-red-500', icon: '💼', dot: 'bg-orange-500' },
+  B1: { name: 'Prático', gradient: 'from-teal-500 to-cyan-500', icon: '🩺', dot: 'bg-teal-500' },
+  B2: { name: 'Profissional', gradient: 'from-cyan-500 to-red-500', icon: '💼', dot: 'bg-cyan-500' },
   C1: { name: 'Avançado', gradient: 'from-rose-500 to-pink-500', icon: '📜', dot: 'bg-rose-500' },
   C2: { name: 'Expert', gradient: 'from-purple-500 to-violet-500', icon: '👑', dot: 'bg-purple-500' },
 };
@@ -41,14 +41,14 @@ export default function DuolingoMap({ dialogues, stats, onSelectDialogue }: Prop
     <div className="space-y-6 pb-16 animate-fade-in">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-extrabold text-zinc-100 tracking-tight">Suas Lições</h1>
+        <h1 className="text-2xl font-extrabold text-slate-100 tracking-tight">Suas Lições</h1>
         <div className="flex items-center gap-3 mt-2">
           <div className="flex-1 max-w-xs">
-            <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
-              <div className="h-full bg-gradient-to-r from-orange-500 to-amber-400 rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
+            <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
+              <div className="h-full bg-gradient-to-r from-cyan-500 to-teal-400 rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
             </div>
           </div>
-          <span className="text-xs text-zinc-500 font-semibold">{done}/{total} completas · {pct}%</span>
+          <span className="text-xs text-slate-500 font-semibold">{done}/{total} completas · {pct}%</span>
         </div>
       </div>
 
@@ -62,11 +62,11 @@ export default function DuolingoMap({ dialogues, stats, onSelectDialogue }: Prop
           return (
             <button key={l} onClick={() => setSel(l)}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap shrink-0 transition-all border ${
-                active ? `bg-gradient-to-r ${lm.gradient} text-white border-transparent shadow-md` : 'bg-zinc-900 text-zinc-400 border-zinc-800 hover:border-zinc-700 hover:text-zinc-300'
+                active ? `bg-gradient-to-r ${lm.gradient} text-white border-transparent shadow-md` : 'bg-slate-900 text-slate-400 border-slate-800 hover:border-slate-700 hover:text-slate-300'
               }`}>
               <span>{lm.icon}</span>
               <span>{l}</span>
-              <span className={`text-[9px] font-bold px-1 rounded ${active ? 'bg-white/20' : 'bg-zinc-800 text-zinc-500'}`}>{lc}/{ld.length}</span>
+              <span className={`text-[9px] font-bold px-1 rounded ${active ? 'bg-white/20' : 'bg-slate-800 text-slate-500'}`}>{lc}/{ld.length}</span>
             </button>
           );
         })}
@@ -75,8 +75,8 @@ export default function DuolingoMap({ dialogues, stats, onSelectDialogue }: Prop
       {/* Level info */}
       <div className="flex items-center gap-3">
         <div className={`w-2 h-2 rounded-full ${m.dot}`} />
-        <span className="text-sm font-bold text-zinc-300">{m.name}</span>
-        <span className="text-xs text-zinc-600">{doneInLvl}/{filtered.length} concluídas</span>
+        <span className="text-sm font-bold text-slate-300">{m.name}</span>
+        <span className="text-xs text-slate-600">{doneInLvl}/{filtered.length} concluídas</span>
       </div>
 
       {/* Cards */}
@@ -91,8 +91,8 @@ export default function DuolingoMap({ dialogues, stats, onSelectDialogue }: Prop
             <button key={d.id} onClick={() => unlocked && onSelectDialogue(d)} disabled={!unlocked}
               className={`w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all border group ${
                 completed ? 'bg-emerald-500/[0.06] border-emerald-500/20 hover:border-emerald-500/40'
-                : unlocked ? 'bg-zinc-900/60 border-zinc-800 hover:border-zinc-700 hover:bg-zinc-900 cursor-pointer'
-                : 'bg-zinc-950/50 border-zinc-900 opacity-40 cursor-not-allowed'
+                : unlocked ? 'bg-slate-900/60 border-slate-800 hover:border-slate-700 hover:bg-slate-900 cursor-pointer'
+                : 'bg-slate-950/50 border-slate-900 opacity-40 cursor-not-allowed'
               }`}>
 
               {/* Thumb */}
@@ -103,29 +103,29 @@ export default function DuolingoMap({ dialogues, stats, onSelectDialogue }: Prop
                 </div>
               ) : (
                 <div className={`w-11 h-11 rounded-lg flex items-center justify-center shrink-0 ${
-                  completed ? 'bg-emerald-500/10' : unlocked ? 'bg-zinc-800' : 'bg-zinc-900'}`}>
-                  {completed ? <CheckCircle2 className="w-4 h-4 text-emerald-400" /> : unlocked ? <Play className="w-4 h-4 text-zinc-500 ml-0.5" /> : <Lock className="w-4 h-4 text-zinc-700" />}
+                  completed ? 'bg-emerald-500/10' : unlocked ? 'bg-slate-800' : 'bg-slate-900'}`}>
+                  {completed ? <CheckCircle2 className="w-4 h-4 text-emerald-400" /> : unlocked ? <Play className="w-4 h-4 text-slate-500 ml-0.5" /> : <Lock className="w-4 h-4 text-slate-700" />}
                 </div>
               )}
 
               {/* Text */}
               <div className="flex-1 min-w-0">
-                <p className={`text-[13px] font-semibold leading-tight ${completed ? 'text-emerald-300' : unlocked ? 'text-zinc-200 group-hover:text-white' : 'text-zinc-600'}`}>{d.title}</p>
-                <p className="text-[11px] text-zinc-600 mt-0.5 line-clamp-1">{d.situation}</p>
+                <p className={`text-[13px] font-semibold leading-tight ${completed ? 'text-emerald-300' : unlocked ? 'text-slate-200 group-hover:text-white' : 'text-slate-600'}`}>{d.title}</p>
+                <p className="text-[11px] text-slate-600 mt-0.5 line-clamp-1">{d.situation}</p>
               </div>
 
               {/* Meta */}
               <div className="flex items-center gap-2 shrink-0">
                 {score !== undefined && (
                   <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                    score >= 80 ? 'bg-emerald-500/10 text-emerald-400' : score >= 60 ? 'bg-amber-500/10 text-amber-400' : 'bg-red-500/10 text-red-400'}`}>{score}%</span>
+                    score >= 80 ? 'bg-emerald-500/10 text-emerald-400' : score >= 60 ? 'bg-teal-500/10 text-teal-400' : 'bg-red-500/10 text-red-400'}`}>{score}%</span>
                 )}
-                <div className="flex items-center gap-1 text-zinc-600"><Volume2 className="w-3 h-3" /><span className="text-[10px]">{d.lines.length}</span></div>
+                <div className="flex items-center gap-1 text-slate-600"><Volume2 className="w-3 h-3" /><span className="text-[10px]">{d.lines.length}</span></div>
               </div>
             </button>
           );
         })}
-        {filtered.length === 0 && <p className="text-center text-sm text-zinc-600 py-10">Nenhuma lição neste nível. Importe via Configurações.</p>}
+        {filtered.length === 0 && <p className="text-center text-sm text-slate-600 py-10">Nenhuma lição neste nível. Importe via Configurações.</p>}
       </div>
     </div>
   );

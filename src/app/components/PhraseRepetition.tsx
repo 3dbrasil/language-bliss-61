@@ -37,24 +37,24 @@ export default function PhraseRepetition({ dialogues, completedDialogues, onAddX
   const evaluate = async (t?: string) => { if (!cur) return; const s = t || trans; if (!s.trim()) return; setEvaling(true); const f = await evaluatePronunciation(cur.text, s); setFb(f); setScore(p => p + f.score); setTotal(p => p + 1); if (f.score >= 70) onAddXp(5); setEvaling(false); };
   const next = () => { setIdx(p => (p + 1) % phrases.length); setFb(null); setTrans(''); setManTxt(''); setShowMan(false); };
 
-  if (!phrases.length) return <div className="text-center py-20 animate-fade-in"><Brain className="w-10 h-10 text-zinc-700 mx-auto" /><p className="text-sm text-zinc-500 mt-3">Complete lições para desbloquear repetição.</p></div>;
+  if (!phrases.length) return <div className="text-center py-20 animate-fade-in"><Brain className="w-10 h-10 text-slate-700 mx-auto" /><p className="text-sm text-slate-500 mt-3">Complete lições para desbloquear repetição.</p></div>;
 
   return (
     <div className="max-w-xl mx-auto space-y-5 animate-fade-in">
       <div>
-        <h1 className="text-2xl font-extrabold text-zinc-100">Repetição</h1>
-        <p className="text-xs text-zinc-500 mt-1">Frase {idx + 1} de {phrases.length} · Média: {total > 0 ? Math.round(score / total) : 0}%</p>
+        <h1 className="text-2xl font-extrabold text-slate-100">Repetição</h1>
+        <p className="text-xs text-slate-500 mt-1">Frase {idx + 1} de {phrases.length} · Média: {total > 0 ? Math.round(score / total) : 0}%</p>
       </div>
 
       {cur && (
-        <div className="bg-zinc-900/60 rounded-xl border border-zinc-800 overflow-hidden">
+        <div className="bg-slate-900/60 rounded-xl border border-slate-800 overflow-hidden">
           <div className="p-5 space-y-4">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] font-semibold text-zinc-500">{cur.level} · {cur.title}</span>
-              <button onClick={speak} disabled={spk} className={`w-8 h-8 rounded-lg flex items-center justify-center ${spk ? 'bg-purple-500 text-white animate-pulse' : 'bg-zinc-800 text-zinc-500 hover:text-white'}`}><Volume2 className="w-4 h-4" /></button>
+              <span className="text-[10px] font-semibold text-slate-500">{cur.level} · {cur.title}</span>
+              <button onClick={speak} disabled={spk} className={`w-8 h-8 rounded-lg flex items-center justify-center ${spk ? 'bg-purple-500 text-white animate-pulse' : 'bg-slate-800 text-slate-500 hover:text-white'}`}><Volume2 className="w-4 h-4" /></button>
             </div>
-            <p className="text-lg font-bold text-zinc-100 leading-relaxed">"{cur.text}"</p>
-            <p className="text-xs text-zinc-500">{cur.translation}</p>
+            <p className="text-lg font-bold text-slate-100 leading-relaxed">"{cur.text}"</p>
+            <p className="text-xs text-slate-500">{cur.translation}</p>
             {cur.pronunciationGuide && <p className="text-[10px] text-purple-400/40 font-mono">🔊 {cur.pronunciationGuide}</p>}
 
             <div className="flex gap-1.5">
@@ -63,20 +63,20 @@ export default function PhraseRepetition({ dialogues, completedDialogues, onAddX
               </button>
               {trans && !isRec && <button onClick={() => evaluate()} disabled={evaling} className="px-3 py-2.5 bg-emerald-600 text-white rounded-lg text-xs font-bold disabled:opacity-50 flex items-center gap-1">{evaling ? <RotateCcw className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}Avaliar</button>}
             </div>
-            <button onClick={() => setShowMan(!showMan)} className="text-[10px] text-zinc-600 hover:text-zinc-400">⌨️ {showMan ? 'Ocultar' : 'Digitar'}</button>
-            {showMan && <div className="flex gap-1.5"><input value={manTxt} onChange={e => setManTxt(e.target.value)} placeholder="Type..." className="flex-1 px-2.5 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-xs text-zinc-200 outline-none" onKeyDown={e => { if (e.key === 'Enter' && manTxt.trim()) { setTrans(manTxt); evaluate(manTxt); } }} /><button onClick={() => { if (manTxt.trim()) { setTrans(manTxt); evaluate(manTxt); } }} className="w-7 h-7 bg-purple-600 text-white rounded-lg flex items-center justify-center"><Send className="w-3 h-3" /></button></div>}
-            {trans && <div className="bg-zinc-800/50 rounded-lg p-2 border border-zinc-800"><p className="text-[10px] text-zinc-600">Você disse:</p><p className="text-xs text-zinc-300">"{trans}"</p></div>}
+            <button onClick={() => setShowMan(!showMan)} className="text-[10px] text-slate-600 hover:text-slate-400">⌨️ {showMan ? 'Ocultar' : 'Digitar'}</button>
+            {showMan && <div className="flex gap-1.5"><input value={manTxt} onChange={e => setManTxt(e.target.value)} placeholder="Type..." className="flex-1 px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-xs text-slate-200 outline-none" onKeyDown={e => { if (e.key === 'Enter' && manTxt.trim()) { setTrans(manTxt); evaluate(manTxt); } }} /><button onClick={() => { if (manTxt.trim()) { setTrans(manTxt); evaluate(manTxt); } }} className="w-7 h-7 bg-purple-600 text-white rounded-lg flex items-center justify-center"><Send className="w-3 h-3" /></button></div>}
+            {trans && <div className="bg-slate-800/50 rounded-lg p-2 border border-slate-800"><p className="text-[10px] text-slate-600">Você disse:</p><p className="text-xs text-slate-300">"{trans}"</p></div>}
             {fb && (
-              <div className={`rounded-lg border p-3 space-y-1.5 ${fb.score >= 80 ? 'bg-emerald-500/5 border-emerald-500/15' : fb.score >= 60 ? 'bg-amber-500/5 border-amber-500/15' : 'bg-red-500/5 border-red-500/15'}`}>
-                <span className={`text-xl font-extrabold ${fb.score >= 80 ? 'text-emerald-400' : fb.score >= 60 ? 'text-amber-400' : 'text-red-400'}`}>{fb.score}%</span>
+              <div className={`rounded-lg border p-3 space-y-1.5 ${fb.score >= 80 ? 'bg-emerald-500/5 border-emerald-500/15' : fb.score >= 60 ? 'bg-teal-500/5 border-teal-500/15' : 'bg-red-500/5 border-red-500/15'}`}>
+                <span className={`text-xl font-extrabold ${fb.score >= 80 ? 'text-emerald-400' : fb.score >= 60 ? 'text-teal-400' : 'text-red-400'}`}>{fb.score}%</span>
                 <div className="flex flex-wrap gap-0.5">{fb.words.map((w, i) => <span key={i} className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${w.isCorrect ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>{w.word}{w.isCorrect ? ' ✓' : ' ✗'}</span>)}</div>
-                <p className="text-[11px] text-zinc-500">{fb.generalVerdict}</p>
+                <p className="text-[11px] text-slate-500">{fb.generalVerdict}</p>
               </div>
             )}
           </div>
-          <div className="border-t border-zinc-800/60 px-5 py-3 flex justify-between">
-            <button onClick={() => { setFb(null); setTrans(''); setManTxt(''); }} className="text-[10px] text-zinc-600 hover:text-zinc-400 flex items-center gap-1"><RotateCcw className="w-2.5 h-2.5" />Repetir</button>
-            <button onClick={next} className="flex items-center gap-1 px-3 py-1.5 bg-zinc-800 text-zinc-300 rounded-lg text-xs font-semibold hover:bg-zinc-700">Próxima<ChevronRight className="w-3 h-3" /></button>
+          <div className="border-t border-slate-800/60 px-5 py-3 flex justify-between">
+            <button onClick={() => { setFb(null); setTrans(''); setManTxt(''); }} className="text-[10px] text-slate-600 hover:text-slate-400 flex items-center gap-1"><RotateCcw className="w-2.5 h-2.5" />Repetir</button>
+            <button onClick={next} className="flex items-center gap-1 px-3 py-1.5 bg-slate-800 text-slate-300 rounded-lg text-xs font-semibold hover:bg-slate-700">Próxima<ChevronRight className="w-3 h-3" /></button>
           </div>
         </div>
       )}

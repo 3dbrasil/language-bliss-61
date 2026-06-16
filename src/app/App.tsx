@@ -114,7 +114,7 @@ export default function App() {
   const curLvl: Level = stats.unlockedLevels.length > 0 ? stats.unlockedLevels[stats.unlockedLevels.length - 1] : 'A1';
 
   return (
-    <div className="flex min-h-screen bg-zinc-950">
+    <div className="flex min-h-screen bg-slate-950">
       <Sidebar stats={stats} activeTab={tab} setActiveTab={t => { setTab(t); setSelected(null); }} />
 
       <main className="flex-1 p-5 sm:p-7 lg:p-8 overflow-y-auto min-h-screen">
@@ -130,11 +130,11 @@ export default function App() {
 
       {showCeleb && celeb && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowCeleb(false)}>
-          <div className="bg-zinc-900 rounded-2xl p-6 max-w-xs w-full text-center space-y-4 border border-zinc-800 animate-fade-in" onClick={e => e.stopPropagation()}>
-            <div className="w-14 h-14 bg-gradient-to-br from-amber-400 to-orange-500 rounded-2xl flex items-center justify-center mx-auto shadow-lg shadow-orange-500/20"><Trophy className="w-7 h-7 text-white" /></div>
-            <div><h3 className="text-lg font-extrabold text-zinc-100">{celeb.title}</h3><p className="text-xs text-zinc-500 mt-0.5">{celeb.desc}</p></div>
-            <div className="bg-orange-500/10 rounded-xl p-3 border border-orange-500/15"><div className="flex items-center justify-center gap-1.5"><Sparkles className="w-3.5 h-3.5 text-orange-400" /><span className="text-xs font-bold text-orange-400">Você ganhou</span></div><p className="text-xl font-extrabold text-orange-400 mt-0.5">+{celeb.xp} XP</p></div>
-            <button onClick={() => setShowCeleb(false)} className="w-full bg-orange-500 text-white py-2 rounded-xl text-xs font-bold">Continuar</button>
+          <div className="bg-slate-900 rounded-2xl p-6 max-w-xs w-full text-center space-y-4 border border-slate-800 animate-fade-in" onClick={e => e.stopPropagation()}>
+            <div className="w-14 h-14 bg-gradient-to-br from-teal-400 to-cyan-500 rounded-2xl flex items-center justify-center mx-auto shadow-lg shadow-cyan-500/20"><Trophy className="w-7 h-7 text-white" /></div>
+            <div><h3 className="text-lg font-extrabold text-slate-100">{celeb.title}</h3><p className="text-xs text-slate-500 mt-0.5">{celeb.desc}</p></div>
+            <div className="bg-cyan-500/10 rounded-xl p-3 border border-cyan-500/15"><div className="flex items-center justify-center gap-1.5"><Sparkles className="w-3.5 h-3.5 text-cyan-400" /><span className="text-xs font-bold text-cyan-400">Você ganhou</span></div><p className="text-xl font-extrabold text-cyan-400 mt-0.5">+{celeb.xp} XP</p></div>
+            <button onClick={() => setShowCeleb(false)} className="w-full bg-cyan-500 text-white py-2 rounded-xl text-xs font-bold">Continuar</button>
           </div>
         </div>
       )}

@@ -386,7 +386,7 @@ export default function ManagerPanel({ stats, dialogues, onImportDialogues, onCl
         <div className="border-b border-[#2a2e3f] px-3 py-1.5 flex gap-1 shrink-0">
           {[{ id: 'chat', label: 'Chat', icon: MessageSquare }, { id: 'import', label: 'Importar', icon: FileText }, { id: 'tasks', label: 'Tarefas', icon: CheckCircle }].map(tab => (
             <button key={tab.id} onClick={() => setActiveSubTab(tab.id as any)} className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all ${
-              activeSubTab === tab.id ? 'bg-orange-500 text-white' : 'text-slate-500 hover:bg-[#1a1d2e]'}`}>
+              activeSubTab === tab.id ? 'bg-cyan-500 text-white' : 'text-slate-500 hover:bg-[#1a1d2e]'}`}>
               <tab.icon className="w-3 h-3" />{tab.label}
             </button>
           ))}
@@ -399,7 +399,7 @@ export default function ManagerPanel({ stats, dialogues, onImportDialogues, onCl
               {messages.map(msg => (
                 <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                   <div className={`max-w-[85%] px-3 py-2 text-xs leading-relaxed ${
-                    msg.role === 'user' ? 'bg-orange-500/20 text-orange-200 rounded-xl rounded-br-sm'
+                    msg.role === 'user' ? 'bg-cyan-500/20 text-orange-200 rounded-xl rounded-br-sm'
                     : msg.type === 'success' ? 'bg-emerald-500/10 border border-emerald-500/20 text-slate-300 rounded-xl rounded-bl-sm'
                     : 'bg-[#1a1d2e] border border-[#2a2e3f] text-slate-300 rounded-xl rounded-bl-sm'
                   }`}>
@@ -428,18 +428,18 @@ export default function ManagerPanel({ stats, dialogues, onImportDialogues, onCl
             <div className="p-3 space-y-3">
               <div className="bg-[#1a1d2e] rounded-xl p-4 border border-[#2a2e3f] space-y-3">
                 <div className="flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-orange-400" />
+                  <FileText className="w-4 h-4 text-cyan-400" />
                   <h3 className="font-black text-white text-xs">Importar Diálogos (PDF ou JSON)</h3>
                 </div>
                 <p className="text-[10px] text-slate-500 leading-relaxed">
-                  Faça upload de um <strong className="text-orange-400">PDF</strong> com seus diálogos ou um <strong className="text-orange-400">arquivo JSON</strong>. O Manager extrai o texto do PDF e tenta converter automaticamente.
+                  Faça upload de um <strong className="text-cyan-400">PDF</strong> com seus diálogos ou um <strong className="text-cyan-400">arquivo JSON</strong>. O Manager extrai o texto do PDF e tenta converter automaticamente.
                 </p>
 
                 <div className="flex gap-2 flex-wrap">
                   <label className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-bold cursor-pointer transition-all border ${
                     isParsing 
-                      ? 'bg-amber-500/20 text-amber-400 border-amber-500/30 animate-pulse cursor-wait'
-                      : 'bg-gradient-to-r from-red-500/20 to-orange-500/20 text-orange-300 border-orange-500/30 hover:from-red-500/30 hover:to-orange-500/30 hover:text-orange-200'
+                      ? 'bg-teal-500/20 text-teal-400 border-teal-500/30 animate-pulse cursor-wait'
+                      : 'bg-gradient-to-r from-red-500/20 to-cyan-500/20 text-cyan-300 border-cyan-500/30 hover:from-red-500/30 hover:to-cyan-500/30 hover:text-orange-200'
                   }`}>
                     <FileText className="w-4 h-4" />
                     {isParsing ? '⏳ Processando PDF...' : '📄 Upload PDF'}
@@ -453,7 +453,7 @@ export default function ManagerPanel({ stats, dialogues, onImportDialogues, onCl
                 </div>
 
                 {isParsing && (
-                  <div className="flex items-center gap-2 text-xs text-amber-400">
+                  <div className="flex items-center gap-2 text-xs text-teal-400">
                     <Sparkles className="w-3.5 h-3.5 animate-spin" />
                     Extraindo texto do PDF...
                   </div>
@@ -468,10 +468,10 @@ export default function ManagerPanel({ stats, dialogues, onImportDialogues, onCl
 
                 <textarea value={importText} onChange={e => { setImportText(e.target.value); setImportStatus('idle'); }}
                   placeholder="Cole JSON aqui ou faça upload de PDF acima..."
-                  className="w-full h-28 px-3 py-2 rounded-lg bg-[#0f1117] border border-[#2a2e3f] text-xs font-mono text-slate-300 resize-none focus:ring-1 focus:ring-orange-500/50 outline-none placeholder:text-slate-600" />
+                  className="w-full h-28 px-3 py-2 rounded-lg bg-[#0f1117] border border-[#2a2e3f] text-xs font-mono text-slate-300 resize-none focus:ring-1 focus:ring-cyan-500/50 outline-none placeholder:text-slate-600" />
 
                 <button onClick={handleImport} disabled={!importText.trim() || isParsing}
-                  className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-lg text-xs font-bold disabled:opacity-40 shadow-lg shadow-orange-500/20">
+                  className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-cyan-500 to-teal-500 text-white rounded-lg text-xs font-bold disabled:opacity-40 shadow-lg shadow-cyan-500/20">
                   <Sparkles className="w-3.5 h-3.5" />Verificar & Importar
                 </button>
 
@@ -484,10 +484,10 @@ export default function ManagerPanel({ stats, dialogues, onImportDialogues, onCl
                 )}
               </div>
 
-              <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3">
+              <div className="bg-teal-500/10 border border-teal-500/20 rounded-xl p-3">
                 <div className="flex items-center gap-1.5 mb-1.5">
-                  <ShieldAlert className="w-3.5 h-3.5 text-amber-400" />
-                  <span className="text-[10px] font-black text-amber-400">Formato JSON esperado</span>
+                  <ShieldAlert className="w-3.5 h-3.5 text-teal-400" />
+                  <span className="text-[10px] font-black text-teal-400">Formato JSON esperado</span>
                 </div>
                 <pre className="text-[9px] text-amber-300/70 font-mono bg-[#0f1117] rounded-lg p-2 overflow-x-auto">{`[{
   "id": "meu-dialogo",
@@ -510,9 +510,9 @@ export default function ManagerPanel({ stats, dialogues, onImportDialogues, onCl
             <div className="p-3 space-y-2">
               {tasks.map((task, i) => (
                 <div key={i} className={`flex items-center gap-2.5 p-2.5 rounded-lg border ${
-                  task.status === 'done' ? 'bg-emerald-500/10 border-emerald-500/20' : task.status === 'active' ? 'bg-[#1a1d2e] border-orange-500/20' : 'bg-[#161824] border-[#2a2e3f]'}`}>
+                  task.status === 'done' ? 'bg-emerald-500/10 border-emerald-500/20' : task.status === 'active' ? 'bg-[#1a1d2e] border-cyan-500/20' : 'bg-[#161824] border-[#2a2e3f]'}`}>
                   <div className={`w-6 h-6 rounded-md flex items-center justify-center shrink-0 ${
-                    task.status === 'done' ? 'bg-emerald-500' : task.status === 'active' ? 'bg-orange-500' : 'bg-[#2a2e3f]'}`}>
+                    task.status === 'done' ? 'bg-emerald-500' : task.status === 'active' ? 'bg-cyan-500' : 'bg-[#2a2e3f]'}`}>
                     {task.status === 'done' ? <CheckCircle className="w-3 h-3 text-white" /> : task.status === 'active' ? <Clock className="w-3 h-3 text-white" /> : <ChevronDown className="w-3 h-3 text-slate-500" />}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -538,9 +538,9 @@ export default function ManagerPanel({ stats, dialogues, onImportDialogues, onCl
           <div className="border-t border-[#2a2e3f] p-3 shrink-0">
             <div className="flex gap-1.5">
               <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') sendMessage(); }}
-                placeholder="Fale com o Manager..." className="flex-1 px-3 py-2 rounded-lg bg-[#1a1d2e] border border-[#2a2e3f] text-xs text-white focus:ring-1 focus:ring-orange-500/50 outline-none placeholder:text-slate-600" />
+                placeholder="Fale com o Manager..." className="flex-1 px-3 py-2 rounded-lg bg-[#1a1d2e] border border-[#2a2e3f] text-xs text-white focus:ring-1 focus:ring-cyan-500/50 outline-none placeholder:text-slate-600" />
               <button onClick={sendMessage} disabled={!input.trim() || isTyping}
-                className="w-8 h-8 bg-orange-500 text-white rounded-lg flex items-center justify-center disabled:opacity-40"><Send className="w-3.5 h-3.5" /></button>
+                className="w-8 h-8 bg-cyan-500 text-white rounded-lg flex items-center justify-center disabled:opacity-40"><Send className="w-3.5 h-3.5" /></button>
             </div>
           </div>
         )}
