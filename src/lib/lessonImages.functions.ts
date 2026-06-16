@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 const CoverImageInput = z.object({
   title: z.string().trim().min(1).max(180),
@@ -71,6 +72,7 @@ function unsplashUrl(photo: any): string | null {
 }
 
 export const getLessonCoverImage = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((input) => CoverImageInput.parse(input))
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
