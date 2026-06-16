@@ -83,6 +83,32 @@ function normalizeImportedDialogues(value: unknown): Dialogue[] {
   return value.map((dialogue) => normalizeImportedDialogue(dialogue as Partial<Dialogue>)).filter((dialogue): dialogue is Dialogue => Boolean(dialogue));
 }
 
+// Strip heavy fields (base64 data URLs) before persisting to avoid localStorage quota errors.
+function slimForStorage(dialogues: Dialogue[]): Dialogue[] {
+  return dialogues.map((d) => {
+    const copy: Dialogue = { ...d };
+    if (typeof copy.imageUrl === 'string' && copy.imageUrl.startsWith('data:')) {
+      delete (copy as Partial<Dialogue>).imageUrl;
+    }
+    return copy;
+  });
+}
+
+function safeSetCustom(custom: Dialogue[]): void {
+  const payload = JSON.stringify(slimForStorage(custom));
+  try {
+    localStorage.setItem('speak_native_custom_dialogues_v2', payload);
+  } catch (e) {
+    console.warn('localStorage quota exceeded; retrying without imageUrl.', e);
+    const stripped = JSON.stringify(custom.map(({ imageUrl: _img, ...rest }) => rest));
+    try {
+      localStorage.setItem('speak_native_custom_dialogues_v2', stripped);
+    } catch (e2) {
+      console.error('Failed to persist custom dialogues even after stripping images.', e2);
+    }
+  }
+}
+
 function LoadingPanel() {
   return (
     <div className="py-16 text-center text-sm text-slate-400 animate-pulse">
@@ -126,7 +152,7 @@ export default function App() {
     // Custom dialogues
     let custom: Dialogue[] = [];
     try { const c = localStorage.getItem('speak_native_custom_dialogues_v2'); if (c) custom = normalizeImportedDialogues(JSON.parse(c)); } catch (_) {}
-    localStorage.setItem('speak_native_custom_dialogues_v2', JSON.stringify(custom));
+    safeSetCustom(custom);
     let deleted: string[] = [];
     try { const d = localStorage.getItem('speak_native_deleted_dialogues_v2'); if (d) { const p = JSON.parse(d); if (Array.isArray(p)) deleted = p; } } catch (_) {}
     const ids = new Set(defaultDialogues.map(d => d.id));
@@ -145,7 +171,7 @@ export default function App() {
 
   const handleDelete = (id: string) => {
     let custom: Dialogue[] = []; try { const c = localStorage.getItem('speak_native_custom_dialogues_v2'); if (c) custom = normalizeImportedDialogues(JSON.parse(c)); } catch (_) {}
-    localStorage.setItem('speak_native_custom_dialogues_v2', JSON.stringify(custom.filter(d => d.id !== id)));
+    safeSetCustom(custom.filter(d => d.id !== id));
     let del: string[] = []; try { const d = localStorage.getItem('speak_native_deleted_dialogues_v2'); if (d) del = JSON.parse(d); } catch (_) {}
     if (!del.includes(id)) del.push(id);
     localStorage.setItem('speak_native_deleted_dialogues_v2', JSON.stringify(del));
@@ -157,7 +183,7 @@ export default function App() {
     let custom: Dialogue[] = []; try { const c = localStorage.getItem('speak_native_custom_dialogues_v2'); if (c) custom = normalizeImportedDialogues(JSON.parse(c)); } catch (_) {}
     const ids = new Set(custom.map(d => d.id));
     const updated = [...custom, ...normalized.filter(d => !ids.has(d.id))];
-    localStorage.setItem('speak_native_custom_dialogues_v2', JSON.stringify(updated));
+    safeSetCustom(updated);
     const allIds = new Set(dialogues.map(d => d.id));
     setDialogues(p => [...p, ...normalized.filter(d => !allIds.has(d.id))]);
   };
