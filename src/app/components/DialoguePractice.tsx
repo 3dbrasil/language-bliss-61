@@ -175,9 +175,9 @@ export default function DialoguePractice({ dialogue, stats: _s, onBack, onComple
                   <p className={`text-[15px] font-bold leading-relaxed tracking-wide ${stu ? 'text-white' : 'text-white'}`}>
                     {l.text}
                   </p>
-                  {l.translation && (
-                    <p onClick={() => blurPt && setBlurPt(false)} className={`text-[12px] text-slate-100/80 mt-1.5 italic transition ${blurPt ? 'blur-sm hover:blur-none cursor-pointer select-none' : ''}`}>{l.translation}</p>
-                  )}
+                  <p onClick={() => blurPt && setBlurPt(false)} className={`text-[12px] text-slate-100/80 mt-1.5 italic transition ${blurPt ? 'blur-sm hover:blur-none cursor-pointer select-none' : ''}`}>
+                    {l.translation || '••••• ••••• ••••• ••••• •••••'}
+                  </p>
                   {l.pronunciationGuide && <p className="text-[10px] text-white/40 font-mono mt-1">🔊 {l.pronunciationGuide}</p>}
 
                   {/* Play + learned buttons */}
