@@ -13,6 +13,19 @@ import { findCoverImage } from './utils/imageSearch';
 
 const INIT: UserStats = { xp: 0, streak: 1, lastActive: null, badges: [], completedDialogues: [], unlockedLevels: ['A1'], pronunciationAverages: {} };
 
+function imageIdentity(url: string): string {
+  try {
+    const parsed = new URL(url);
+    if (parsed.hostname.includes('images.unsplash.com') || parsed.hostname.includes('images.pexels.com')) {
+      return `${parsed.origin}${parsed.pathname}`;
+    }
+    parsed.searchParams.delete('ixid');
+    return parsed.toString();
+  } catch (_) {
+    return url;
+  }
+}
+
 export default function App() {
   const [dialogues, setDialogues] = useState<Dialogue[]>(defaultDialogues);
   const [stats, setStats] = useState<UserStats>(INIT);
@@ -64,20 +77,21 @@ export default function App() {
 
     for (const d of merged) {
       if (!d.imageUrl) continue;
-      if (seen.has(d.imageUrl)) {
+      const identity = imageIdentity(d.imageUrl);
+      if (seen.has(identity)) {
         const idx = fixedCustom.findIndex(c => c.id === d.id);
         if (idx >= 0) {
           try {
             const imageUrl = await findCoverImage(d.title, d.situation, d.id, [...avoid]);
             fixedCustom[idx] = { ...fixedCustom[idx], imageUrl };
-            avoid.add(imageUrl);
+            avoid.add(imageIdentity(imageUrl));
             changed = true;
           } catch (_) {}
         }
         continue;
       }
-      seen.add(d.imageUrl);
-      avoid.add(d.imageUrl);
+      seen.add(identity);
+      avoid.add(identity);
     }
 
     if (!changed) return;
