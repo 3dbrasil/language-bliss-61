@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Play, Lock, CheckCircle2, Volume2, ArrowRight, Lightbulb, Flame, Sparkles, Waves } from 'lucide-react';
 import { Dialogue, Level, UserStats } from '../types';
-import { findCoverImage } from '../utils/imageSearch';
+import { fallbackCoverImage, findCoverImage } from '../utils/imageSearch';
 import bannerImg from '@/assets/map-banner.jpg';
 import catConversation from '@/assets/cat-conversation.jpg';
 import catPronunciation from '@/assets/cat-pronunciation.jpg';
@@ -289,7 +289,7 @@ export default function DuolingoMap({ dialogues, stats, onSelectDialogue }: Prop
             const unlocked = isUnlocked(gIdx);
             const completed = stats.completedDialogues?.includes(d.id);
             const score = stats.pronunciationAverages?.[d.id];
-            const image = d.imageUrl || images[d.id];
+            const image = d.imageUrl || images[d.id] || fallbackCoverImage(d.title, d.situation, d.id);
             const lessonPct = completed ? 100 : score ?? 0;
 
             return (
