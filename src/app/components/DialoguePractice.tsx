@@ -7,22 +7,6 @@ import AriaChat from './AriaChat';
 
 interface Props { dialogue: Dialogue; stats: UserStats; onBack: () => void; onComplete: (xp: number, scores: Record<string, number>) => void; }
 
-/* Typewriter: types the line once, then stays static */
-function Typewriter({ text, speed = 22, onDone }: { text: string; speed?: number; onDone?: () => void }) {
-  const [n, setN] = useState(0);
-  useEffect(() => {
-    if (n >= text.length) { onDone?.(); return; }
-    const t = setTimeout(() => setN(n + 1), speed);
-    return () => clearTimeout(t);
-  }, [n, text, speed, onDone]);
-  return (
-    <span>
-      {text.slice(0, n)}
-      {n < text.length && <span className="inline-block w-[2px] h-[1em] align-middle bg-white/70 ml-0.5 animate-pulse" />}
-    </span>
-  );
-}
-
 export default function DialoguePractice({ dialogue, stats: _s, onBack, onComplete }: Props) {
   const [speakingId, setSpeakingId] = useState<string | null>(null);
   const [fbs] = useState<Record<string, PronunciationFeedback>>({});
@@ -32,22 +16,13 @@ export default function DialoguePractice({ dialogue, stats: _s, onBack, onComple
   const [aria, setAria] = useState(false);
   const [srsTick, setSrsTick] = useState(0);
   const [lvlFilter, setLvlFilter] = useState<'all' | SrsLevel>('all');
-  const [blurPt, setBlurPt] = useState(true);
-  const [typed, setTyped] = useState<Set<string>>(new Set());
-  const [revealIdx, setRevealIdx] = useState(0);
+  const [blurPt, setBlurPt] = useState(false);
   const [autoplay, setAutoplay] = useState(false);
   const [celebrate, setCelebrate] = useState(false);
 
   const isStu = (l: DialogueLine) => /you|student/i.test(l.speaker);
 
   const visibleLines = dialogue.lines.filter(l => lvlFilter === 'all' || (getState(l.text).level || classifyDifficulty(l.text)) === lvlFilter);
-
-  /* progressive reveal */
-  useEffect(() => {
-    if (revealIdx >= visibleLines.length) return;
-    const t = setTimeout(() => setRevealIdx(i => Math.min(i + 1, visibleLines.length)), 250);
-    return () => clearTimeout(t);
-  }, [revealIdx, visibleLines.length]);
 
   const speak = async (l: DialogueLine) => {
     if (speakingId) return;
@@ -123,7 +98,7 @@ export default function DialoguePractice({ dialogue, stats: _s, onBack, onComple
 
       {/* Controls */}
       <div className="flex flex-wrap items-center gap-2">
-        <div className="flex gap-0.5 flex-1 min-w-[120px]">{dialogue.lines.map((l, i) => <div key={l.id} className={`h-1 flex-1 rounded-full transition-all ${i < revealIdx ? (isStu(l) ? 'bg-[#2A7FFF]' : 'bg-[#00D4A0]') : 'bg-slate-800'}`} />)}</div>
+        <div className="flex gap-0.5 flex-1 min-w-[120px]">{dialogue.lines.map((l) => <div key={l.id} className={`h-1 flex-1 rounded-full ${isStu(l) ? 'bg-[#2A7FFF]' : 'bg-[#00D4A0]'}`} />)}</div>
         <button onClick={() => setAutoplay(a => !a)} className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold transition ${autoplay ? 'bg-[#2A7FFF] text-white' : 'bg-slate-900 text-slate-300 border border-slate-800'}`}>
           <Play className="w-3 h-3" />{autoplay ? 'Tocando…' : 'Auto-play'}
         </button>
@@ -159,7 +134,7 @@ export default function DialoguePractice({ dialogue, stats: _s, onBack, onComple
           { v: 'medium' as const, l: 'Médio', c: 'bg-amber-400' },
           { v: 'hard' as const, l: 'Difícil', c: 'bg-red-400' },
         ]).map(o => (
-          <button key={o.v} onClick={() => { setLvlFilter(o.v); setRevealIdx(0); }} className={`flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-lg transition ${lvlFilter === o.v ? 'bg-white/10 text-white' : 'text-slate-400 hover:text-slate-200'}`}>
+            <button key={o.v} onClick={() => setLvlFilter(o.v)} className={`flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-lg transition ${lvlFilter === o.v ? 'bg-white/10 text-white' : 'text-slate-400 hover:text-slate-200'}`}>
             <span className={`w-1.5 h-1.5 rounded-full ${o.c}`} />{o.l}
           </button>
         ))}
@@ -167,12 +142,11 @@ export default function DialoguePractice({ dialogue, stats: _s, onBack, onComple
 
       {/* Chat bubbles */}
       <div className="space-y-5 pt-2">
-        {visibleLines.slice(0, revealIdx).map((l) => {
+        {visibleLines.map((l) => {
           const stu = isStu(l);
           const avatar = speakerAvatar(l.speaker);
           const hue = stu ? studentHue : speakerHues[l.speaker] || speakerHues[Object.keys(speakerHues)[0]];
           const spking = speakingId === l.id;
-          const wasTyped = typed.has(l.id);
           const cur = getState(l.text).level || classifyDifficulty(l.text);
           void srsTick;
 
@@ -196,12 +170,12 @@ export default function DialoguePractice({ dialogue, stats: _s, onBack, onComple
                   </div>
                 </div>
 
-                <div className={`relative rounded-3xl px-5 py-3.5 bg-gradient-to-br ${hue.bg} border ${hue.border} ${hue.ring} backdrop-blur-md hover:shadow-[0_0_40px_-5px_rgba(42,127,255,0.4)] transition-all
+                <div className={`relative rounded-3xl px-5 py-3.5 bg-gradient-to-br ${hue.bg} border ${hue.border} ${hue.ring} backdrop-blur-sm transition-colors
                   ${stu ? 'rounded-br-md text-white' : 'rounded-bl-md text-slate-100'}`}>
                   <p className={`text-[15px] font-bold leading-relaxed tracking-wide ${stu ? 'text-white' : 'text-white'}`}>
-                    {wasTyped ? l.text : <Typewriter text={l.text} onDone={() => setTyped(t => new Set(t).add(l.id))} />}
+                    {l.text}
                   </p>
-                  <p onClick={() => blurPt && setBlurPt(false)} className={`text-[11.5px] text-slate-200/60 mt-1.5 italic transition ${blurPt ? 'blur-sm hover:blur-none cursor-pointer select-none' : ''}`}>{l.translation}</p>
+                  <p onClick={() => blurPt && setBlurPt(false)} className={`text-[12px] text-slate-100/80 mt-1.5 italic transition ${blurPt ? 'blur-sm hover:blur-none cursor-pointer select-none' : ''}`}>{l.translation || 'Tradução em português indisponível neste PDF.'}</p>
                   {l.pronunciationGuide && <p className="text-[10px] text-white/40 font-mono mt-1">🔊 {l.pronunciationGuide}</p>}
 
                   {/* Play + learned buttons */}
@@ -221,23 +195,10 @@ export default function DialoguePractice({ dialogue, stats: _s, onBack, onComple
           );
         })}
 
-        {/* Typing indicator */}
-        {revealIdx < visibleLines.length && (
-          <div className="flex items-end gap-2.5">
-            <div className="w-10 h-10 rounded-full bg-slate-800 animate-pulse" />
-            <div className="rounded-3xl rounded-bl-md px-5 py-4 bg-white/[0.04] border border-white/10">
-              <div className="flex gap-1">
-                <span className="w-2 h-2 rounded-full bg-white/50 animate-bounce" style={{ animationDelay: '0ms' }} />
-                <span className="w-2 h-2 rounded-full bg-white/50 animate-bounce" style={{ animationDelay: '150ms' }} />
-                <span className="w-2 h-2 rounded-full bg-white/50 animate-bounce" style={{ animationDelay: '300ms' }} />
-              </div>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Aria CTA — at the END of the lesson */}
-      {revealIdx >= visibleLines.length && (
+      {visibleLines.length > 0 && (
         <div className="space-y-3 pt-4 animate-fade-in">
           <button
             onClick={() => setAria(true)}
