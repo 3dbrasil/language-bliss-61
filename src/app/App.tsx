@@ -10,6 +10,7 @@ import PhraseRepetition from './components/PhraseRepetition';
 import { Sparkles, Trophy } from 'lucide-react';
 import { preloadVoices } from './utils/speech';
 import { findCoverImage } from './utils/imageSearch';
+import { fillMissingLineTranslations, hasMissingTranslations } from './utils/translations';
 
 const INIT: UserStats = { xp: 0, streak: 1, lastActive: null, badges: [], completedDialogues: [], unlockedLevels: ['A1'], pronunciationAverages: {} };
 
@@ -100,7 +101,19 @@ export default function App() {
     const merged = [...defaultDialogues, ...custom.filter(d => d?.id && !ids.has(d.id))].filter(d => d?.id && !deleted.includes(d.id));
     setDialogues(merged);
     repairRepeatedImages(merged, custom, deleted);
+    repairMissingTranslations(merged, custom, deleted);
   }, []);
+
+  const repairMissingTranslations = async (merged: Dialogue[], custom: Dialogue[], deleted: string[]) => {
+    if (!hasMissingTranslations(custom)) return;
+    const fixedCustom = await fillMissingLineTranslations(custom.map(normalizeImportedDialogue));
+    localStorage.setItem('speak_native_custom_dialogues_v2', JSON.stringify(fixedCustom));
+    const builtinIds = new Set(defaultDialogues.map(d => d.id));
+    const repaired = [...defaultDialogues, ...fixedCustom.filter(d => d?.id && !builtinIds.has(d.id))].filter(d => d?.id && !deleted.includes(d.id));
+    const currentSelectedId = selected?.id;
+    setDialogues(repaired);
+    if (currentSelectedId) setSelected(repaired.find(d => d.id === currentSelectedId) || null);
+  };
 
   const repairRepeatedImages = async (merged: Dialogue[], custom: Dialogue[], deleted: string[]) => {
     const seen = new Set<string>();
