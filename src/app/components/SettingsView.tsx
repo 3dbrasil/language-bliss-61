@@ -4,6 +4,7 @@ import { Dialogue, UserStats, Badge } from '../types';
 import { getApiConfig, saveApiConfig, ApiConfig } from '../utils/apiConfig';
 import { generateAllAudios } from '../utils/speech';
 import { findCoverImage } from '../utils/imageSearch';
+import { fillMissingLineTranslations } from '../utils/translations';
 
 interface Props { stats: UserStats; dialogues: Dialogue[]; onImportDialogues: (d: Dialogue[]) => void; onDeleteDialogue: (id: string) => void; onResetProgress: () => void; }
 
@@ -258,7 +259,7 @@ export default function SettingsView({ stats, dialogues, onImportDialogues, onDe
           const parsed = JSON.parse(txt);
           if (Array.isArray(parsed)) {
             if (uploadLevel !== 'auto') parsed.forEach((d: any) => { d.level = uploadLevel; });
-            all.push(...parsed);
+            all.push(...await fillMissingLineTranslations(parsed));
           }
           continue;
         }
@@ -270,7 +271,7 @@ export default function SettingsView({ stats, dialogues, onImportDialogues, onDe
             d.id = `pdf-${Date.now()}-${i}-${k}`;
             if (uploadLevel !== 'auto') d.level = uploadLevel;
           });
-          all.push(...parsed);
+          all.push(...await fillMissingLineTranslations(parsed));
         } else {
           errors.push(`${file.name}: nenhum diálogo extraído`);
         }
@@ -312,12 +313,13 @@ export default function SettingsView({ stats, dialogues, onImportDialogues, onDe
     }
   };
 
-  const handleImport = () => {
+  const handleImport = async () => {
     try {
       let parsed: Dialogue[];
       try { parsed = JSON.parse(importText); } catch (_) { parsed = parseTextToDialogues(importText); }
       if (!Array.isArray(parsed) || !parsed.length) throw new Error('Nenhum diálogo válido');
       parsed.forEach((d: any, i: number) => { if (!d.id) d.id = `imp-${Date.now()}-${i}`; if (!d.title) d.title = `Importado ${i + 1}`; if (!d.lines?.length) throw new Error(`"${d.title}" sem linhas`); if (!d.level) d.level = 'A1'; if (!d.order) d.order = i + 1; if (!d.situation) d.situation = `${d.lines.length} falas`; });
+      parsed = await fillMissingLineTranslations(parsed);
       onImportDialogues(parsed); setImportStatus('success'); setImportMsg(`✅ ${parsed.length} diálogo(s) importado(s)!`); setImportText(''); setPdfPreview('');
     } catch (e: any) { setImportStatus('error'); setImportMsg(`❌ ${e.message}`); }
   };
