@@ -176,7 +176,7 @@ export default function DialoguePractice({ dialogue, stats: _s, onBack, onComple
                   </div>
                 </div>
                 <p className="text-[13px] font-medium text-slate-200 leading-relaxed">{l.text}</p>
-                <p className="text-[11px] text-slate-300 mt-0.5">{l.translation}</p>
+                <p onClick={() => blurPt && setBlurPt(false)} className={`text-[11px] text-slate-300 mt-0.5 transition ${blurPt ? 'blur-sm hover:blur-none cursor-pointer select-none' : ''}`}>{l.translation}</p>
                 {l.pronunciationGuide && <p className="text-[10px] text-purple-300 font-mono mt-1">🔊 {l.pronunciationGuide}</p>}
               </div>
             </div>
