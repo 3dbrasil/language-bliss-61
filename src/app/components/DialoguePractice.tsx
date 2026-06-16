@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { ArrowLeft, Volume2, BookOpen, Award, Sparkles, CheckCircle2, Play } from 'lucide-react';
 import { Dialogue, DialogueLine, PronunciationFeedback, UserStats } from '../types';
 import { speakAmericanEnglish } from '../utils/speech';
-import { fallbackCoverImage } from '../utils/imageSearch';
+import { fallbackCoverImage, isLikelyBrokenCoverImageUrl } from '../utils/imageSearch';
 import { classifyDifficulty, getState, markLearned, setLevel, speakerAvatar, type SrsLevel } from '../utils/srs';
 import AriaChat from './AriaChat';
 import { translateLessonLines } from '@/lib/translations.functions';
@@ -23,7 +23,9 @@ export default function DialoguePractice({ dialogue, stats: _s, onBack, onComple
   const [celebrate, setCelebrate] = useState(false);
   const [generatedTranslations, setGeneratedTranslations] = useState<Record<string, string>>({});
   const [visibleCount, setVisibleCount] = useState(80);
-  const coverImage = dialogue.imageUrl || fallbackCoverImage(dialogue.title, dialogue.situation, dialogue.id);
+  const coverImage = !isLikelyBrokenCoverImageUrl(dialogue.imageUrl) && dialogue.imageUrl
+    ? dialogue.imageUrl
+    : fallbackCoverImage(dialogue.title, dialogue.situation, dialogue.id);
 
   const isStu = useCallback((l: DialogueLine) => /you|student/i.test(l.speaker), []);
   const missingTranslation = useCallback(
@@ -157,7 +159,17 @@ export default function DialoguePractice({ dialogue, stats: _s, onBack, onComple
       {/* Hero */}
       {coverImage ? (
         <div className="relative rounded-3xl overflow-hidden h-48">
-          <img src={coverImage} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />
+          <img
+            src={coverImage}
+            alt=""
+            loading="lazy"
+            decoding="async"
+            onError={(event) => {
+              const fallback = fallbackCoverImage(dialogue.title, dialogue.situation, dialogue.id);
+              if (event.currentTarget.src !== fallback) event.currentTarget.src = fallback;
+            }}
+            className="w-full h-full object-cover"
+          />
           <div className="absolute inset-0 bg-gradient-to-t from-[#0B0E17] via-[#0B0E17]/60 to-transparent" />
           <div className="absolute inset-0 flex flex-col justify-end p-6">
             <span className="text-[10px] font-bold text-slate-200 uppercase tracking-[0.2em]">{dialogue.level}</span>
