@@ -9,16 +9,46 @@ const CoverImageInput = z.object({
 });
 
 const CURATED_PHOTO_COVERS = [
-  { test: /coffee|cafe|cafeteria|barista|latte|espresso/i, url: "https://images.pexels.com/photos/19373865/pexels-photo-19373865.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=500&w=900" },
-  { test: /work|office|job|interview|empresa|trabalho|co-?worker|startup/i, url: "https://images.pexels.com/photos/5439153/pexels-photo-5439153.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=500&w=900" },
-  { test: /grocery|store|market|supermercado|compras|ingredients|pasta/i, url: "https://images.pexels.com/photos/9705821/pexels-photo-9705821.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=500&w=900" },
-  { test: /directions|subway|city|street|cidade|rua|metro|station/i, url: "https://images.pexels.com/photos/17758034/pexels-photo-17758034.png?auto=compress&cs=tinysrgb&fit=crop&h=500&w=900" },
-  { test: /restaurant|waiter|dinner|jantar|garcom|pedido|menu/i, url: "https://images.pexels.com/photos/370984/pexels-photo-370984.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=500&w=900" },
-  { test: /doctor|medical|clinic|hospital|medico|consulta|symptoms/i, url: "https://images.pexels.com/photos/7579823/pexels-photo-7579823.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=500&w=900" },
-  { test: /business|negotiation|contract|client|corporate|negociando/i, url: "https://images.pexels.com/photos/7433853/pexels-photo-7433853.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=500&w=900" },
-  { test: /academic|debate|university|education|intelligence|educacao/i, url: "https://images.pexels.com/photos/8199151/pexels-photo-8199151.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=500&w=900" },
-  { test: /travel|airport|hotel|trip|viagem|aeroporto/i, url: "https://images.pexels.com/photos/3769138/pexels-photo-3769138.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=500&w=900" },
-  { test: /conversation|people|friend|meeting|dialogue|english|aula|lesson/i, url: "https://images.pexels.com/photos/3184465/pexels-photo-3184465.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=500&w=900" },
+  {
+    test: /coffee|cafe|cafeteria|barista|latte|espresso/i,
+    url: "https://images.pexels.com/photos/19373865/pexels-photo-19373865.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=500&w=900",
+  },
+  {
+    test: /work|office|job|interview|empresa|trabalho|co-?worker|startup/i,
+    url: "https://images.pexels.com/photos/5439153/pexels-photo-5439153.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=500&w=900",
+  },
+  {
+    test: /grocery|store|market|supermercado|compras|ingredients|pasta/i,
+    url: "https://images.pexels.com/photos/9705821/pexels-photo-9705821.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=500&w=900",
+  },
+  {
+    test: /directions|subway|city|street|cidade|rua|metro|station/i,
+    url: "https://images.pexels.com/photos/17758034/pexels-photo-17758034.png?auto=compress&cs=tinysrgb&fit=crop&h=500&w=900",
+  },
+  {
+    test: /restaurant|waiter|dinner|jantar|garcom|pedido|menu/i,
+    url: "https://images.pexels.com/photos/370984/pexels-photo-370984.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=500&w=900",
+  },
+  {
+    test: /doctor|medical|clinic|hospital|medico|consulta|symptoms/i,
+    url: "https://images.pexels.com/photos/7579823/pexels-photo-7579823.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=500&w=900",
+  },
+  {
+    test: /business|negotiation|contract|client|corporate|negociando/i,
+    url: "https://images.pexels.com/photos/7433853/pexels-photo-7433853.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=500&w=900",
+  },
+  {
+    test: /academic|debate|university|education|intelligence|educacao/i,
+    url: "https://images.pexels.com/photos/8199151/pexels-photo-8199151.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=500&w=900",
+  },
+  {
+    test: /travel|airport|hotel|trip|viagem|aeroporto/i,
+    url: "https://images.pexels.com/photos/3769138/pexels-photo-3769138.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=500&w=900",
+  },
+  {
+    test: /conversation|people|friend|meeting|dialogue|english|aula|lesson/i,
+    url: "https://images.pexels.com/photos/3184465/pexels-photo-3184465.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=500&w=900",
+  },
 ];
 
 function hash(value: string): number {
@@ -64,10 +94,19 @@ function imageIdentity(url: string): string {
 }
 
 function isBadStoredImage(url?: string | null): boolean {
-  return !url || /picsum\.photos|loremflickr\.com|placeholder|undefined|null|data:image\/svg\+xml/i.test(url.replace(/\\/g, ""));
+  return (
+    !url ||
+    /picsum\.photos|loremflickr\.com|placeholder|undefined|null|data:image\/svg\+xml/i.test(
+      url.replace(/\\/g, ""),
+    )
+  );
 }
 
-function curatedFallbackUrl(title: string, situation?: string | null, lessonId?: string | null): string {
+function curatedFallbackUrl(
+  title: string,
+  situation?: string | null,
+  lessonId?: string | null,
+): string {
   const haystack = `${title} ${situation ?? ""}`;
   const matched = CURATED_PHOTO_COVERS.find((cover) => cover.test.test(haystack));
   if (matched) return matched.url;
