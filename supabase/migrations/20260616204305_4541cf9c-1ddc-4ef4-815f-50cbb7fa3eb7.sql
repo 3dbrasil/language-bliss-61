@@ -1,0 +1,2 @@
+CREATE POLICY "users update own messages" ON public.ai_messages FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "users delete own messages" ON public.ai_messages FOR DELETE TO authenticated USING (auth.uid() = user_id);
