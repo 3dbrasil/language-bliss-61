@@ -137,6 +137,44 @@ export default function PhraseRepetition({ dialogues, completedDialogues, onAddX
     { v: 'hard', c: 'bg-red-400', t: 'Difícil' },
   ];
 
+  if (!started) return (
+    <div className="max-w-xl mx-auto space-y-5 animate-fade-in">
+      <div>
+        <h1 className="text-2xl font-extrabold text-slate-100">Repetições do dia</h1>
+        <p className="text-xs text-slate-300 mt-1">A revisão só começa quando você tocar em iniciar.</p>
+      </div>
+      <div className="bg-slate-900/60 rounded-2xl border border-slate-800 p-8 text-center space-y-4">
+        <Brain className="w-10 h-10 text-cyan-400 mx-auto" />
+        <div>
+          <p className="text-sm font-bold text-slate-100">Preparar prática</p>
+          <p className="text-xs text-slate-400 mt-1">Nenhum áudio vai tocar automaticamente.</p>
+        </div>
+        <button onClick={() => setStarted(true)} className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-cyan-500 text-white text-sm font-bold hover:bg-cyan-600 transition">
+          <Volume2 className="w-4 h-4" /> Iniciar prática
+        </button>
+      </div>
+    </div>
+  );
+
+  if (preparing) return (
+    <div className="max-w-xl mx-auto space-y-5 animate-fade-in">
+      <h1 className="text-2xl font-extrabold text-slate-100">Repetições do dia</h1>
+      <div className="bg-slate-900/60 rounded-2xl border border-slate-800 p-8 text-center text-sm text-slate-300 animate-pulse">
+        Preparando frases…
+      </div>
+    </div>
+  );
+
+  if (!phrases.length) return (
+    <div className="text-center py-20 animate-fade-in">
+      <Brain className="w-10 h-10 text-slate-200 mx-auto" />
+      <p className="text-sm text-slate-300 mt-3">Nenhuma frase encontrada para este filtro.</p>
+      <button onClick={() => setStarted(false)} className="mt-4 px-4 py-2 rounded-lg bg-slate-900 border border-slate-800 text-xs font-bold text-slate-300">
+        Voltar
+      </button>
+    </div>
+  );
+
   return (
     <div className="max-w-xl mx-auto space-y-5 animate-fade-in">
       <div>
