@@ -14,13 +14,188 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      ai_messages: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          parts: Json | null
+          role: string
+          thread_id: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          parts?: Json | null
+          role: string
+          thread_id: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          parts?: Json | null
+          role?: string
+          thread_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_messages_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "ai_threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_phrases: {
+        Row: {
+          cefr: string | null
+          created_at: string
+          embedding: string | null
+          id: string
+          last_seen_at: string
+          lesson_id: string | null
+          mastery: number
+          register: string | null
+          seen_count: number
+          tags: string[] | null
+          text: string
+          translation: string | null
+          user_id: string
+        }
+        Insert: {
+          cefr?: string | null
+          created_at?: string
+          embedding?: string | null
+          id?: string
+          last_seen_at?: string
+          lesson_id?: string | null
+          mastery?: number
+          register?: string | null
+          seen_count?: number
+          tags?: string[] | null
+          text: string
+          translation?: string | null
+          user_id: string
+        }
+        Update: {
+          cefr?: string | null
+          created_at?: string
+          embedding?: string | null
+          id?: string
+          last_seen_at?: string
+          lesson_id?: string | null
+          mastery?: number
+          register?: string | null
+          seen_count?: number
+          tags?: string[] | null
+          text?: string
+          translation?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      ai_threads: {
+        Row: {
+          created_at: string
+          id: string
+          lesson_id: string | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          lesson_id?: string | null
+          title?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          lesson_id?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      ai_topic_proficiency: {
+        Row: {
+          cefr: string
+          topic: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cefr?: string
+          topic: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cefr?: string
+          topic?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          cefr_target: string
+          created_at: string
+          display_name: string | null
+          id: string
+          register: string
+          updated_at: string
+        }
+        Insert: {
+          cefr_target?: string
+          created_at?: string
+          display_name?: string | null
+          id: string
+          register?: string
+          updated_at?: string
+        }
+        Update: {
+          cefr_target?: string
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          register?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      match_phrases: {
+        Args: {
+          match_count?: number
+          match_user_id: string
+          min_similarity?: number
+          query_embedding: string
+        }
+        Returns: {
+          cefr: string
+          id: string
+          similarity: number
+          tags: string[]
+          text: string
+          translation: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
