@@ -34,7 +34,7 @@ export default function PhraseRepetition({ dialogues, completedDialogues, onAddX
   }, []);
 
   const cur = phrases[idx];
-  const speak = async () => { if (!cur || spk) return; setSpk(true); try { await speakAmericanEnglish(cur.text); } catch (_) { } setSpk(false); };
+  const speak = async () => { if (!cur || spk) return; setSpk(true); try { await speakAmericanEnglish(cur.text, undefined, rate); } catch (_) { } setSpk(false); };
   const toggleRec = () => { if (!recRef.current) { setShowMan(true); return; } if (isRec) recRef.current.stop(); else { setTrans(''); setFb(null); try { recRef.current.start(); } catch (_) { } } };
   const evaluate = async (t?: string) => { if (!cur) return; const s = t || trans; if (!s.trim()) return; setEvaling(true); const f = await evaluatePronunciation(cur.text, s); setFb(f); setScore(p => p + f.score); setTotal(p => p + 1); if (f.score >= 70) onAddXp(5); setEvaling(false); };
   const next = () => { setIdx(p => (p + 1) % phrases.length); setFb(null); setTrans(''); setManTxt(''); setShowMan(false); };
