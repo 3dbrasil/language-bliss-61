@@ -25,6 +25,7 @@ export default function DialoguePractice({ dialogue, stats: _s, onBack, onComple
   const [aria, setAria] = useState(false);
   const [srsTick, setSrsTick] = useState(0);
   const [lvlFilter, setLvlFilter] = useState<'all' | SrsLevel>('all');
+  const [blurPt, setBlurPt] = useState(true);
 
 
   const recRef = useRef<any>(null);
@@ -131,6 +132,9 @@ export default function DialoguePractice({ dialogue, stats: _s, onBack, onComple
             <span className={`w-1.5 h-1.5 rounded-full ${o.c}`} />{o.l}
           </button>
         ))}
+        <button onClick={() => setBlurPt(b => !b)} className={`ml-1 text-[10px] font-bold px-2 py-0.5 rounded transition ${blurPt ? 'bg-purple-500/20 text-purple-300' : 'text-slate-400 hover:text-slate-200'}`} title="Embaçar traduções">
+          {blurPt ? '👁️‍🗨️ PT oculto' : '👁️ PT visível'}
+        </button>
       </div>
 
       {/* Lines */}
@@ -172,7 +176,7 @@ export default function DialoguePractice({ dialogue, stats: _s, onBack, onComple
                   </div>
                 </div>
                 <p className="text-[13px] font-medium text-slate-200 leading-relaxed">{l.text}</p>
-                <p className="text-[11px] text-slate-300 mt-0.5">{l.translation}</p>
+                <p onClick={() => blurPt && setBlurPt(false)} className={`text-[11px] text-slate-300 mt-0.5 transition ${blurPt ? 'blur-sm hover:blur-none cursor-pointer select-none' : ''}`}>{l.translation}</p>
                 {l.pronunciationGuide && <p className="text-[10px] text-purple-300 font-mono mt-1">🔊 {l.pronunciationGuide}</p>}
               </div>
             </div>
