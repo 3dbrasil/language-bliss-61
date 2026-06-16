@@ -1,45 +1,59 @@
 import { getLessonCoverImage } from "@/lib/lessonImages.functions";
+import coffeeShopCover from "@/assets/lesson-covers/coffee-shop.jpg";
+import firstDayWorkCover from "@/assets/lesson-covers/first-day-work.jpg";
+import groceryStoreCover from "@/assets/lesson-covers/grocery-store.jpg";
+import cityDirectionsCover from "@/assets/lesson-covers/city-directions.jpg";
+import restaurantOrderCover from "@/assets/lesson-covers/restaurant-order.jpg";
+import doctorOfficeCover from "@/assets/lesson-covers/doctor-office.jpg";
+import jobInterviewCover from "@/assets/lesson-covers/job-interview.jpg";
+import businessNegotiationCover from "@/assets/lesson-covers/business-negotiation.jpg";
+import academicDebateCover from "@/assets/lesson-covers/academic-debate.jpg";
+import travelConversationCover from "@/assets/lesson-covers/travel-conversation.jpg";
 
 const PHOTO_COVERS = [
   {
     test: /coffee|cafe|cafeteria|barista|latte|espresso/i,
-    url: "https://images.pexels.com/photos/19373865/pexels-photo-19373865.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=500&w=900",
+    url: coffeeShopCover,
   },
   {
     test: /work|office|job|interview|empresa|trabalho|co-?worker|startup/i,
-    url: "https://images.pexels.com/photos/5439153/pexels-photo-5439153.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=500&w=900",
+    url: firstDayWorkCover,
   },
   {
     test: /grocery|store|market|supermercado|compras|ingredients|pasta/i,
-    url: "https://images.pexels.com/photos/9705821/pexels-photo-9705821.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=500&w=900",
+    url: groceryStoreCover,
   },
   {
     test: /directions|subway|city|street|cidade|rua|metro|station/i,
-    url: "https://images.pexels.com/photos/17758034/pexels-photo-17758034.png?auto=compress&cs=tinysrgb&fit=crop&h=500&w=900",
+    url: cityDirectionsCover,
   },
   {
     test: /restaurant|waiter|dinner|jantar|garcom|pedido|menu/i,
-    url: "https://images.pexels.com/photos/370984/pexels-photo-370984.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=500&w=900",
+    url: restaurantOrderCover,
   },
   {
     test: /doctor|medical|clinic|hospital|medico|consulta|symptoms/i,
-    url: "https://images.pexels.com/photos/7579823/pexels-photo-7579823.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=500&w=900",
+    url: doctorOfficeCover,
   },
   {
-    test: /business|negotiation|contract|client|corporate|negociando/i,
-    url: "https://images.pexels.com/photos/7433853/pexels-photo-7433853.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=500&w=900",
+    test: /job|interview|startup|entrevista|developer|desenvolvedor/i,
+    url: jobInterviewCover,
+  },
+  {
+    test: /business|negotiation|contract|client|corporate|negociando|proposal/i,
+    url: businessNegotiationCover,
   },
   {
     test: /academic|debate|university|education|intelligence|educacao/i,
-    url: "https://images.pexels.com/photos/8199151/pexels-photo-8199151.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=500&w=900",
+    url: academicDebateCover,
   },
   {
     test: /travel|airport|hotel|trip|viagem|aeroporto/i,
-    url: "https://images.pexels.com/photos/3769138/pexels-photo-3769138.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=500&w=900",
+    url: travelConversationCover,
   },
   {
     test: /conversation|people|friend|meeting|dialogue|english|aula|lesson/i,
-    url: "https://images.pexels.com/photos/3184465/pexels-photo-3184465.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=500&w=900",
+    url: travelConversationCover,
   },
 ];
 
@@ -67,7 +81,7 @@ export function isLikelyBrokenCoverImageUrl(url?: string | null): boolean {
   const value = typeof url === "string" ? url.trim() : "";
   if (!value) return false;
   return (
-    /loremflickr\.com|picsum\.photos|placeholder|undefined|null|data:image\/svg\+xml/i.test(
+    /images\.pexels\.com|images\.unsplash\.com|loremflickr\.com|picsum\.photos|placeholder|undefined|null|data:image\/svg\+xml/i.test(
       value.replace(/\\/g, ""),
     ) || !/^(https?:\/\/|data:image\/|\/|blob:)/i.test(value)
   );
@@ -79,12 +93,13 @@ export async function findCoverImage(
   lessonId?: string,
   avoidUrls: string[] = [],
 ): Promise<string> {
+  const localFallback = fallbackCoverImage(title, situation, lessonId);
   try {
     const url = await getLessonCoverImage({ data: { title, situation, lessonId, avoidUrls } });
     return url && !isLikelyBrokenCoverImageUrl(url)
       ? url
-      : fallbackCoverImage(title, situation, lessonId);
+      : localFallback;
   } catch (_) {
-    return fallbackCoverImage(title, situation, lessonId);
+    return localFallback;
   }
 }
