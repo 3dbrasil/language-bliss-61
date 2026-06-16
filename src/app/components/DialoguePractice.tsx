@@ -1,24 +1,31 @@
 import { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, Volume2, Mic, MicOff, Check, RotateCcw, Star, BookOpen, Award, Send, Sparkles, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Volume2, Check, RotateCcw, BookOpen, Award, Sparkles, CheckCircle2, Play } from 'lucide-react';
 import { Dialogue, DialogueLine, PronunciationFeedback, UserStats } from '../types';
-import { speakAmericanEnglish, evaluatePronunciation } from '../utils/speech';
-import { classifyDifficulty, getState, markLearned, recordResult, setLevel, speakerAvatar, type SrsLevel } from '../utils/srs';
+import { speakAmericanEnglish } from '../utils/speech';
+import { classifyDifficulty, getState, markLearned, setLevel, speakerAvatar, type SrsLevel } from '../utils/srs';
 import AriaChat from './AriaChat';
-
 
 interface Props { dialogue: Dialogue; stats: UserStats; onBack: () => void; onComplete: (xp: number, scores: Record<string, number>) => void; }
 
+/* Typewriter: types the line once, then stays static */
+function Typewriter({ text, speed = 22, onDone }: { text: string; speed?: number; onDone?: () => void }) {
+  const [n, setN] = useState(0);
+  useEffect(() => {
+    if (n >= text.length) { onDone?.(); return; }
+    const t = setTimeout(() => setN(n + 1), speed);
+    return () => clearTimeout(t);
+  }, [n, text, speed, onDone]);
+  return (
+    <span>
+      {text.slice(0, n)}
+      {n < text.length && <span className="inline-block w-[2px] h-[1em] align-middle bg-white/70 ml-0.5 animate-pulse" />}
+    </span>
+  );
+}
+
 export default function DialoguePractice({ dialogue, stats: _s, onBack, onComplete }: Props) {
-  const [active, setActive] = useState<DialogueLine | null>(null);
   const [speakingId, setSpeakingId] = useState<string | null>(null);
-  const [rec, setRec] = useState(false);
-  const [trans, setTrans] = useState('');
-  const [evaluating, setEvaluating] = useState(false);
-  const [err, setErr] = useState('');
-  const [manual, setManual] = useState(false);
-  const [manTxt, setManTxt] = useState('');
-  const [fbs, setFbs] = useState<Record<string, PronunciationFeedback>>({});
-  const [curFb, setCurFb] = useState<PronunciationFeedback | null>(null);
+  const [fbs] = useState<Record<string, PronunciationFeedback>>({});
   const [listened, setListened] = useState<string[]>([]);
   const [vocab, setVocab] = useState(false);
   const [rate, setRate] = useState(0.85);
@@ -26,173 +33,258 @@ export default function DialoguePractice({ dialogue, stats: _s, onBack, onComple
   const [srsTick, setSrsTick] = useState(0);
   const [lvlFilter, setLvlFilter] = useState<'all' | SrsLevel>('all');
   const [blurPt, setBlurPt] = useState(true);
-
-
-  const recRef = useRef<any>(null);
+  const [typed, setTyped] = useState<Set<string>>(new Set());
+  const [revealIdx, setRevealIdx] = useState(0);
+  const [autoplay, setAutoplay] = useState(false);
+  const [celebrate, setCelebrate] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
 
+  const isStu = (l: DialogueLine) => /you|student/i.test(l.speaker);
+
+  const visibleLines = dialogue.lines.filter(l => lvlFilter === 'all' || (getState(l.text).level || classifyDifficulty(l.text)) === lvlFilter);
+
+  /* progressive reveal */
   useEffect(() => {
-    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (SR) {
-      const r = new SR(); r.continuous = false; r.interimResults = true; r.lang = 'en-US';
-      r.onstart = () => { setRec(true); setTrans(''); setErr(''); };
-      r.onresult = (e: any) => { let f = '', i2 = ''; for (let i = e.resultIndex; i < e.results.length; ++i) { if (e.results[i].isFinal) f += e.results[i][0].transcript; else i2 += e.results[i][0].transcript; } setTrans(f || i2); };
-      r.onerror = () => { setRec(false); setManual(true); setErr('Microfone indisponível. Use entrada manual.'); };
-      r.onend = () => setRec(false);
-      recRef.current = r;
-    }
-    return () => { recRef.current?.abort(); };
-  }, []);
+    if (revealIdx >= visibleLines.length) return;
+    const t = setTimeout(() => setRevealIdx(i => Math.min(i + 1, visibleLines.length)), 250);
+    return () => clearTimeout(t);
+  }, [revealIdx, visibleLines.length]);
 
-  useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [active, curFb]);
+  useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' }); }, [revealIdx]);
 
-  const stuLines = dialogue.lines.filter(l => /you|student/i.test(l.speaker));
-  const allDone = stuLines.every(l => fbs[l.id]?.score >= 60);
+  const speak = async (l: DialogueLine) => {
+    if (speakingId) return;
+    setSpeakingId(l.id);
+    try { await speakAmericanEnglish(l.text, undefined, rate); if (!listened.includes(l.id)) setListened(p => [...p, l.id]); } catch (e) { console.error(e); }
+    setSpeakingId(null);
+  };
+
+  /* autoplay */
+  useEffect(() => {
+    if (!autoplay) return;
+    let cancelled = false;
+    (async () => {
+      for (const l of visibleLines) {
+        if (cancelled) return;
+        await speak(l);
+        await new Promise(r => setTimeout(r, 450));
+      }
+      if (!cancelled) setAutoplay(false);
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoplay]);
+
+  const finish = () => {
+    setCelebrate(true);
+    setTimeout(() => {
+      const sc: Record<string, number> = {};
+      Object.entries(fbs).forEach(([id, fb]) => sc[id] = fb.score);
+      const avg = Object.values(sc).length > 0 ? Math.round(Object.values(sc).reduce((a, b) => a + b, 0) / Object.values(sc).length) : 0;
+      onComplete(avg >= 80 ? 30 : avg >= 60 ? 25 : 15, sc);
+    }, 1400);
+  };
+
   const vocabList = (() => { const v: { word: string; translation: string }[] = []; const s = new Set<string>(); dialogue.lines.forEach(l => l.keyVocabulary?.forEach(k => { if (!s.has(k.word.toLowerCase())) { s.add(k.word.toLowerCase()); v.push(k); } })); return v; })();
 
-  const speak = async (l: DialogueLine) => { if (speakingId) return; setSpeakingId(l.id); try { await speakAmericanEnglish(l.text, undefined, rate); if (!listened.includes(l.id)) setListened(p => [...p, l.id]); } catch (e) { console.error(e); } setSpeakingId(null); };
-  const toggleRec = () => { if (!recRef.current) { setManual(true); return; } if (rec) recRef.current.stop(); else { setTrans(''); setErr(''); setManual(false); try { recRef.current.start(); } catch (e) { console.error(e); } } };
-  const evalSpoken = async (t?: string) => { if (!active) return; const s = t || trans; if (!s.trim()) return; setEvaluating(true); setErr(''); const fb = await evaluatePronunciation(active.text, s); setCurFb(fb); setFbs(p => ({ ...p, [active.id]: fb })); recordResult(active.text, fb.score >= 70); setSrsTick(x => x + 1); setEvaluating(false); };
-  const finish = () => { const sc: Record<string, number> = {}; Object.entries(fbs).forEach(([id, fb]) => sc[id] = fb.score); const avg = Object.values(sc).length > 0 ? Math.round(Object.values(sc).reduce((a, b) => a + b, 0) / Object.values(sc).length) : 0; onComplete(avg >= 80 ? 30 : avg >= 60 ? 25 : 15, sc); };
-  const isStu = (l: DialogueLine) => /you|student/i.test(l.speaker);
-  const scoreClr = (s: number) => s >= 80 ? 'text-emerald-400' : s >= 60 ? 'text-teal-400' : 'text-red-400';
+  /* assign a stable bubble palette per non-student speaker */
+  const speakerHues = (() => {
+    const palettes = [
+      { bg: 'from-[#00D4A0]/25 to-[#00D4A0]/10', border: 'border-[#00D4A0]/30', ring: 'shadow-[0_8px_30px_-10px_rgba(0,212,160,0.6)]', name: 'text-[#5EEAC4]' },
+      { bg: 'from-[#A855F7]/25 to-[#A855F7]/10', border: 'border-[#A855F7]/30', ring: 'shadow-[0_8px_30px_-10px_rgba(168,85,247,0.6)]', name: 'text-[#C99BFF]' },
+      { bg: 'from-[#F59E0B]/22 to-[#F59E0B]/8', border: 'border-[#F59E0B]/30', ring: 'shadow-[0_8px_30px_-10px_rgba(245,158,11,0.5)]', name: 'text-[#FBBF24]' },
+      { bg: 'from-[#EC4899]/22 to-[#EC4899]/8', border: 'border-[#EC4899]/30', ring: 'shadow-[0_8px_30px_-10px_rgba(236,72,153,0.5)]', name: 'text-[#F9A8D4]' },
+    ];
+    const map: Record<string, typeof palettes[number]> = {};
+    let i = 0;
+    dialogue.lines.forEach(l => { if (!isStu(l) && !map[l.speaker]) { map[l.speaker] = palettes[i % palettes.length]; i++; } });
+    return map;
+  })();
+
+  const studentHue = { bg: 'from-[#2A7FFF] to-[#1E6BFF]', border: 'border-[#2A7FFF]/40', ring: 'shadow-[0_10px_30px_-10px_rgba(42,127,255,0.7)]' };
 
   return (
-    <div className="max-w-2xl mx-auto space-y-4 animate-fade-in pb-8">
+    <div className="max-w-3xl mx-auto space-y-5 animate-fade-in pb-10 relative">
       {/* Hero */}
       {dialogue.imageUrl ? (
-        <div className="relative rounded-2xl overflow-hidden h-44">
+        <div className="relative rounded-3xl overflow-hidden h-48">
           <img src={dialogue.imageUrl} alt="" className="w-full h-full object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/50 to-transparent" />
-          <div className="absolute inset-0 flex flex-col justify-end p-5">
-            <span className="text-[10px] font-bold text-slate-200 uppercase tracking-wider">{dialogue.level}</span>
-            <h1 className="text-xl font-extrabold text-white mt-0.5">{dialogue.title}</h1>
-            <p className="text-[11px] text-slate-200 mt-1">{dialogue.situation}</p>
+          <div className="absolute inset-0 bg-gradient-to-t from-[#0B0E17] via-[#0B0E17]/60 to-transparent" />
+          <div className="absolute inset-0 flex flex-col justify-end p-6">
+            <span className="text-[10px] font-bold text-slate-200 uppercase tracking-[0.2em]">{dialogue.level}</span>
+            <h1 className="text-2xl font-extrabold text-white mt-1">{dialogue.title}</h1>
+            <p className="text-xs text-slate-200/80 mt-1">{dialogue.situation}</p>
           </div>
-          <button onClick={onBack} className="absolute top-3 right-3 w-8 h-8 bg-black/40 backdrop-blur rounded-lg flex items-center justify-center"><ArrowLeft className="w-4 h-4 text-white" /></button>
+          <button onClick={onBack} className="absolute top-3 right-3 w-9 h-9 bg-black/40 backdrop-blur rounded-xl flex items-center justify-center hover:scale-105 transition"><ArrowLeft className="w-4 h-4 text-white" /></button>
         </div>
       ) : (
         <div className="flex items-center gap-3">
-          <button onClick={onBack} className="w-8 h-8 bg-slate-900 border border-slate-800 rounded-lg flex items-center justify-center"><ArrowLeft className="w-4 h-4 text-slate-200" /></button>
-          <div><p className="text-lg font-extrabold text-slate-100">{dialogue.title}</p><p className="text-[11px] text-slate-300">{dialogue.situation}</p></div>
+          <button onClick={onBack} className="w-9 h-9 bg-slate-900 border border-slate-800 rounded-xl flex items-center justify-center"><ArrowLeft className="w-4 h-4 text-slate-200" /></button>
+          <div><p className="text-xl font-extrabold text-slate-100">{dialogue.title}</p><p className="text-xs text-slate-300">{dialogue.situation}</p></div>
         </div>
       )}
 
       {/* Controls */}
-      <div className="flex items-center gap-2">
-        <div className="flex gap-0.5 flex-1">{dialogue.lines.map(l => <div key={l.id} className={`h-1 flex-1 rounded-full ${fbs[l.id] ? fbs[l.id].score >= 80 ? 'bg-emerald-500' : fbs[l.id].score >= 60 ? 'bg-teal-400' : 'bg-red-400' : listened.includes(l.id) ? 'bg-blue-500/40' : isStu(l) ? 'bg-cyan-500/20' : 'bg-slate-800'}`} />)}</div>
-        <div className="flex items-center gap-0.5 bg-slate-900 rounded-md p-0.5 border border-slate-800">
-          {[
-            { v: 0.6, l: '0.6x' },
-            { v: 0.75, l: '0.8x' },
-            { v: 0.85, l: '1x' },
-            { v: 1.1, l: '1.3x' },
-          ].map(o => (
-            <button key={o.v} onClick={() => setRate(o.v)} className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${rate === o.v ? 'bg-cyan-500 text-white' : 'text-slate-300 hover:text-white'}`}>{o.l}</button>
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex gap-0.5 flex-1 min-w-[120px]">{dialogue.lines.map((l, i) => <div key={l.id} className={`h-1 flex-1 rounded-full transition-all ${i < revealIdx ? (isStu(l) ? 'bg-[#2A7FFF]' : 'bg-[#00D4A0]') : 'bg-slate-800'}`} />)}</div>
+        <button onClick={() => setAutoplay(a => !a)} className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold transition ${autoplay ? 'bg-[#2A7FFF] text-white' : 'bg-slate-900 text-slate-300 border border-slate-800'}`}>
+          <Play className="w-3 h-3" />{autoplay ? 'Tocando…' : 'Auto-play'}
+        </button>
+        <div className="flex items-center gap-0.5 bg-slate-900 rounded-lg p-0.5 border border-slate-800">
+          {[{ v: 0.6, l: '0.6x' }, { v: 0.85, l: '1x' }, { v: 1.1, l: '1.3x' }].map(o => (
+            <button key={o.v} onClick={() => setRate(o.v)} className={`text-[9px] font-bold px-2 py-0.5 rounded ${rate === o.v ? 'bg-[#2A7FFF] text-white' : 'text-slate-300'}`}>{o.l}</button>
           ))}
         </div>
-        <button onClick={() => setVocab(!vocab)} className={`flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold transition ${vocab ? 'bg-cyan-500 text-white' : 'bg-slate-900 text-slate-300 border border-slate-800 hover:text-slate-300'}`}><BookOpen className="w-3 h-3" />Vocab</button>
+        <button onClick={() => setBlurPt(b => !b)} className={`text-[10px] font-bold px-2 py-1 rounded-lg transition ${blurPt ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30' : 'bg-slate-900 text-slate-300 border border-slate-800'}`}>
+          {blurPt ? 'PT oculto' : 'PT visível'}
+        </button>
+        <button onClick={() => setVocab(!vocab)} className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold transition ${vocab ? 'bg-[#00D4A0] text-slate-950' : 'bg-slate-900 text-slate-300 border border-slate-800'}`}><BookOpen className="w-3 h-3" />Vocab</button>
       </div>
 
-      {/* Aria CTA */}
-      <button
-        onClick={() => setAria(true)}
-        className="w-full flex items-center justify-between gap-3 p-3 rounded-xl bg-gradient-to-r from-[#2A7FFF]/15 to-[#00D4A0]/15 border border-white/10 hover:border-white/20 transition group"
-      >
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#2A7FFF] to-[#00D4A0] flex items-center justify-center shrink-0 group-hover:scale-105 transition">
-            <Sparkles className="w-4 h-4 text-white" />
-          </div>
-          <div className="text-left">
-            <p className="text-sm font-bold text-white">Praticar com a Aria</p>
-            <p className="text-[10px] text-slate-400">Conversa livre baseada nesta lição · IA com memória</p>
-          </div>
-        </div>
-        <span className="text-[10px] font-bold text-[#00D4A0] uppercase tracking-wider">Beta</span>
-      </button>
-
-
-
+      {/* Floating background words */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden -z-10">
+        {vocabList.slice(0, 8).map((v, i) => (
+          <span key={i} className="absolute text-[#2A7FFF]/[0.06] font-bold select-none" style={{ top: `${(i * 53) % 90}%`, left: `${(i * 37) % 85}%`, fontSize: `${24 + (i % 4) * 8}px`, transform: `rotate(${(i % 2 ? -1 : 1) * (i * 3)}deg)` }}>{v.word}</span>
+        ))}
+      </div>
 
       {vocab && vocabList.length > 0 && (
-        <div className="bg-slate-900/60 rounded-xl p-3 border border-slate-800 grid grid-cols-1 sm:grid-cols-2 gap-1">
-          {vocabList.map((v, i) => <div key={i} className="flex items-center gap-2 text-[11px] bg-slate-800/50 rounded-md px-2.5 py-1.5"><span className="font-bold text-cyan-400">{v.word}</span><span className="text-slate-300">→</span><span className="text-slate-200">{v.translation}</span></div>)}
+        <div className="rounded-2xl p-3 bg-white/[0.03] backdrop-blur-xl border border-white/10 grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+          {vocabList.map((v, i) => <div key={i} className="flex items-center gap-2 text-[11px] bg-white/[0.04] rounded-lg px-2.5 py-1.5 border border-white/5"><span className="font-bold text-[#5EEAC4]">{v.word}</span><span className="text-slate-500">→</span><span className="text-slate-200">{v.translation}</span></div>)}
         </div>
       )}
 
       {/* Difficulty filter */}
-      <div className="flex items-center gap-1 bg-slate-900/60 border border-slate-800 rounded-lg p-1 w-fit">
+      <div className="flex items-center gap-1 bg-white/[0.03] backdrop-blur border border-white/10 rounded-xl p-1 w-fit">
         {([
-          { v: 'all' as const, l: 'Todas', c: 'bg-slate-500' },
+          { v: 'all' as const, l: 'Todas', c: 'bg-slate-400' },
           { v: 'easy' as const, l: 'Fácil', c: 'bg-emerald-400' },
           { v: 'medium' as const, l: 'Médio', c: 'bg-amber-400' },
           { v: 'hard' as const, l: 'Difícil', c: 'bg-red-400' },
         ]).map(o => (
-          <button key={o.v} onClick={() => setLvlFilter(o.v)} className={`flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded transition ${lvlFilter === o.v ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-slate-200'}`}>
+          <button key={o.v} onClick={() => { setLvlFilter(o.v); setRevealIdx(0); }} className={`flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-lg transition ${lvlFilter === o.v ? 'bg-white/10 text-white' : 'text-slate-400 hover:text-slate-200'}`}>
             <span className={`w-1.5 h-1.5 rounded-full ${o.c}`} />{o.l}
           </button>
         ))}
-        <button onClick={() => setBlurPt(b => !b)} className={`ml-1 text-[10px] font-bold px-2 py-0.5 rounded transition ${blurPt ? 'bg-purple-500/20 text-purple-300' : 'text-slate-400 hover:text-slate-200'}`} title="Embaçar traduções">
-          {blurPt ? '👁️‍🗨️ PT oculto' : '👁️ PT visível'}
-        </button>
       </div>
 
-      {/* Lines */}
-      <div className="space-y-1.5">
-        {dialogue.lines.filter(l => lvlFilter === 'all' || (getState(l.text).level || classifyDifficulty(l.text)) === lvlFilter).map(l => {
+      {/* Chat bubbles */}
+      <div className="space-y-5 pt-2">
+        {visibleLines.slice(0, revealIdx).map((l) => {
           const stu = isStu(l);
-          const fb = fbs[l.id];
-          const isAct = active?.id === l.id;
+          const avatar = speakerAvatar(l.speaker);
+          const hue = stu ? studentHue : speakerHues[l.speaker] || speakerHues[Object.keys(speakerHues)[0]];
           const spking = speakingId === l.id;
+          const wasTyped = typed.has(l.id);
+          const cur = getState(l.text).level || classifyDifficulty(l.text);
+          void srsTick;
+
           return (
-            <div key={l.id} className={`rounded-xl border transition-all ${isAct ? 'ring-1 ring-cyan-500/40' : ''} ${
-              fb ? fb.score >= 80 ? 'bg-emerald-500/[0.04] border-emerald-500/15' : fb.score >= 60 ? 'bg-teal-500/[0.04] border-teal-500/15' : 'bg-red-500/[0.04] border-red-500/15'
-              : stu ? 'bg-blue-500/[0.03] border-blue-500/10' : 'bg-slate-900/40 border-slate-800/60'}`}>
-              <div className="px-3.5 py-2.5">
-                <div className="flex items-center justify-between mb-1">
-                  <div className="flex items-center gap-1.5 min-w-0">
-                    {(() => { const a = speakerAvatar(l.speaker); return (
-                      <div className={`w-6 h-6 rounded-full ${a.color} flex items-center justify-center text-white text-[10px] font-bold shrink-0`}>{a.initial}</div>
-                    ); })()}
-                    <span className={`text-[10px] font-semibold ${stu ? 'text-blue-400' : 'text-slate-300'} truncate`}>{stu ? '🎙️ Você' : l.speaker}</span>
-                    {(() => { const cur = getState(l.text).level || classifyDifficulty(l.text); void srsTick; const dots: { v: SrsLevel; c: string; t: string }[] = [
-                      { v: 'easy', c: 'bg-emerald-400', t: 'Fácil' },
-                      { v: 'medium', c: 'bg-amber-400', t: 'Médio' },
-                      { v: 'hard', c: 'bg-red-400', t: 'Difícil' },
-                    ]; return (
-                      <div className="flex items-center gap-1 ml-0.5">
-                        {dots.map(d => (
-                          <button key={d.v} title={d.t} onClick={(e) => { e.stopPropagation(); setLevel(l.text, d.v); setSrsTick(x => x + 1); }} className={`w-2.5 h-2.5 rounded-full ${d.c} transition ${cur === d.v ? 'ring-2 ring-white/70 scale-110' : 'opacity-30 hover:opacity-70'}`} />
-                        ))}
-                      </div>
-                    ); })()}
-                    {fb && <span className={`text-[10px] font-bold ${scoreClr(fb.score)}`}>{fb.score}%</span>}
-                  </div>
-                  <div className="flex gap-1">
-                    {(() => { const st = getState(l.text); void srsTick; return (
-                      <button onClick={() => { markLearned(l.text, !st.learned); setSrsTick(x => x + 1); }} title={st.learned ? 'Aprendida' : 'Marcar como aprendida'} className={`w-6 h-6 rounded flex items-center justify-center ${st.learned ? 'text-emerald-400' : 'text-slate-500 hover:text-slate-300'}`}><CheckCircle2 className="w-3.5 h-3.5" /></button>
-                    ); })()}
-                    <button onClick={() => speak(l)} disabled={!!speakingId} className={`w-6 h-6 rounded flex items-center justify-center ${spking ? 'bg-cyan-500 text-white animate-pulse' : 'text-slate-300 hover:text-slate-300 hover:bg-slate-800'}`}><Volume2 className="w-3.5 h-3.5" /></button>
+            <div key={l.id} className={`flex items-end gap-2.5 ${stu ? 'flex-row-reverse' : 'flex-row'} animate-fade-in`}>
+              {/* Avatar */}
+              <div className={`relative shrink-0 ${spking ? 'scale-110' : ''} transition-transform`}>
+                <div className={`w-10 h-10 rounded-full ${avatar.color} flex items-center justify-center text-white text-sm font-bold ring-2 ring-white/10 ${spking ? 'ring-white/40' : ''}`}>{avatar.initial}</div>
+                {spking && <div className="absolute -inset-1 rounded-full bg-white/20 blur-md -z-10 animate-pulse" />}
+              </div>
+
+              {/* Bubble */}
+              <div className={`group max-w-[78%] ${stu ? 'items-end' : 'items-start'} flex flex-col gap-1`}>
+                <div className={`flex items-center gap-2 px-1 ${stu ? 'flex-row-reverse' : ''}`}>
+                  <span className={`text-[10px] font-bold uppercase tracking-wider ${stu ? 'text-[#7AB0FF]' : (hue as any).name || 'text-slate-300'}`}>{stu ? '🎙️ Você' : l.speaker}</span>
+                  <div className="flex items-center gap-0.5">
+                    {(['easy','medium','hard'] as SrsLevel[]).map((d) => {
+                      const cls = d === 'easy' ? 'bg-emerald-400' : d === 'medium' ? 'bg-amber-400' : 'bg-red-400';
+                      return <button key={d} onClick={() => { setLevel(l.text, d); setSrsTick(x => x + 1); }} className={`w-1.5 h-1.5 rounded-full ${cls} ${cur === d ? 'ring-1 ring-white/70 scale-125' : 'opacity-30 hover:opacity-70'} transition`} />;
+                    })}
                   </div>
                 </div>
-                <p className="text-[13px] font-medium text-slate-200 leading-relaxed">{l.text}</p>
-                <p onClick={() => blurPt && setBlurPt(false)} className={`text-[11px] text-slate-300 mt-0.5 transition ${blurPt ? 'blur-sm hover:blur-none cursor-pointer select-none' : ''}`}>{l.translation}</p>
-                {l.pronunciationGuide && <p className="text-[10px] text-purple-300 font-mono mt-1">🔊 {l.pronunciationGuide}</p>}
+
+                <div className={`relative rounded-3xl px-5 py-3.5 bg-gradient-to-br ${hue.bg} border ${hue.border} ${hue.ring} backdrop-blur-md hover:shadow-[0_0_40px_-5px_rgba(42,127,255,0.4)] transition-all
+                  ${stu ? 'rounded-br-md text-white' : 'rounded-bl-md text-slate-100'}`}>
+                  <p className={`text-[15px] font-bold leading-relaxed tracking-wide ${stu ? 'text-white' : 'text-white'}`}>
+                    {wasTyped ? l.text : <Typewriter text={l.text} onDone={() => setTyped(t => new Set(t).add(l.id))} />}
+                  </p>
+                  <p onClick={() => blurPt && setBlurPt(false)} className={`text-[11.5px] text-slate-200/60 mt-1.5 italic transition ${blurPt ? 'blur-sm hover:blur-none cursor-pointer select-none' : ''}`}>{l.translation}</p>
+                  {l.pronunciationGuide && <p className="text-[10px] text-white/40 font-mono mt-1">🔊 {l.pronunciationGuide}</p>}
+
+                  {/* Play + learned buttons */}
+                  <div className={`absolute -bottom-2 ${stu ? 'left-2' : 'right-2'} flex items-center gap-1`}>
+                    <button onClick={() => speak(l)} disabled={!!speakingId} className={`w-7 h-7 rounded-full flex items-center justify-center backdrop-blur border border-white/15 transition ${spking ? 'bg-white text-slate-900 animate-pulse' : 'bg-slate-950/80 text-white hover:scale-110'}`}>
+                      <Volume2 className="w-3.5 h-3.5" />
+                    </button>
+                    {(() => { const st = getState(l.text); return (
+                      <button onClick={() => { markLearned(l.text, !st.learned); setSrsTick(x => x + 1); }} className={`w-7 h-7 rounded-full flex items-center justify-center backdrop-blur border border-white/15 transition ${st.learned ? 'bg-emerald-400 text-slate-900' : 'bg-slate-950/80 text-slate-400 hover:text-white'}`}>
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                      </button>
+                    ); })()}
+                  </div>
+                </div>
               </div>
             </div>
           );
         })}
-      </div>
-      <div ref={endRef} />
 
-      <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-4 text-center space-y-2">
-        <Award className="w-7 h-7 text-cyan-400 mx-auto" />
-        <p className="text-xs text-slate-300">Ouça as frases, marque o nível e pratique na aba <strong className="text-cyan-400">Repetição</strong>.</p>
-        <button onClick={finish} className="bg-cyan-500 text-white px-5 py-2 rounded-lg text-xs font-bold">Concluir lição</button>
+        {/* Typing indicator */}
+        {revealIdx < visibleLines.length && (
+          <div className="flex items-end gap-2.5">
+            <div className="w-10 h-10 rounded-full bg-slate-800 animate-pulse" />
+            <div className="rounded-3xl rounded-bl-md px-5 py-4 bg-white/[0.04] border border-white/10">
+              <div className="flex gap-1">
+                <span className="w-2 h-2 rounded-full bg-white/50 animate-bounce" style={{ animationDelay: '0ms' }} />
+                <span className="w-2 h-2 rounded-full bg-white/50 animate-bounce" style={{ animationDelay: '150ms' }} />
+                <span className="w-2 h-2 rounded-full bg-white/50 animate-bounce" style={{ animationDelay: '300ms' }} />
+              </div>
+            </div>
+          </div>
+        )}
+        <div ref={endRef} />
       </div>
+
+      {/* Aria CTA — at the END of the lesson */}
+      {revealIdx >= visibleLines.length && (
+        <div className="space-y-3 pt-4 animate-fade-in">
+          <button
+            onClick={() => setAria(true)}
+            className="w-full flex items-center justify-between gap-3 p-4 rounded-2xl bg-gradient-to-r from-[#2A7FFF]/20 to-[#00D4A0]/20 border border-white/15 hover:border-white/30 hover:scale-[1.01] transition group backdrop-blur-md"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-full bg-gradient-to-br from-[#2A7FFF] to-[#00D4A0] flex items-center justify-center shrink-0 group-hover:scale-110 transition shadow-[0_0_30px_-5px_rgba(42,127,255,0.6)]">
+                <Sparkles className="w-5 h-5 text-white" />
+              </div>
+              <div className="text-left">
+                <p className="text-sm font-bold text-white">Praticar com a Aria</p>
+                <p className="text-[11px] text-slate-300">Conversa livre baseada nesta lição · IA com memória</p>
+              </div>
+            </div>
+            <span className="text-[10px] font-bold text-[#5EEAC4] uppercase tracking-wider">Beta</span>
+          </button>
+
+          <div className="bg-white/[0.03] backdrop-blur-xl border border-white/10 rounded-2xl p-5 text-center space-y-3">
+            <Award className="w-8 h-8 text-[#5EEAC4] mx-auto" />
+            <p className="text-xs text-slate-300">Pronto para a próxima? Você ouviu o diálogo completo.</p>
+            <button onClick={finish} className="relative overflow-hidden bg-gradient-to-r from-[#2A7FFF] to-[#00D4A0] text-white px-7 py-3 rounded-full text-sm font-bold shadow-[0_10px_30px_-5px_rgba(42,127,255,0.5)] hover:scale-105 active:scale-95 transition">
+              Concluir lição →
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Celebrate burst */}
+      {celebrate && (
+        <div className="fixed inset-0 z-40 pointer-events-none flex items-center justify-center">
+          {Array.from({ length: 24 }).map((_, i) => (
+            <span key={i} className="absolute w-2 h-2 rounded-full animate-ping" style={{
+              background: ['#2A7FFF','#00D4A0','#A855F7','#F59E0B','#EC4899'][i % 5],
+              top: '50%', left: '50%',
+              transform: `translate(-50%, -50%) rotate(${i * 15}deg) translateY(-${80 + (i % 5) * 20}px)`,
+              animationDuration: '900ms',
+            }} />
+          ))}
+          <div className="text-5xl animate-scale-in">🎉</div>
+        </div>
+      )}
 
       {aria && <AriaChat dialogue={dialogue} onClose={() => setAria(false)} />}
     </div>
   );
 }
-
