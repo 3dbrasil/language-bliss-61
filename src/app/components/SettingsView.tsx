@@ -527,9 +527,25 @@ export default function SettingsView({ stats, dialogues, onImportDialogues, onDe
           {(['A1','A2','B1','B2','C1','C2'] as const).map(lvl => {
             const items = dialogues.filter(d => d.level === lvl);
             if (!items.length) return null;
+            const importedItems = items.filter(d => !builtinIds.includes(d.id));
+            const bulkKey = `bulk-${lvl}`;
             return (
               <div key={lvl}>
-                <p className="text-[9px] font-bold text-cyan-400 uppercase tracking-widest mt-2 mb-1">{lvl} · {items.length}</p>
+                <div className="flex items-center justify-between mt-2 mb-1 gap-2">
+                  <p className="text-[9px] font-bold text-cyan-400 uppercase tracking-widest">{lvl} · {items.length}</p>
+                  {importedItems.length > 0 && (
+                    showDel === bulkKey ? (
+                      <div className="flex gap-1">
+                        <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={(e) => { e.preventDefault(); e.stopPropagation(); keepScroll(() => { importedItems.forEach(d => onDeleteDialogue(d.id)); setShowDel(null); }); }} className="text-[10px] bg-red-500 text-white px-2 py-0.5 rounded font-bold">Excluir {importedItems.length} PDF{importedItems.length > 1 ? 's' : ''}</button>
+                        <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={(e) => { e.preventDefault(); e.stopPropagation(); keepScroll(() => setShowDel(null)); }} className="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded font-bold">Cancelar</button>
+                      </div>
+                    ) : (
+                      <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={(e) => { e.preventDefault(); e.stopPropagation(); keepScroll(() => setShowDel(bulkKey)); }} className="text-[9px] text-red-400 hover:text-red-300 font-semibold flex items-center gap-1 px-1.5 py-0.5 rounded border border-red-500/20 hover:bg-red-500/10">
+                        <Trash2 className="w-2.5 h-2.5" /> Limpar PDFs ({importedItems.length})
+                      </button>
+                    )
+                  )}
+                </div>
                 {items.map(d => {
                   const isCustom = !builtinIds.includes(d.id);
                   return (
