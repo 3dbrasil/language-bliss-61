@@ -6,7 +6,7 @@ import DuolingoMap from './components/DuolingoMap';
 import CumulativeArena from './components/CumulativeArena';
 import { Sparkles, Trophy } from 'lucide-react';
 import { preloadVoices } from './utils/speech';
-import { fallbackCoverImage, isLikelyBrokenCoverImageUrl } from './utils/imageSearch';
+import { isLikelyBrokenCoverImageUrl } from './utils/imageSearch';
 
 const DialoguePractice = lazy(() => import('./components/DialoguePractice'));
 const SettingsView = lazy(() => import('./components/SettingsView'));
