@@ -4,20 +4,47 @@ import { getApiConfig, unrealSpeechTTS, playAudioBuffer, geminiPronunciationFeed
 // Audio cache for Unreal Speech generated audio
 const audioCache = new Map<string, ArrayBuffer>();
 
+const PORTUGUESE_WORD_RE = /\b(você|voce|vocês|voces|não|nao|sim|estou|está|esta|sou|ser|ter|tenho|preciso|comprar|quero|queria|gostaria|obrigad[oa]|bom|boa|dia|noite|tarde|com|para|por|que|como|onde|quando|porque|também|tambem|tudo|bem|aqui|ali|isso|isto|aquilo|fazer|tem|temos|posso|pode|ajuda|encontrar|ficar|chegar|pedido|frase|tradu[cç][aã]o|licença|licenca|café|cafe|manhã|manha|ingresso|aeroporto|voo|chuva|guarda-chuva)\b/gi;
+const ENGLISH_WORD_RE = /\b(the|is|are|you|i|i'm|i'd|i'll|we|they|he|she|have|has|do|does|can|could|will|would|should|with|for|from|that|this|what|where|when|how|why|hello|hi|thanks|thank|good|morning|please|like|need|want|going|tell|time|breakfast|ticket|driver|today)\b/gi;
+
+function matchCount(text: string, re: RegExp): number {
+  return text.match(re)?.length ?? 0;
+}
+
+function isLikelyPortuguese(text: string): boolean {
+  const pt = matchCount(text, PORTUGUESE_WORD_RE);
+  const en = matchCount(text, ENGLISH_WORD_RE);
+  return /[áàâãéêíóôõúçÁÀÂÃÉÊÍÓÔÕÚÇ]/.test(text) || (pt >= 2 && pt > en) || (pt >= 1 && en === 0);
+}
+
+function englishSpeechText(text: string): string | null {
+  const candidates = text
+    .split(/\s+\|\s+|[\n\r]+/)
+    .map((part) => part.replace(/^(english|ingl[eê]s|fala|texto)\s*[:\-–]\s*/i, '').trim())
+    .filter(Boolean);
+  const english = candidates.find((part) => !isLikelyPortuguese(part));
+  return english || null;
+}
+
 export function getAudioCache(): Map<string, ArrayBuffer> {
   return audioCache;
 }
 
 // Speak text — uses Unreal Speech if configured, otherwise browser TTS
 export async function speakAmericanEnglish(text: string, voiceName?: string, rate: number = 0.85): Promise<void> {
+  const speechText = englishSpeechText(text);
+  if (!speechText) {
+    console.warn('Portuguese text detected; skipping English-only playback.');
+    return;
+  }
   const config = getApiConfig();
 
   if (config.ttsProvider === 'unreal' && config.unrealSpeechApiKey) {
     try {
-      const cacheKey = `${text}_${config.unrealSpeechVoice}`;
+      const cacheKey = `${speechText}_${config.unrealSpeechVoice}`;
       let buffer = audioCache.get(cacheKey);
       if (!buffer) {
-        buffer = await unrealSpeechTTS(text);
+        buffer = await unrealSpeechTTS(speechText);
         audioCache.set(cacheKey, buffer);
       }
       // Map our rate (0.85 baseline) to playbackRate
@@ -56,7 +83,7 @@ export async function speakAmericanEnglish(text: string, voiceName?: string, rat
         return;
       }
       window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
+      const utterance = new SpeechSynthesisUtterance(speechText);
       utterance.voice = voice;
       utterance.lang = voice.lang || 'en-US';
       utterance.rate = rate;
