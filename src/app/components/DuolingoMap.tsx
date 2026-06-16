@@ -19,42 +19,53 @@ const META: Record<Level, { name: string; subtitle: string; tagline: string }> =
 
 const LEVEL_ORDER: Level[] = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
-const EMOJI_MAP: { keys: string[]; emoji: string }[] = [
-  { keys: ['supermerc', 'mercado', 'compra', 'grocery', 'shop', 'loja'], emoji: '🛒' },
-  { keys: ['direç', 'direction', 'mapa', 'caminho', 'rua'], emoji: '🗺️' },
-  { keys: ['praia', 'beach', 'mar', 'oceano'], emoji: '🏖️' },
-  { keys: ['clima', 'tempo', 'weather', 'chuva', 'sol'], emoji: '🌤️' },
-  { keys: ['presente', 'gift', 'aniversário', 'birthday'], emoji: '🎁' },
-  { keys: ['bibliote', 'library', 'livro', 'book', 'leitura'], emoji: '📚' },
-  { keys: ['restaurante', 'restaurant', 'comida', 'food', 'jantar', 'almoço'], emoji: '🍽️' },
-  { keys: ['café', 'coffee', 'breakfast', 'café da manhã'], emoji: '☕' },
-  { keys: ['hotel', 'reserva', 'hospedagem'], emoji: '🏨' },
-  { keys: ['aeroporto', 'airport', 'voo', 'flight', 'viagem', 'travel'], emoji: '✈️' },
-  { keys: ['táxi', 'taxi', 'uber', 'carro', 'car', 'transporte'], emoji: '🚕' },
-  { keys: ['trem', 'train', 'metrô', 'metro', 'ônibus', 'bus'], emoji: '🚆' },
-  { keys: ['médico', 'doctor', 'hospital', 'saúde', 'health', 'remédio'], emoji: '🩺' },
-  { keys: ['escola', 'school', 'aula', 'class', 'estudo'], emoji: '🎓' },
-  { keys: ['trabalho', 'work', 'office', 'escritório', 'reunião', 'meeting'], emoji: '💼' },
-  { keys: ['telefone', 'phone', 'ligação', 'call'], emoji: '📞' },
-  { keys: ['família', 'family', 'pais', 'irmão'], emoji: '👨‍👩‍👧'},
-  { keys: ['amigo', 'friend', 'festa', 'party'], emoji: '🎉' },
-  { keys: ['casa', 'home', 'apartamento'], emoji: '🏠' },
-  { keys: ['banco', 'bank', 'dinheiro', 'money', 'pagamento'], emoji: '🏦' },
-  { keys: ['roupa', 'clothes', 'moda', 'fashion'], emoji: '👕' },
-  { keys: ['hobby', 'esporte', 'sport', 'futebol', 'gym', 'academia'], emoji: '⚽' },
-  { keys: ['music', 'música', 'concerto', 'show'], emoji: '🎵' },
-  { keys: ['filme', 'cinema', 'movie'], emoji: '🎬' },
-  { keys: ['saudaç', 'greeting', 'olá', 'hello', 'apresenta', 'introdu'], emoji: '👋' },
-  { keys: ['número', 'number', 'contagem'], emoji: '🔢' },
-  { keys: ['cor', 'color'], emoji: '🎨' },
-  { keys: ['hora', 'time', 'relógio'], emoji: '⏰' },
+const IMAGE_MAP: { keys: string[]; q: string }[] = [
+  { keys: ['grocery', 'supermerc', 'mercado'], q: 'grocery,store' },
+  { keys: ['direction', 'direç'], q: 'city,map' },
+  { keys: ['neighbor', 'vizinho'], q: 'neighbors,house' },
+  { keys: ['bus stop', 'ônibus', 'bus'], q: 'bus,stop' },
+  { keys: ['picnic', 'piquenique'], q: 'picnic,park' },
+  { keys: ['beach', 'praia'], q: 'beach,ocean' },
+  { keys: ['weather', 'clima', 'tempo'], q: 'weather,sky' },
+  { keys: ['post office', 'correio', 'post'], q: 'post,office' },
+  { keys: ['birthday', 'gift', 'presente', 'aniversário'], q: 'gift,celebration' },
+  { keys: ['library', 'bibliote'], q: 'library,books' },
+  { keys: ['clothes', 'roupa', 'shopping for'], q: 'clothes,fashion' },
+  { keys: ['bakery', 'padaria'], q: 'bakery,bread' },
+  { keys: ['zoo'], q: 'zoo,animals' },
+  { keys: ['restaurant', 'restaurante'], q: 'restaurant,table' },
+  { keys: ['café', 'coffee', 'breakfast'], q: 'cafe,coffee' },
+  { keys: ['hotel', 'reserva'], q: 'hotel,room' },
+  { keys: ['airport', 'aeroporto', 'flight', 'voo', 'travel', 'viagem'], q: 'airport,travel' },
+  { keys: ['taxi', 'táxi', 'uber'], q: 'taxi,city' },
+  { keys: ['train', 'trem', 'metrô', 'metro'], q: 'train,station' },
+  { keys: ['doctor', 'médico', 'hospital', 'saúde', 'health'], q: 'doctor,clinic' },
+  { keys: ['school', 'escola', 'class', 'aula'], q: 'school,classroom' },
+  { keys: ['work', 'trabalho', 'office', 'escritório', 'meeting', 'reunião'], q: 'office,work' },
+  { keys: ['phone', 'telefone', 'call'], q: 'phone,call' },
+  { keys: ['family', 'família'], q: 'family,home' },
+  { keys: ['friend', 'amigo', 'party', 'festa'], q: 'friends,party' },
+  { keys: ['home', 'casa', 'apartamento'], q: 'home,interior' },
+  { keys: ['bank', 'banco', 'money', 'dinheiro'], q: 'bank,money' },
+  { keys: ['hobby', 'esporte', 'sport', 'futebol', 'gym', 'academia'], q: 'sport,fitness' },
+  { keys: ['music', 'música', 'concerto', 'show'], q: 'music,concert' },
+  { keys: ['movie', 'filme', 'cinema'], q: 'cinema,movie' },
+  { keys: ['greeting', 'saudaç', 'hello', 'olá', 'introdu', 'apresenta'], q: 'greeting,people' },
+  { keys: ['number', 'número'], q: 'numbers' },
+  { keys: ['color', 'cor'], q: 'colors,paint' },
+  { keys: ['time', 'hora', 'relógio'], q: 'clock,time' },
+  { keys: ['dialogo', 'conversation', 'conversa'], q: 'conversation,people' },
 ];
-const FALLBACK_EMOJIS = ['💬', '🌟', '🧭', '🪴', '🎈', '🧩', '🪁', '🍀', '🌈', '🔔'];
-function pickEmoji(title: string): string {
+const FALLBACK_QUERIES = ['city', 'people,talking', 'street', 'cafe', 'travel', 'books'];
+function pickImage(title: string, id: string): string {
   const t = title.toLowerCase();
-  for (const m of EMOJI_MAP) if (m.keys.some(k => t.includes(k))) return m.emoji;
-  let h = 0; for (let i = 0; i < title.length; i++) h = (h * 31 + title.charCodeAt(i)) >>> 0;
-  return FALLBACK_EMOJIS[h % FALLBACK_EMOJIS.length];
+  let q: string | null = null;
+  for (const m of IMAGE_MAP) if (m.keys.some(k => t.includes(k))) { q = m.q; break; }
+  if (!q) {
+    let h = 0; for (let i = 0; i < title.length; i++) h = (h * 31 + title.charCodeAt(i)) >>> 0;
+    q = FALLBACK_QUERIES[h % FALLBACK_QUERIES.length];
+  }
+  return `https://source.unsplash.com/featured/600x300/?${q}&sig=${encodeURIComponent(id)}`;
 }
 
 export default function DuolingoMap({ dialogues, stats, onSelectDialogue }: Props) {
@@ -309,7 +320,7 @@ export default function DuolingoMap({ dialogues, stats, onSelectDialogue }: Prop
             const unlocked = isUnlocked(gIdx);
             const completed = stats.completedDialogues?.includes(d.id);
             const score = stats.pronunciationAverages?.[d.id];
-            const emoji = pickEmoji(d.title);
+            const image = pickImage(d.title, d.id);
             const lessonPct = completed ? 100 : score ?? 0;
 
             return (
@@ -317,83 +328,66 @@ export default function DuolingoMap({ dialogues, stats, onSelectDialogue }: Prop
                 key={d.id}
                 onClick={() => unlocked && onSelectDialogue(d)}
                 disabled={!unlocked}
-                className={`group relative text-left overflow-hidden transition-all duration-300 ${
-                  unlocked ? 'hover:-translate-y-1 cursor-pointer' : 'opacity-50 cursor-not-allowed'
+                className={`group relative text-left overflow-hidden transition-all duration-300 w-full ${
+                  unlocked ? 'hover:-translate-y-1 cursor-pointer' : 'opacity-60 cursor-not-allowed grayscale'
                 }`}
-                style={{ borderRadius: 20 }}
+                style={{
+                  borderRadius: 24,
+                  height: 130,
+                  boxShadow: '0 8px 30px rgba(0,0,0,0.12)',
+                }}
               >
-                {/* iOS 17 glass surface */}
-                <div
-                  className="absolute inset-0 bg-white/[0.06] backdrop-blur-xl border border-white/15"
-                  style={{ borderRadius: 20, boxShadow: '0 10px 30px -12px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.08)' }}
-                />
-                <div
-                  className="absolute inset-0 opacity-60"
-                  style={{
-                    borderRadius: 20,
-                    background: completed
-                      ? 'linear-gradient(135deg, rgba(0,212,160,0.18), rgba(42,127,255,0.05))'
-                      : 'linear-gradient(135deg, rgba(42,127,255,0.10), rgba(255,255,255,0.01))',
+                <img
+                  src={image}
+                  alt=""
+                  loading="lazy"
+                  className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                  onError={(e) => {
+                    const img = e.currentTarget;
+                    if (!img.dataset.fb) {
+                      img.dataset.fb = '1';
+                      img.src = `https://picsum.photos/seed/${encodeURIComponent(d.id)}/600/300`;
+                    }
                   }}
                 />
+                <div
+                  className="absolute inset-0"
+                  style={{ background: 'linear-gradient(135deg, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.1) 100%)' }}
+                />
 
-                <div className="relative p-5 flex items-center gap-4">
-                  {/* Giant emoji */}
-                  <div
-                    className="shrink-0 w-16 h-16 flex items-center justify-center text-[40px] leading-none"
-                    style={{
-                      borderRadius: 18,
-                      background: 'linear-gradient(135deg, rgba(255,255,255,0.10), rgba(255,255,255,0.02))',
-                      boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.15), 0 6px 18px -8px rgba(0,0,0,0.6)',
-                    }}
-                    aria-hidden
-                  >
-                    {unlocked ? emoji : '🔒'}
+                <div className="absolute top-3 right-3 z-10">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center backdrop-blur-md ${
+                    completed ? 'bg-[#00D4A0] text-white' : unlocked ? 'bg-white/25 text-white' : 'bg-black/40 text-white/70'
+                  }`}>
+                    {completed ? <CheckCircle2 className="w-4 h-4" strokeWidth={2.5} />
+                      : unlocked ? <Play className="w-3.5 h-3.5 ml-0.5" strokeWidth={2.5} />
+                      : <Lock className="w-3.5 h-3.5" strokeWidth={2.5} />}
                   </div>
+                </div>
 
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-start justify-between gap-2">
-                      <h3 className={`font-bold text-[15px] leading-snug line-clamp-2 ${completed ? 'text-emerald-50' : 'text-white'}`}>
-                        {d.title}
-                      </h3>
-                      <div className={`shrink-0 w-7 h-7 rounded-full flex items-center justify-center ${
-                        completed ? 'bg-[#00D4A0] text-white' : unlocked ? 'bg-white/10 text-white' : 'bg-black/30 text-slate-500'
-                      }`}>
-                        {completed ? <CheckCircle2 className="w-4 h-4" strokeWidth={2.5} />
-                          : unlocked ? <Play className="w-3 h-3 ml-0.5" strokeWidth={2.5} />
-                          : <Lock className="w-3 h-3" strokeWidth={2.5} />}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 mt-1.5">
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/[0.06] border border-white/10 text-[10px] font-light text-slate-300">
-                        <Volume2 className="w-2.5 h-2.5" />
-                        {d.lines.length} linhas
-                      </span>
-                      {score !== undefined && (
-                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
-                          score >= 80 ? 'bg-emerald-500/20 text-emerald-200'
-                            : score >= 60 ? 'bg-amber-500/20 text-amber-100'
-                            : 'bg-rose-500/20 text-rose-100'
-                        }`}>
-                          {score}%
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Mini progress bar */}
-                    <div className="mt-3 h-1 bg-white/[0.06] rounded-full overflow-hidden">
-                      <div
-                        className="h-full rounded-full transition-all duration-700"
-                        style={{
-                          width: `${lessonPct}%`,
-                          background: completed
-                            ? 'linear-gradient(90deg, #00D4A0, #5BE3C1)'
-                            : 'linear-gradient(90deg, #2A7FFF, #00D4A0)',
-                          boxShadow: '0 0 12px rgba(0,212,160,0.5)',
-                        }}
-                      />
-                    </div>
+                <div className="absolute inset-x-0 bottom-0 p-4 text-left">
+                  <h3 className="font-bold text-white text-[17px] leading-tight line-clamp-2 drop-shadow">
+                    {d.title}
+                  </h3>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="inline-flex items-center gap-1 text-[11px] font-medium text-white/80">
+                      <Volume2 className="w-3 h-3" />
+                      {d.lines.length} linhas
+                    </span>
+                    {score !== undefined && (
+                      <span className="text-[11px] font-semibold text-white/90">· {score}%</span>
+                    )}
+                  </div>
+                  <div className="mt-2 h-1 bg-white/25 rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all duration-700"
+                      style={{
+                        width: `${lessonPct}%`,
+                        background: completed
+                          ? 'linear-gradient(90deg, #00D4A0, #5BE3C1)'
+                          : 'linear-gradient(90deg, #2A7FFF, #00D4A0)',
+                      }}
+                    />
                   </div>
                 </div>
               </button>
