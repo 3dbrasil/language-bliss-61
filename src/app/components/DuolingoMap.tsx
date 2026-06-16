@@ -19,6 +19,44 @@ const META: Record<Level, { name: string; subtitle: string; tagline: string }> =
 
 const LEVEL_ORDER: Level[] = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
+const EMOJI_MAP: { keys: string[]; emoji: string }[] = [
+  { keys: ['supermerc', 'mercado', 'compra', 'grocery', 'shop', 'loja'], emoji: '🛒' },
+  { keys: ['direç', 'direction', 'mapa', 'caminho', 'rua'], emoji: '🗺️' },
+  { keys: ['praia', 'beach', 'mar', 'oceano'], emoji: '🏖️' },
+  { keys: ['clima', 'tempo', 'weather', 'chuva', 'sol'], emoji: '🌤️' },
+  { keys: ['presente', 'gift', 'aniversário', 'birthday'], emoji: '🎁' },
+  { keys: ['bibliote', 'library', 'livro', 'book', 'leitura'], emoji: '📚' },
+  { keys: ['restaurante', 'restaurant', 'comida', 'food', 'jantar', 'almoço'], emoji: '🍽️' },
+  { keys: ['café', 'coffee', 'breakfast', 'café da manhã'], emoji: '☕' },
+  { keys: ['hotel', 'reserva', 'hospedagem'], emoji: '🏨' },
+  { keys: ['aeroporto', 'airport', 'voo', 'flight', 'viagem', 'travel'], emoji: '✈️' },
+  { keys: ['táxi', 'taxi', 'uber', 'carro', 'car', 'transporte'], emoji: '🚕' },
+  { keys: ['trem', 'train', 'metrô', 'metro', 'ônibus', 'bus'], emoji: '🚆' },
+  { keys: ['médico', 'doctor', 'hospital', 'saúde', 'health', 'remédio'], emoji: '🩺' },
+  { keys: ['escola', 'school', 'aula', 'class', 'estudo'], emoji: '🎓' },
+  { keys: ['trabalho', 'work', 'office', 'escritório', 'reunião', 'meeting'], emoji: '💼' },
+  { keys: ['telefone', 'phone', 'ligação', 'call'], emoji: '📞' },
+  { keys: ['família', 'family', 'pais', 'irmão'], emoji: '👨‍👩‍👧'},
+  { keys: ['amigo', 'friend', 'festa', 'party'], emoji: '🎉' },
+  { keys: ['casa', 'home', 'apartamento'], emoji: '🏠' },
+  { keys: ['banco', 'bank', 'dinheiro', 'money', 'pagamento'], emoji: '🏦' },
+  { keys: ['roupa', 'clothes', 'moda', 'fashion'], emoji: '👕' },
+  { keys: ['hobby', 'esporte', 'sport', 'futebol', 'gym', 'academia'], emoji: '⚽' },
+  { keys: ['music', 'música', 'concerto', 'show'], emoji: '🎵' },
+  { keys: ['filme', 'cinema', 'movie'], emoji: '🎬' },
+  { keys: ['saudaç', 'greeting', 'olá', 'hello', 'apresenta', 'introdu'], emoji: '👋' },
+  { keys: ['número', 'number', 'contagem'], emoji: '🔢' },
+  { keys: ['cor', 'color'], emoji: '🎨' },
+  { keys: ['hora', 'time', 'relógio'], emoji: '⏰' },
+];
+const FALLBACK_EMOJIS = ['💬', '🌟', '🧭', '🪴', '🎈', '🧩', '🪁', '🍀', '🌈', '🔔'];
+function pickEmoji(title: string): string {
+  const t = title.toLowerCase();
+  for (const m of EMOJI_MAP) if (m.keys.some(k => t.includes(k))) return m.emoji;
+  let h = 0; for (let i = 0; i < title.length; i++) h = (h * 31 + title.charCodeAt(i)) >>> 0;
+  return FALLBACK_EMOJIS[h % FALLBACK_EMOJIS.length];
+}
+
 export default function DuolingoMap({ dialogues, stats, onSelectDialogue }: Props) {
   const [sel, setSel] = useState<Level>('A1');
 
@@ -265,68 +303,97 @@ export default function DuolingoMap({ dialogues, stats, onSelectDialogue }: Prop
           })}
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 stagger">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 stagger">
           {filtered.map(d => {
             const gIdx = ordered.findIndex(o => o.id === d.id);
             const unlocked = isUnlocked(gIdx);
             const completed = stats.completedDialogues?.includes(d.id);
             const score = stats.pronunciationAverages?.[d.id];
+            const emoji = pickEmoji(d.title);
+            const lessonPct = completed ? 100 : score ?? 0;
 
             return (
               <button
                 key={d.id}
                 onClick={() => unlocked && onSelectDialogue(d)}
                 disabled={!unlocked}
-                className={`group relative aspect-square text-left rounded-2xl overflow-hidden border transition-all duration-300 ${
-                  completed
-                    ? 'border-cyan-500/30 hover:border-cyan-400/60 hover:-translate-y-0.5'
-                    : unlocked
-                      ? 'border-white/10 hover:border-cyan-500/40 hover:-translate-y-0.5 cursor-pointer'
-                      : 'border-white/5 opacity-40 cursor-not-allowed'
+                className={`group relative text-left overflow-hidden transition-all duration-300 ${
+                  unlocked ? 'hover:-translate-y-1 cursor-pointer' : 'opacity-50 cursor-not-allowed'
                 }`}
+                style={{ borderRadius: 20 }}
               >
-                {d.imageUrl ? (
-                  <img
-                    src={d.imageUrl}
-                    alt=""
-                    loading="lazy"
-                    className={`absolute inset-0 w-full h-full object-cover ${!unlocked ? 'grayscale brightness-50' : 'group-hover:scale-105 transition-transform duration-500'}`}
-                  />
-                ) : (
-                  <div className="absolute inset-0 bg-gradient-to-br from-slate-800/60 to-slate-900/60" />
-                )}
-                <div className="absolute inset-0 bg-gradient-to-t from-[#0A0F1A] via-[#0A0F1A]/60 to-transparent" />
+                {/* iOS 17 glass surface */}
+                <div
+                  className="absolute inset-0 bg-white/[0.06] backdrop-blur-xl border border-white/15"
+                  style={{ borderRadius: 20, boxShadow: '0 10px 30px -12px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.08)' }}
+                />
+                <div
+                  className="absolute inset-0 opacity-60"
+                  style={{
+                    borderRadius: 20,
+                    background: completed
+                      ? 'linear-gradient(135deg, rgba(0,212,160,0.18), rgba(42,127,255,0.05))'
+                      : 'linear-gradient(135deg, rgba(42,127,255,0.10), rgba(255,255,255,0.01))',
+                  }}
+                />
 
-                <div className="absolute top-2 right-2 flex items-center gap-1">
-                  {score !== undefined && (
-                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full backdrop-blur-md ${
-                      score >= 80 ? 'bg-cyan-500/30 text-cyan-100'
-                        : score >= 60 ? 'bg-teal-500/30 text-teal-100'
-                        : 'bg-red-500/30 text-red-100'
-                    }`}>
-                      {score}%
-                    </span>
-                  )}
-                  <div className={`w-7 h-7 rounded-full flex items-center justify-center backdrop-blur-md ${
-                    completed ? 'bg-cyan-500/80 text-white'
-                      : unlocked ? 'bg-white/10 text-white group-hover:bg-cyan-500/80'
-                      : 'bg-black/40 text-slate-500'
-                  }`}>
-                    {completed ? <CheckCircle2 className="w-3.5 h-3.5" strokeWidth={2.5} />
-                      : unlocked ? <Play className="w-3 h-3 ml-0.5" strokeWidth={2.5} />
-                      : <Lock className="w-3 h-3" strokeWidth={2.5} />}
+                <div className="relative p-5 flex items-center gap-4">
+                  {/* Giant emoji */}
+                  <div
+                    className="shrink-0 w-16 h-16 flex items-center justify-center text-[40px] leading-none"
+                    style={{
+                      borderRadius: 18,
+                      background: 'linear-gradient(135deg, rgba(255,255,255,0.10), rgba(255,255,255,0.02))',
+                      boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.15), 0 6px 18px -8px rgba(0,0,0,0.6)',
+                    }}
+                    aria-hidden
+                  >
+                    {unlocked ? emoji : '🔒'}
                   </div>
-                </div>
 
-                <div className="absolute bottom-0 inset-x-0 p-2.5">
-                  <p className={`text-[11px] font-semibold leading-tight line-clamp-2 ${
-                    completed ? 'text-cyan-100' : unlocked ? 'text-white' : 'text-slate-500'
-                  }`}>
-                    {d.title}
-                  </p>
-                  <div className="flex items-center gap-1 mt-1 text-slate-400">
-                    <Volume2 className="w-2.5 h-2.5" />
-                    <span className="text-[9px]">{d.lines.length} linhas</span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-2">
+                      <h3 className={`font-bold text-[15px] leading-snug line-clamp-2 ${completed ? 'text-emerald-50' : 'text-white'}`}>
+                        {d.title}
+                      </h3>
+                      <div className={`shrink-0 w-7 h-7 rounded-full flex items-center justify-center ${
+                        completed ? 'bg-[#00D4A0] text-white' : unlocked ? 'bg-white/10 text-white' : 'bg-black/30 text-slate-500'
+                      }`}>
+                        {completed ? <CheckCircle2 className="w-4 h-4" strokeWidth={2.5} />
+                          : unlocked ? <Play className="w-3 h-3 ml-0.5" strokeWidth={2.5} />
+                          : <Lock className="w-3 h-3" strokeWidth={2.5} />}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 mt-1.5">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/[0.06] border border-white/10 text-[10px] font-light text-slate-300">
+                        <Volume2 className="w-2.5 h-2.5" />
+                        {d.lines.length} linhas
+                      </span>
+                      {score !== undefined && (
+                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                          score >= 80 ? 'bg-emerald-500/20 text-emerald-200'
+                            : score >= 60 ? 'bg-amber-500/20 text-amber-100'
+                            : 'bg-rose-500/20 text-rose-100'
+                        }`}>
+                          {score}%
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Mini progress bar */}
+                    <div className="mt-3 h-1 bg-white/[0.06] rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all duration-700"
+                        style={{
+                          width: `${lessonPct}%`,
+                          background: completed
+                            ? 'linear-gradient(90deg, #00D4A0, #5BE3C1)'
+                            : 'linear-gradient(90deg, #2A7FFF, #00D4A0)',
+                          boxShadow: '0 0 12px rgba(0,212,160,0.5)',
+                        }}
+                      />
+                    </div>
                   </div>
                 </div>
               </button>
