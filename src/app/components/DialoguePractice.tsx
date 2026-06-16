@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, Volume2, Mic, MicOff, Check, RotateCcw, Star, BookOpen, Award, Send } from 'lucide-react';
+import { ArrowLeft, Volume2, Mic, MicOff, Check, RotateCcw, Star, BookOpen, Award, Send, Sparkles } from 'lucide-react';
 import { Dialogue, DialogueLine, PronunciationFeedback, UserStats } from '../types';
 import { speakAmericanEnglish, evaluatePronunciation } from '../utils/speech';
+import AriaChat from './AriaChat';
+
 
 interface Props { dialogue: Dialogue; stats: UserStats; onBack: () => void; onComplete: (xp: number, scores: Record<string, number>) => void; }
 
@@ -19,6 +21,8 @@ export default function DialoguePractice({ dialogue, stats: _s, onBack, onComple
   const [listened, setListened] = useState<string[]>([]);
   const [vocab, setVocab] = useState(false);
   const [rate, setRate] = useState(0.85);
+  const [aria, setAria] = useState(false);
+
 
   const recRef = useRef<any>(null);
   const endRef = useRef<HTMLDivElement>(null);
@@ -85,6 +89,25 @@ export default function DialoguePractice({ dialogue, stats: _s, onBack, onComple
         </div>
         <button onClick={() => setVocab(!vocab)} className={`flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold transition ${vocab ? 'bg-cyan-500 text-white' : 'bg-slate-900 text-slate-300 border border-slate-800 hover:text-slate-300'}`}><BookOpen className="w-3 h-3" />Vocab</button>
       </div>
+
+      {/* Aria CTA */}
+      <button
+        onClick={() => setAria(true)}
+        className="w-full flex items-center justify-between gap-3 p-3 rounded-xl bg-gradient-to-r from-[#2A7FFF]/15 to-[#00D4A0]/15 border border-white/10 hover:border-white/20 transition group"
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#2A7FFF] to-[#00D4A0] flex items-center justify-center shrink-0 group-hover:scale-105 transition">
+            <Sparkles className="w-4 h-4 text-white" />
+          </div>
+          <div className="text-left">
+            <p className="text-sm font-bold text-white">Praticar com a Aria</p>
+            <p className="text-[10px] text-slate-400">Conversa livre baseada nesta lição · IA com memória</p>
+          </div>
+        </div>
+        <span className="text-[10px] font-bold text-[#00D4A0] uppercase tracking-wider">Beta</span>
+      </button>
+
+
 
 
       {vocab && vocabList.length > 0 && (
@@ -157,6 +180,9 @@ export default function DialoguePractice({ dialogue, stats: _s, onBack, onComple
           <button onClick={finish} className="bg-emerald-500 text-white px-5 py-2 rounded-lg text-xs font-bold">Ganhar XP</button>
         </div>
       )}
+
+      {aria && <AriaChat dialogue={dialogue} onClose={() => setAria(false)} />}
     </div>
   );
 }
+
