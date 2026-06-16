@@ -25,20 +25,40 @@ async function extractPDF(file: File): Promise<string> {
   const buf = await file.arrayBuffer();
   const pdf = await lib.getDocument({ data: new Uint8Array(buf) }).promise;
   let text = '';
+  const yTolerance = 3;
+  const columnGap = 18;
   for (let i = 1; i <= pdf.numPages; i++) {
     const page = await pdf.getPage(i);
     const content = await page.getTextContent();
-    let lastY = -1; let lastX = -1; let pt = '';
+    const rowMap = new Map<number, any[]>();
+
     for (const item of content.items as any[]) {
-      const y = item.transform[5]; const x = item.transform[4];
-      if (lastY !== -1 && Math.abs(y - lastY) > 3) {
-        pt += '\n';
-      } else if (lastX !== -1 && x - lastX > 15 && pt && !pt.endsWith(' ')) {
-        pt += ' ';
-      }
-      pt += item.str;
-      lastY = y; lastX = x + (item.width || 0);
+      const str = String(item.str || '').trim();
+      if (!str) continue;
+      const y = Math.round(item.transform[5] / yTolerance) * yTolerance;
+      if (!rowMap.has(y)) rowMap.set(y, []);
+      rowMap.get(y)!.push(item);
     }
+
+    const rows = Array.from(rowMap.entries())
+      .sort((a, b) => b[0] - a[0])
+      .map(([, items]) => items.sort((a, b) => a.transform[4] - b.transform[4]));
+
+    const pt = rows.map(row => {
+      let line = '';
+      let lastRight = -Infinity;
+      row.forEach((item) => {
+        const str = String(item.str || '').trim();
+        const x = item.transform[4];
+        if (!str) return;
+        if (line && x - lastRight > columnGap) line += ' | ';
+        else if (line && !line.endsWith(' ')) line += ' ';
+        line += str;
+        lastRight = x + (item.width || str.length * 5);
+      });
+      return line.replace(/\s+\|\s+/g, ' | ').trim();
+    }).filter(Boolean).join('\n');
+
     text += pt.trim() + '\n\n';
   }
   return text.trim();
