@@ -1,4 +1,7 @@
-import { Map, Sparkles, Settings, Brain, Flame, Zap } from 'lucide-react';
+import { Map, Sparkles, Settings, Brain, Flame, Zap, LogIn, LogOut } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Link } from '@tanstack/react-router';
+import { supabase } from '@/integrations/supabase/client';
 import { UserStats } from '../types';
 
 interface Props {
@@ -9,6 +12,17 @@ interface Props {
 
 export default function TopNav({ stats, activeTab, setActiveTab }: Props) {
   const lvl = Math.floor(stats.xp / 100) + 1;
+  const [email, setEmail] = useState<string | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setEmail(data.session?.user?.email ?? null));
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
+      setEmail(session?.user?.email ?? null);
+    });
+    return () => sub.subscription.unsubscribe();
+  }, []);
+
+
   const nav: { id: Props['activeTab']; label: string; icon: typeof Map }[] = [
     { id: 'map', label: 'Mapa', icon: Map },
     { id: 'repetition', label: 'Prática', icon: Brain },
