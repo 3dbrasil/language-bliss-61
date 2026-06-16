@@ -45,7 +45,7 @@ export default function DuolingoMap({ dialogues, stats, onSelectDialogue }: Prop
 
   useEffect(() => {
     let cancelled = false;
-    const missing = filtered.filter(d => !images[d.id]);
+    const missing = filtered.filter(d => !d.imageUrl && !images[d.id]);
     if (missing.length === 0) return;
     (async () => {
       for (const d of missing) {
@@ -53,7 +53,7 @@ export default function DuolingoMap({ dialogues, stats, onSelectDialogue }: Prop
           const url = await findCoverImage(d.title, d.situation, d.id);
           if (cancelled) return;
           if (url) setImages(prev => (prev[d.id] ? prev : { ...prev, [d.id]: url }));
-        } catch (_) { /* ignore */ }
+        } catch (_) { /* ignore — fallback handled in render */ }
       }
     })();
     return () => { cancelled = true; };
