@@ -101,18 +101,16 @@ export default function App() {
     const merged = [...defaultDialogues, ...custom.filter(d => d?.id && !ids.has(d.id))].filter(d => d?.id && !deleted.includes(d.id));
     setDialogues(merged);
     repairRepeatedImages(merged, custom, deleted);
-    repairMissingTranslations(merged, custom, deleted);
+    repairMissingTranslations(custom, deleted);
   }, []);
 
-  const repairMissingTranslations = async (merged: Dialogue[], custom: Dialogue[], deleted: string[]) => {
+  const repairMissingTranslations = async (custom: Dialogue[], deleted: string[]) => {
     if (!hasMissingTranslations(custom)) return;
     const fixedCustom = await fillMissingLineTranslations(custom.map(normalizeImportedDialogue));
     localStorage.setItem('speak_native_custom_dialogues_v2', JSON.stringify(fixedCustom));
     const builtinIds = new Set(defaultDialogues.map(d => d.id));
     const repaired = [...defaultDialogues, ...fixedCustom.filter(d => d?.id && !builtinIds.has(d.id))].filter(d => d?.id && !deleted.includes(d.id));
-    const currentSelectedId = selected?.id;
     setDialogues(repaired);
-    if (currentSelectedId) setSelected(repaired.find(d => d.id === currentSelectedId) || null);
   };
 
   const repairRepeatedImages = async (merged: Dialogue[], custom: Dialogue[], deleted: string[]) => {

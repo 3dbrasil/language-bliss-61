@@ -67,7 +67,7 @@ export default function DialoguePractice({ dialogue, stats: _s, onBack, onComple
       }
     })();
     return () => { cancelled = true; };
-  }, [dialogue.id, generatedTranslations]);
+  }, [dialogue.id, dialogue.lines, generatedTranslations]);
 
   const finish = () => {
     setCelebrate(true);
