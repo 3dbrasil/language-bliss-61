@@ -7,7 +7,6 @@ export interface ApiConfig {
   unrealSpeechVoice: string;
   ttsProvider: 'browser' | 'unreal';
   pronunciationProvider: 'local' | 'gemini';
-  unsplashAccessKey: string;
 }
 
 const STORAGE_KEY = 'speak_native_api_config';
@@ -19,14 +18,24 @@ const DEFAULT_CONFIG: ApiConfig = {
   unrealSpeechVoice: 'Scarlett',
   ttsProvider: 'browser',
   pronunciationProvider: 'local',
-  unsplashAccessKey: '',
 };
+
+function sanitizeConfig(config: Partial<ApiConfig>): ApiConfig {
+  return {
+    geminiApiKey: config.geminiApiKey || '',
+    geminiModel: config.geminiModel || DEFAULT_CONFIG.geminiModel,
+    unrealSpeechApiKey: config.unrealSpeechApiKey || '',
+    unrealSpeechVoice: config.unrealSpeechVoice || DEFAULT_CONFIG.unrealSpeechVoice,
+    ttsProvider: config.ttsProvider === 'unreal' ? 'unreal' : 'browser',
+    pronunciationProvider: config.pronunciationProvider === 'gemini' ? 'gemini' : 'local',
+  };
+}
 
 export function getApiConfig(): ApiConfig {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
-      return { ...DEFAULT_CONFIG, ...JSON.parse(stored) };
+      return sanitizeConfig({ ...DEFAULT_CONFIG, ...JSON.parse(stored) });
     }
   } catch (_e) { /* ignore */ }
   return { ...DEFAULT_CONFIG };
@@ -34,7 +43,7 @@ export function getApiConfig(): ApiConfig {
 
 export function saveApiConfig(config: Partial<ApiConfig>): ApiConfig {
   const current = getApiConfig();
-  const updated = { ...current, ...config };
+  const updated = sanitizeConfig({ ...current, ...config });
   localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
   return updated;
 }
