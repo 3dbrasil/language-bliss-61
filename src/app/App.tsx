@@ -63,10 +63,10 @@ function normalizeImportedDialogue(dialogue: Partial<Dialogue> | null | undefine
     order: typeof dialogue.order === 'number' && Number.isFinite(dialogue.order) ? dialogue.order : 1,
     lines,
   };
-  const importedImageUrl = typeof dialogue.imageUrl === 'string' && !isLikelyBrokenCoverImageUrl(dialogue.imageUrl)
-    ? dialogue.imageUrl
-    : fallbackCoverImage(safeDialogue.title, safeDialogue.situation, safeDialogue.id);
-  safeDialogue.imageUrl = importedImageUrl;
+  // Leave imageUrl undefined when missing/broken so DuolingoMap fetches a real Unsplash cover.
+  if (typeof dialogue.imageUrl === 'string' && !isLikelyBrokenCoverImageUrl(dialogue.imageUrl)) {
+    safeDialogue.imageUrl = dialogue.imageUrl;
+  }
   const hasStudent = lines.some(l => /you|student/i.test(l.speaker));
   if (!hasStudent) {
     const speakers = Array.from(new Set(lines.map(l => l.speaker).filter(Boolean)));
