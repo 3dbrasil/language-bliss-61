@@ -86,21 +86,60 @@ export default function SettingsView({ stats, dialogues, onImportDialogues, onDe
   const totalLines = dialogues.reduce((s, d) => s + d.lines.length, 0);
   const pct = dialogues.length > 0 ? Math.round((stats.completedDialogues.length / dialogues.length) * 100) : 0;
 
+  const [batchProg, setBatchProg] = useState<{ c: number; t: number; name: string } | null>(null);
+
   const handlePDF = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]; if (!file) return;
-    if (file.name.endsWith('.json') || file.type === 'application/json') { const r = new FileReader(); r.onload = ev => { setImportText(ev.target?.result as string || ''); setImportStatus('idle'); setPdfPreview(''); }; r.readAsText(file); return; }
-    if (file.name.endsWith('.pdf') || file.type === 'application/pdf') {
-      setParsing(true); setImportStatus('idle'); setImportMsg('');
-      try {
-        const txt = await extractPDF(file);
-        setPdfPreview(txt.substring(0, 800) + (txt.length > 800 ? '\n...' : ''));
-        const parsed = parseTextToDialogues(txt);
-        if (parsed.length > 0) { setImportText(JSON.stringify(parsed, null, 2)); setImportMsg(`✅ ${parsed.length} diálogo(s) extraído(s). Revise e confirme.`); setImportStatus('success'); }
-        else { setImportText(txt); setImportMsg(`⚠️ Texto extraído (${txt.length} chars). Edite para JSON e importe.`); setImportStatus('error'); }
-      } catch (err: any) { setImportMsg(`❌ ${err.message}`); setImportStatus('error'); }
-      setParsing(false); return;
+    const files = Array.from(e.target.files || []); if (!files.length) return;
+    setImportStatus('idle'); setImportMsg(''); setPdfPreview('');
+
+    // JSON / TXT path (one file at a time keeps it simple)
+    if (files.length === 1 && (files[0].name.endsWith('.json') || files[0].name.endsWith('.txt'))) {
+      const r = new FileReader();
+      r.onload = ev => { setImportText(ev.target?.result as string || ''); };
+      r.readAsText(files[0]);
+      e.target.value = ''; return;
     }
-    const r = new FileReader(); r.onload = ev => { setImportText(ev.target?.result as string || ''); setImportStatus('idle'); setPdfPreview(''); }; r.readAsText(file);
+
+    setParsing(true);
+    const all: Dialogue[] = []; const errors: string[] = [];
+    let firstPreview = '';
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      setBatchProg({ c: i + 1, t: files.length, name: file.name });
+      try {
+        if (file.name.endsWith('.json')) {
+          const txt = await file.text();
+          const parsed = JSON.parse(txt);
+          if (Array.isArray(parsed)) all.push(...parsed);
+          continue;
+        }
+        const txt = await extractPDF(file);
+        if (!firstPreview) firstPreview = txt.substring(0, 600) + (txt.length > 600 ? '\n...' : '');
+        const parsed = parseTextToDialogues(txt);
+        if (parsed.length) {
+          parsed.forEach((d, k) => { d.id = `pdf-${Date.now()}-${i}-${k}`; });
+          all.push(...parsed);
+        } else {
+          errors.push(`${file.name}: nenhum diálogo extraído`);
+        }
+      } catch (err: any) {
+        errors.push(`${file.name}: ${err.message}`);
+      }
+    }
+
+    setPdfPreview(firstPreview);
+    setParsing(false); setBatchProg(null);
+    e.target.value = '';
+
+    if (all.length) {
+      setImportText(JSON.stringify(all, null, 2));
+      setImportMsg(`✅ ${all.length} diálogo(s) extraído(s) de ${files.length} arquivo(s).${errors.length ? ` ${errors.length} com problema.` : ''} Revise e clique Importar.`);
+      setImportStatus('success');
+    } else {
+      setImportMsg(`❌ Nada extraído. ${errors.join(' • ')}`);
+      setImportStatus('error');
+    }
   };
 
   const handleImport = () => {
