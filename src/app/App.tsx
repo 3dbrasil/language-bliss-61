@@ -171,7 +171,7 @@ export default function App() {
 
   const handleDelete = (id: string) => {
     let custom: Dialogue[] = []; try { const c = localStorage.getItem('speak_native_custom_dialogues_v2'); if (c) custom = normalizeImportedDialogues(JSON.parse(c)); } catch (_) {}
-    localStorage.setItem('speak_native_custom_dialogues_v2', JSON.stringify(custom.filter(d => d.id !== id)));
+    safeSetCustom(custom.filter(d => d.id !== id));
     let del: string[] = []; try { const d = localStorage.getItem('speak_native_deleted_dialogues_v2'); if (d) del = JSON.parse(d); } catch (_) {}
     if (!del.includes(id)) del.push(id);
     localStorage.setItem('speak_native_deleted_dialogues_v2', JSON.stringify(del));
