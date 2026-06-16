@@ -83,6 +83,32 @@ function normalizeImportedDialogues(value: unknown): Dialogue[] {
   return value.map((dialogue) => normalizeImportedDialogue(dialogue as Partial<Dialogue>)).filter((dialogue): dialogue is Dialogue => Boolean(dialogue));
 }
 
+// Strip heavy fields (base64 data URLs) before persisting to avoid localStorage quota errors.
+function slimForStorage(dialogues: Dialogue[]): Dialogue[] {
+  return dialogues.map((d) => {
+    const copy: Dialogue = { ...d };
+    if (typeof copy.imageUrl === 'string' && copy.imageUrl.startsWith('data:')) {
+      delete (copy as Partial<Dialogue>).imageUrl;
+    }
+    return copy;
+  });
+}
+
+function safeSetCustom(custom: Dialogue[]): void {
+  const payload = JSON.stringify(slimForStorage(custom));
+  try {
+    localStorage.setItem('speak_native_custom_dialogues_v2', payload);
+  } catch (e) {
+    console.warn('localStorage quota exceeded; retrying without imageUrl.', e);
+    const stripped = JSON.stringify(custom.map(({ imageUrl: _img, ...rest }) => rest));
+    try {
+      localStorage.setItem('speak_native_custom_dialogues_v2', stripped);
+    } catch (e2) {
+      console.error('Failed to persist custom dialogues even after stripping images.', e2);
+    }
+  }
+}
+
 function LoadingPanel() {
   return (
     <div className="py-16 text-center text-sm text-slate-400 animate-pulse">
