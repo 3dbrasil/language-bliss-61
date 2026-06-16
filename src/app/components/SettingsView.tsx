@@ -148,7 +148,7 @@ function parseTextToDialogues(text: string): Dialogue[] {
     };
 
     for (let i = start; i < lines.length; i++) {
-      const l = lines[i].replace(/^[-*•]\s*/, '').trim();
+      const l = lines[i].replace(/^[-*•]\s*/, '').replace(/^([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\s.'-]{0,30}?):\s*\|\s*/, '$1 | ').trim();
       if (!l || skipLine.test(l)) continue;
       const mTwoCol = l.match(twoColumnLine);
       const mPipeRow = !mTwoCol ? l.match(pipeRow) : null;
