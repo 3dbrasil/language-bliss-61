@@ -39,23 +39,71 @@ async function extractPDF(file: File): Promise<string> {
   return text.trim();
 }
 
+/* Detect Portuguese line (translation) vs English (original) */
+function isPortuguese(s: string): boolean {
+  if (/[áàâãéêíóôõúçÁÀÂÃÉÊÍÓÔÕÚÇ]/.test(s)) return true;
+  const pt = /\b(você|voce|eu|não|nao|sim|estou|está|esta|muito|obrigad[oa]|com|para|por|que|como|onde|quando|porque|também|tambem|tudo|bem|aqui|ali|isso|isto|aquilo|fazer|tenho|tem|temos|posso|pode|quero|gosto|amigo|amiga|hoje|ontem|amanhã|amanha)\b/i;
+  const en = /\b(the|is|are|you|i|we|they|he|she|have|has|do|does|can|will|would|with|for|from|that|this|what|where|when|how|why|hello|hi|thanks|thank|good|please)\b/i;
+  return pt.test(s) && !en.test(s);
+}
+
 function parseTextToDialogues(text: string): Dialogue[] {
   try { const p = JSON.parse(text); if (Array.isArray(p)) return p; } catch (_) {}
   const m = text.match(/\[[\s\S]*\]/); if (m) { try { const p = JSON.parse(m[0]); if (Array.isArray(p)) return p; } catch (_) {} }
   const dialogues: Dialogue[] = []; const clean = text.replace(/\r\n/g, '\n');
   const sections = clean.split(/\n{3,}|(?:^|\n)(?:#{1,3}\s|Diálogo\s*\d*\s*[:\-]?\s*|Dialogue\s*\d*\s*[:\-]?\s*|Lesson\s*\d*\s*[:\-]?\s*)/gi).filter(s => s.trim().length > 20);
+
+  const speakerOnly = /^([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\s.'-]{0,30}?)\s*:\s*$/;
+  const speakerInline = /^([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\s.'-]{0,30}?)\s*[:\-–]\s*(.{2,})$/;
+
   (sections.length ? sections : [clean]).forEach((sec, idx) => {
     const lines = sec.split('\n').map(l => l.trim()).filter(l => l);
     let title = ''; let start = 0;
-    for (let i = 0; i < Math.min(3, lines.length); i++) { if (!/^[A-Za-zÀ-ÿ\s().,]+?\s*[:\-–]\s*.+/.test(lines[i]) && lines[i].length > 3 && lines[i].length < 120) { title = lines[i].replace(/^[#\-*•]+\s*/, ''); start = i + 1; break; } }
-    if (!title) title = `Diálogo ${idx + 1}`;
-    const dLines: any[] = []; let pending = false;
-    for (let i = start; i < lines.length; i++) {
-      const l = lines[i]; const sm = l.match(/^([A-Za-zÀ-ÿ\s(),.]+?)\s*[:\-–]\s*(.{5,})/);
-      if (sm) { dLines.push({ id: `pdf-${idx}-${dLines.length}`, speaker: sm[1].trim(), text: sm[2].trim(), translation: '' }); pending = true; }
-      else if (pending && dLines.length > 0 && !dLines[dLines.length - 1].translation && l.length > 5) { dLines[dLines.length - 1].translation = l; pending = false; }
-      else pending = false;
+    for (let i = 0; i < Math.min(3, lines.length); i++) {
+      if (!speakerInline.test(lines[i]) && !speakerOnly.test(lines[i]) && lines[i].length > 3 && lines[i].length < 120) {
+        title = lines[i].replace(/^[#\-*•]+\s*/, ''); start = i + 1; break;
+      }
     }
+    if (!title) title = `Diálogo ${idx + 1}`;
+
+    const dLines: any[] = [];
+    let currentSpeaker = ''; let pendingText = ''; let pendingTranslation = '';
+
+    const flush = () => {
+      if (currentSpeaker && pendingText) {
+        dLines.push({
+          id: `pdf-${idx}-${dLines.length}`,
+          speaker: currentSpeaker,
+          text: pendingText.trim(),
+          translation: pendingTranslation.trim(),
+        });
+      }
+      pendingText = ''; pendingTranslation = '';
+    };
+
+    for (let i = start; i < lines.length; i++) {
+      const l = lines[i];
+      const mOnly = l.match(speakerOnly);
+      const mInline = !mOnly ? l.match(speakerInline) : null;
+
+      if (mOnly) {
+        flush();
+        currentSpeaker = mOnly[1].trim();
+      } else if (mInline) {
+        flush();
+        currentSpeaker = mInline[1].trim();
+        const rest = mInline[2].trim();
+        if (isPortuguese(rest)) pendingTranslation = rest; else pendingText = rest;
+      } else if (currentSpeaker) {
+        // Continuation: either original text or translation
+        if (!pendingText) pendingText = l;
+        else if (!pendingTranslation && isPortuguese(l)) pendingTranslation = l;
+        else if (isPortuguese(l)) pendingTranslation += ' ' + l;
+        else pendingText += ' ' + l;
+      }
+    }
+    flush();
+
     let level: any = 'A1'; const lw = sec.toLowerCase();
     if (lw.includes('c2')) level = 'C2'; else if (lw.includes('c1')) level = 'C1'; else if (lw.includes('b2')) level = 'B2'; else if (lw.includes('b1')) level = 'B1'; else if (lw.includes('a2')) level = 'A2';
     if (dLines.length > 0) dialogues.push({ id: `pdf-${Date.now()}-${idx}`, title: title.substring(0, 80), situation: `Importado — ${dLines.length} falas`, level, order: idx + 1, lines: dLines });
