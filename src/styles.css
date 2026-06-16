@@ -5,8 +5,9 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * Speak Native — Ocean Premium design system.
- * Deep navy backgrounds, teal/cyan accents, calm and premium.
+ * Speak Native — Oceanic Bento Evolution.
+ * Deep navy night, hairline borders, editorial serif accents (Playfair Display),
+ * teal/cyan ambient glows, generous whitespace, premium feel.
  */
 
 @theme inline {
@@ -37,56 +38,56 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
 
-  --font-display: "Sora", "Inter", system-ui, sans-serif;
+  --font-display: "Playfair Display", "Sora", Georgia, serif;
   --font-sans: "Inter", system-ui, sans-serif;
 }
 
 :root {
-  --radius: 0.75rem;
+  --radius: 1rem;
 
-  /* Ocean Premium dark palette */
-  --background: oklch(0.18 0.04 240);
+  /* Oceanic deep-night palette (#020617 base, hairline borders) */
+  --background: oklch(0.13 0.03 250);
   --foreground: oklch(0.97 0.01 220);
-  --card: oklch(0.22 0.045 240);
+  --card: oklch(0.18 0.04 245);
   --card-foreground: oklch(0.97 0.01 220);
-  --popover: oklch(0.22 0.045 240);
+  --popover: oklch(0.18 0.04 245);
   --popover-foreground: oklch(0.97 0.01 220);
-  --primary: oklch(0.72 0.13 200);          /* teal accent */
-  --primary-foreground: oklch(0.16 0.04 240);
-  --secondary: oklch(0.27 0.05 240);
+  --primary: oklch(0.78 0.13 200);
+  --primary-foreground: oklch(0.13 0.03 250);
+  --secondary: oklch(0.24 0.04 245);
   --secondary-foreground: oklch(0.97 0.01 220);
-  --muted: oklch(0.26 0.04 240);
+  --muted: oklch(0.22 0.035 245);
   --muted-foreground: oklch(0.68 0.03 230);
-  --accent: oklch(0.62 0.13 215);            /* cyan accent */
+  --accent: oklch(0.7 0.13 215);
   --accent-foreground: oklch(0.97 0.01 220);
   --destructive: oklch(0.62 0.22 27);
   --destructive-foreground: oklch(0.98 0.01 220);
-  --border: oklch(0.32 0.04 240);
-  --input: oklch(0.3 0.04 240);
+  --border: oklch(0.28 0.03 245 / 0.5);
+  --input: oklch(0.26 0.035 245);
   --ring: oklch(0.7 0.12 200);
 }
 
-/* Map default Tailwind slate/cyan/teal scale to the Ocean palette so the
-   ported components feel cohesive without rewriting every className. */
+/* Map Tailwind slate/cyan/teal to the Ocean palette */
 @theme {
-  --color-slate-950: oklch(0.16 0.04 240);
-  --color-slate-900: oklch(0.21 0.045 240);
-  --color-slate-800: oklch(0.27 0.05 240);
-  --color-slate-700: oklch(0.34 0.04 235);
-  --color-slate-600: oklch(0.48 0.035 230);
-  --color-slate-500: oklch(0.62 0.03 225);
-  --color-slate-400: oklch(0.74 0.025 220);
-  --color-slate-300: oklch(0.84 0.02 215);
-  --color-slate-200: oklch(0.92 0.015 210);
+  --color-slate-950: oklch(0.115 0.025 250);
+  --color-slate-900: oklch(0.17 0.03 248);
+  --color-slate-800: oklch(0.23 0.035 245);
+  --color-slate-700: oklch(0.31 0.035 240);
+  --color-slate-600: oklch(0.46 0.03 235);
+  --color-slate-500: oklch(0.6 0.025 228);
+  --color-slate-400: oklch(0.74 0.022 222);
+  --color-slate-300: oklch(0.84 0.018 218);
+  --color-slate-200: oklch(0.92 0.014 212);
   --color-slate-100: oklch(0.97 0.01 210);
 
-  --color-cyan-500: oklch(0.7 0.13 215);
-  --color-cyan-400: oklch(0.78 0.12 210);
-  --color-cyan-600: oklch(0.6 0.13 220);
-  --color-cyan-300: oklch(0.85 0.1 205);
+  --color-cyan-500: oklch(0.72 0.135 215);
+  --color-cyan-400: oklch(0.8 0.13 210);
+  --color-cyan-600: oklch(0.62 0.135 220);
+  --color-cyan-300: oklch(0.87 0.1 205);
 
-  --color-teal-500: oklch(0.72 0.13 195);
-  --color-teal-400: oklch(0.8 0.12 190);
+  --color-teal-500: oklch(0.74 0.13 195);
+  --color-teal-400: oklch(0.82 0.12 190);
+  --color-teal-600: oklch(0.62 0.13 198);
 }
 
 @layer base {
@@ -96,43 +97,110 @@
 
   html, body {
     font-family: var(--font-sans);
-    background: radial-gradient(1200px 600px at 10% -10%, oklch(0.27 0.06 240 / 0.6), transparent 60%),
-                radial-gradient(900px 500px at 110% 0%, oklch(0.32 0.08 200 / 0.4), transparent 55%),
-                var(--background);
+    background-color: #020617;
     color: var(--foreground);
     min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Ambient ocean glows — fixed, pointer-events-none */
+  body::before,
+  body::after {
+    content: "";
+    position: fixed;
+    pointer-events: none;
+    z-index: 0;
+    border-radius: 9999px;
+    filter: blur(120px);
+  }
+  body::before {
+    top: -10%;
+    right: -10%;
+    width: 500px;
+    height: 500px;
+    background: oklch(0.62 0.135 220 / 0.12);
+  }
+  body::after {
+    bottom: -5%;
+    left: -5%;
+    width: 400px;
+    height: 400px;
+    background: oklch(0.62 0.13 198 / 0.07);
   }
 
   h1, h2, h3, h4 {
     font-family: var(--font-display);
-    letter-spacing: -0.01em;
+    letter-spacing: -0.015em;
   }
 
   ::selection {
-    background: oklch(0.7 0.13 215 / 0.35);
+    background: oklch(0.7 0.135 215 / 0.35);
     color: var(--foreground);
   }
+
+  /* Refined scrollbar */
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: oklch(0.28 0.03 245 / 0.6);
+    border-radius: 9999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+  ::-webkit-scrollbar-thumb:hover { background: oklch(0.4 0.04 240 / 0.7); background-clip: padding-box; border: 2px solid transparent; }
 }
 
 @utility ocean-glow {
   box-shadow:
-    0 1px 0 oklch(1 0 0 / 0.06) inset,
-    0 12px 40px -16px oklch(0.6 0.13 215 / 0.5),
-    0 30px 80px -40px oklch(0.4 0.1 240 / 0.6);
+    0 1px 0 oklch(1 0 0 / 0.05) inset,
+    0 10px 40px -20px oklch(0.62 0.135 220 / 0.5),
+    0 30px 80px -40px oklch(0.3 0.08 240 / 0.7);
 }
 
 @utility ocean-card {
   background: linear-gradient(180deg,
-    oklch(0.24 0.05 240 / 0.85),
-    oklch(0.2 0.04 240 / 0.85));
-  border: 1px solid oklch(0.35 0.05 235 / 0.4);
-  backdrop-filter: blur(12px);
+    oklch(0.2 0.035 245 / 0.55),
+    oklch(0.16 0.03 248 / 0.55));
+  border: 1px solid oklch(0.4 0.04 240 / 0.18);
+  backdrop-filter: blur(14px);
 }
 
+@utility hairline {
+  border: 1px solid oklch(1 0 0 / 0.06);
+}
+
+/* Premium motion */
 .animate-fade-in {
-  animation: fade-in 0.4s ease-out;
+  animation: fade-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.animate-rise {
+  animation: rise 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 @keyframes fade-in {
-  from { opacity: 0; transform: translateY(4px); }
+  from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }
 }
+@keyframes rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Staggered children: add .stagger to a parent, children animate in sequence */
+.stagger > * {
+  opacity: 0;
+  animation: rise 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+.stagger > *:nth-child(1) { animation-delay: 40ms; }
+.stagger > *:nth-child(2) { animation-delay: 90ms; }
+.stagger > *:nth-child(3) { animation-delay: 140ms; }
+.stagger > *:nth-child(4) { animation-delay: 190ms; }
+.stagger > *:nth-child(5) { animation-delay: 240ms; }
+.stagger > *:nth-child(6) { animation-delay: 290ms; }
+.stagger > *:nth-child(7) { animation-delay: 340ms; }
+.stagger > *:nth-child(8) { animation-delay: 390ms; }
+.stagger > *:nth-child(n+9) { animation-delay: 440ms; }
+
+/* Slow spin for ambient deco rings */
+@keyframes ocean-spin { to { transform: rotate(360deg); } }
+.animate-ocean-spin { animation: ocean-spin 12s linear infinite; }
