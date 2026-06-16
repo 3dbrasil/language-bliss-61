@@ -125,6 +125,7 @@ function parseTextToDialogues(text: string): Dialogue[] {
   const speakerOnly = /^([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\s.'-]{0,30}?)\s*:\s*$/;
   const speakerInline = /^([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\s.'-]{0,30}?)\s*[:\-–]\s*(.{2,})$/;
   const twoColumnLine = /^([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\s.'-]{0,30}?)\s*[:\-–]\s*(.+?)\s+\|\s+(.+)$/;
+  const pipeRow = /^([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\s.'-]{0,30}?)\s+\|\s+(.+?)(?:\s+\|\s+(.+))?$/;
   const numberedLine = /^\d+[.)]\s*([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\s.'-]{0,30}?)\s*[:\-–]\s*(.+)$/;
   const skipLine = /^(speaker|personagem|personagem\s*\/\s*speaker|english|ingl[eê]s|portugu[eê]s|translation|tradu[cç][aã]o|fala|texto|frase|pron[uú]ncia|vocabul[aá]rio)\b/i;
 
@@ -132,7 +133,7 @@ function parseTextToDialogues(text: string): Dialogue[] {
     const lines = sec.split('\n').map(l => l.trim()).filter(l => l);
     let title = ''; let start = 0;
     for (let i = 0; i < Math.min(3, lines.length); i++) {
-      if (!speakerInline.test(lines[i]) && !speakerOnly.test(lines[i]) && lines[i].length > 3 && lines[i].length < 120) {
+      if (!speakerInline.test(lines[i]) && !speakerOnly.test(lines[i]) && !twoColumnLine.test(lines[i]) && !pipeRow.test(lines[i]) && lines[i].length > 3 && lines[i].length < 120) {
         title = lines[i].replace(/^[#\-*•]+\s*/, ''); start = i + 1; break;
       }
     }
@@ -150,13 +151,18 @@ function parseTextToDialogues(text: string): Dialogue[] {
       const l = lines[i].replace(/^[-*•]\s*/, '').trim();
       if (!l || skipLine.test(l)) continue;
       const mTwoCol = l.match(twoColumnLine);
-      const mNumbered = !mTwoCol ? l.match(numberedLine) : null;
+      const mPipeRow = !mTwoCol ? l.match(pipeRow) : null;
+      const mNumbered = !mTwoCol && !mPipeRow ? l.match(numberedLine) : null;
       const mOnly = l.match(speakerOnly);
-      const mInline = !mTwoCol && !mNumbered && !mOnly ? l.match(speakerInline) : null;
+      const mInline = !mTwoCol && !mPipeRow && !mNumbered && !mOnly ? l.match(speakerInline) : null;
 
       if (mTwoCol) {
         flush();
         pushDialogueLine(dLines, idx, mTwoCol[1], mTwoCol[2], mTwoCol[3]);
+        currentSpeaker = '';
+      } else if (mPipeRow) {
+        flush();
+        pushDialogueLine(dLines, idx, mPipeRow[1], mPipeRow[2], mPipeRow[3] || '');
         currentSpeaker = '';
       } else if (mNumbered) {
         flush();
