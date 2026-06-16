@@ -30,35 +30,63 @@ export async function speakAmericanEnglish(text: string, voiceName?: string, rat
     }
   }
 
-  // Browser TTS fallback
+  // Browser TTS fallback — force English voice; abort if none available
   return new Promise((resolve, reject) => {
     if (!('speechSynthesis' in window)) {
       reject(new Error('Speech synthesis not supported'));
       return;
     }
 
-    window.speechSynthesis.cancel();
+    const pickEnglishVoice = (): SpeechSynthesisVoice | null => {
+      const voices = window.speechSynthesis.getVoices();
+      const enVoices = voices.filter(v => v.lang && v.lang.toLowerCase().startsWith('en'));
+      if (!enVoices.length) return null;
+      if (voiceName) {
+        const named = enVoices.find(v => v.name.includes(voiceName));
+        if (named) return named;
+      }
+      return enVoices.find(v => v.lang === 'en-US') || enVoices[0];
+    };
 
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'en-US';
-    utterance.rate = rate;
-    utterance.pitch = 1;
+    const start = (voice: SpeechSynthesisVoice | null) => {
+      if (!voice) {
+        // Never speak with a non-English voice — would pronounce in Portuguese
+        console.warn('No English TTS voice available; skipping playback.');
+        resolve();
+        return;
+      }
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.voice = voice;
+      utterance.lang = voice.lang || 'en-US';
+      utterance.rate = rate;
+      utterance.pitch = 1;
+      utterance.onend = () => resolve();
+      utterance.onerror = (e) => reject(e);
+      window.speechSynthesis.speak(utterance);
+    };
 
-    const voices = window.speechSynthesis.getVoices();
-    if (voiceName) {
-      const voice = voices.find(v => v.name.includes(voiceName) && v.lang.startsWith('en'));
-      if (voice) utterance.voice = voice;
+    const initial = pickEnglishVoice();
+    if (initial) {
+      start(initial);
     } else {
-      const enVoice = voices.find(v => v.lang === 'en-US') || voices.find(v => v.lang.startsWith('en'));
-      if (enVoice) utterance.voice = enVoice;
+      // Voices not loaded yet — wait once for voiceschanged
+      const handler = () => {
+        window.speechSynthesis.removeEventListener('voiceschanged', handler);
+        start(pickEnglishVoice());
+      };
+      window.speechSynthesis.addEventListener('voiceschanged', handler);
+      // Trigger load
+      window.speechSynthesis.getVoices();
+      // Safety timeout
+      setTimeout(() => {
+        window.speechSynthesis.removeEventListener('voiceschanged', handler);
+        start(pickEnglishVoice());
+      }, 1500);
     }
-
-    utterance.onend = () => resolve();
-    utterance.onerror = (e) => reject(e);
-
-    window.speechSynthesis.speak(utterance);
   });
 }
+
 
 
 // Get a map of speaker -> voice variation  
