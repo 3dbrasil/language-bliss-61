@@ -121,7 +121,10 @@ export const getLessonCoverImage = createServerFn({ method: "POST" })
       }
     }
 
-    const ordered = candidates.filter((candidate) => !used.has(candidate.identity) && !avoid.has(candidate.identity));
+    const unique = candidates.filter((candidate) => !used.has(candidate.identity) && !avoid.has(candidate.identity));
+    // If all Unsplash photos are already used in other lessons, fall back to reusing
+    // them (avoiding only the explicit `avoidUrls`) rather than dropping to a noisy placeholder.
+    const ordered = unique.length ? unique : candidates.filter((candidate) => !avoid.has(candidate.identity));
     for (const candidate of ordered) {
       const imageUrl = candidate.url;
       const payload = { cache_key: key, title: data.title, situation: data.situation ?? null, image_url: imageUrl, source: "unsplash" };
@@ -135,20 +138,13 @@ export const getLessonCoverImage = createServerFn({ method: "POST" })
       }
     }
 
-    const q = encodeURIComponent(searchQuery(data.title, data.situation).replace(/\s+/g, ","));
-    for (let i = 0; i < 10; i++) {
-      const imageUrl = `https://loremflickr.com/900/500/${q}?lock=${hash(`${key}-${i}`)}`;
-      if (used.has(imageIdentity(imageUrl)) || avoid.has(imageIdentity(imageUrl))) continue;
-      const payload = { cache_key: key, title: data.title, situation: data.situation ?? null, image_url: imageUrl, source: "fallback" };
-      const { data: saved, error } = shouldReplaceExisting
-        ? await supabaseAdmin.from("lesson_cover_images").update(payload).eq("cache_key", key).select("image_url").single()
-        : await supabaseAdmin.from("lesson_cover_images").insert(payload).select("image_url").single();
-      if (!error && saved?.image_url) return saved.image_url;
-      if (error?.code === "23505") {
-        const { data: raced } = await supabaseAdmin.from("lesson_cover_images").select("image_url").eq("cache_key", key).maybeSingle();
-        if (raced?.image_url && !avoid.has(imageIdentity(raced.image_url))) return raced.image_url;
-      }
-    }
-
-    return `https://loremflickr.com/900/500/${q}?lock=${hash(key)}`;
+    // Reliable photographic fallback — picsum.photos always serves an image
+    // and supports a deterministic `seed` so the same lesson keeps the same photo.
+    const seed = `${key}-${hash(key)}`;
+    const imageUrl = `https://picsum.photos/seed/${encodeURIComponent(seed)}/900/500`;
+    const payload = { cache_key: key, title: data.title, situation: data.situation ?? null, image_url: imageUrl, source: "fallback" };
+    const { data: saved } = shouldReplaceExisting
+      ? await supabaseAdmin.from("lesson_cover_images").update(payload).eq("cache_key", key).select("image_url").single()
+      : await supabaseAdmin.from("lesson_cover_images").insert(payload).select("image_url").single();
+    return saved?.image_url ?? imageUrl;
   });
