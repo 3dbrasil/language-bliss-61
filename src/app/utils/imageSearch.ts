@@ -1,8 +1,8 @@
 // Busca uma imagem de capa para uma aula.
-// Usa Unsplash API se VITE_UNSPLASH_ACCESS_KEY estiver definida; caso contrário,
-// usa LoremFlickr (keyless) como fallback para garantir que sempre haja imagem.
+// Usa Unsplash API se a chave estiver configurada em Configurações; caso
+// contrário, usa LoremFlickr (keyless) como fallback.
 
-const UNSPLASH_KEY = (import.meta as any).env?.VITE_UNSPLASH_ACCESS_KEY as string | undefined;
+import { getApiConfig } from './apiConfig';
 
 function keywords(title: string, situation?: string): string {
   const base = `${title} ${situation || ''}`
