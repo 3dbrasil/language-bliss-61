@@ -152,7 +152,7 @@ export default function App() {
     // Custom dialogues
     let custom: Dialogue[] = [];
     try { const c = localStorage.getItem('speak_native_custom_dialogues_v2'); if (c) custom = normalizeImportedDialogues(JSON.parse(c)); } catch (_) {}
-    localStorage.setItem('speak_native_custom_dialogues_v2', JSON.stringify(custom));
+    safeSetCustom(custom);
     let deleted: string[] = [];
     try { const d = localStorage.getItem('speak_native_deleted_dialogues_v2'); if (d) { const p = JSON.parse(d); if (Array.isArray(p)) deleted = p; } } catch (_) {}
     const ids = new Set(defaultDialogues.map(d => d.id));
