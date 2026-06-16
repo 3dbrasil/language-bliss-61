@@ -1,4 +1,13 @@
 import { Dialogue } from '../types';
+import coffeeShopCover from '@/assets/lesson-covers/coffee-shop.jpg';
+import firstDayWorkCover from '@/assets/lesson-covers/first-day-work.jpg';
+import groceryStoreCover from '@/assets/lesson-covers/grocery-store.jpg';
+import cityDirectionsCover from '@/assets/lesson-covers/city-directions.jpg';
+import restaurantOrderCover from '@/assets/lesson-covers/restaurant-order.jpg';
+import doctorOfficeCover from '@/assets/lesson-covers/doctor-office.jpg';
+import jobInterviewCover from '@/assets/lesson-covers/job-interview.jpg';
+import businessNegotiationCover from '@/assets/lesson-covers/business-negotiation.jpg';
+import academicDebateCover from '@/assets/lesson-covers/academic-debate.jpg';
 
 export const defaultDialogues: Dialogue[] = [
   // ================ LEVEL A1 ================
@@ -8,7 +17,7 @@ export const defaultDialogues: Dialogue[] = [
     situation: "Pedindo um café e lidando com o caixa em uma típica cafeteria americana.",
     level: "A1",
     order: 1,
-    imageUrl: "https://images.pexels.com/photos/19373865/pexels-photo-19373865.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=400&w=800",
+    imageUrl: coffeeShopCover,
     lines: [
       {
         id: "a1-c1",
@@ -73,7 +82,7 @@ export const defaultDialogues: Dialogue[] = [
     situation: "Se apresentando ao seu colega de equipe no primeiro dia na empresa.",
     level: "A1",
     order: 2,
-    imageUrl: "https://images.pexels.com/photos/5439153/pexels-photo-5439153.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=400&w=800",
+    imageUrl: firstDayWorkCover,
     lines: [
       {
         id: "a1-o1",
@@ -116,7 +125,7 @@ export const defaultDialogues: Dialogue[] = [
     situation: "Daniel e Maria fazem compras no supermercado para preparar uma massa deliciosa.",
     level: "A1",
     order: 3,
-    imageUrl: "https://images.pexels.com/photos/9705821/pexels-photo-9705821.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=400&w=800",
+    imageUrl: groceryStoreCover,
     lines: [
       {
         id: "a1-g1",
@@ -170,7 +179,7 @@ export const defaultDialogues: Dialogue[] = [
     situation: "Perdido no centro da cidade e pedindo direções a um morador local.",
     level: "A2",
     order: 1,
-    imageUrl: "https://images.pexels.com/photos/17758034/pexels-photo-17758034.png?auto=compress&cs=tinysrgb&fit=crop&h=400&w=800",
+    imageUrl: cityDirectionsCover,
     lines: [
       {
         id: "a2-d1",
@@ -224,7 +233,7 @@ export const defaultDialogues: Dialogue[] = [
     situation: "Jantando em um restaurante americano e fazendo seu pedido ao garçom.",
     level: "A2",
     order: 2,
-    imageUrl: "https://images.pexels.com/photos/370984/pexels-photo-370984.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=400&w=800",
+    imageUrl: restaurantOrderCover,
     lines: [
       {
         id: "a2-r1",
@@ -279,7 +288,7 @@ export const defaultDialogues: Dialogue[] = [
     situation: "Visitando o médico para uma consulta de rotina e descrevendo seus sintomas.",
     level: "B1",
     order: 1,
-    imageUrl: "https://images.pexels.com/photos/7579823/pexels-photo-7579823.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=400&w=800",
+    imageUrl: doctorOfficeCover,
     lines: [
       {
         id: "b1-d1",
@@ -334,7 +343,7 @@ export const defaultDialogues: Dialogue[] = [
     situation: "Participando de uma entrevista de emprego para uma posição de desenvolvedor em uma startup.",
     level: "B2",
     order: 1,
-    imageUrl: "https://images.pexels.com/photos/5256522/pexels-photo-5256522.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=400&w=800",
+    imageUrl: jobInterviewCover,
     lines: [
       {
         id: "b2-i1",
@@ -389,7 +398,7 @@ export const defaultDialogues: Dialogue[] = [
     situation: "Negociando um contrato de serviço com um cliente corporativo importante.",
     level: "C1",
     order: 1,
-    imageUrl: "https://images.pexels.com/photos/7433853/pexels-photo-7433853.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=400&w=800",
+    imageUrl: businessNegotiationCover,
     lines: [
       {
         id: "c1-n1",
@@ -422,7 +431,7 @@ export const defaultDialogues: Dialogue[] = [
     situation: "Participando de um debate acadêmico sobre inteligência artificial na educação.",
     level: "C2",
     order: 1,
-    imageUrl: "https://images.pexels.com/photos/8199151/pexels-photo-8199151.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=400&w=800",
+    imageUrl: academicDebateCover,
     lines: [
       {
         id: "c2-db1",
