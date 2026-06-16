@@ -25,20 +25,40 @@ async function extractPDF(file: File): Promise<string> {
   const buf = await file.arrayBuffer();
   const pdf = await lib.getDocument({ data: new Uint8Array(buf) }).promise;
   let text = '';
+  const yTolerance = 3;
+  const columnGap = 40;
   for (let i = 1; i <= pdf.numPages; i++) {
     const page = await pdf.getPage(i);
     const content = await page.getTextContent();
-    let lastY = -1; let lastX = -1; let pt = '';
+    const rowMap = new Map<number, any[]>();
+
     for (const item of content.items as any[]) {
-      const y = item.transform[5]; const x = item.transform[4];
-      if (lastY !== -1 && Math.abs(y - lastY) > 3) {
-        pt += '\n';
-      } else if (lastX !== -1 && x - lastX > 15 && pt && !pt.endsWith(' ')) {
-        pt += ' ';
-      }
-      pt += item.str;
-      lastY = y; lastX = x + (item.width || 0);
+      const str = String(item.str || '').trim();
+      if (!str) continue;
+      const y = Math.round(item.transform[5] / yTolerance) * yTolerance;
+      if (!rowMap.has(y)) rowMap.set(y, []);
+      rowMap.get(y)!.push(item);
     }
+
+    const rows = Array.from(rowMap.entries())
+      .sort((a, b) => b[0] - a[0])
+      .map(([, items]) => items.sort((a, b) => a.transform[4] - b.transform[4]));
+
+    const pt = rows.map(row => {
+      let line = '';
+      let lastRight = -Infinity;
+      row.forEach((item) => {
+        const str = String(item.str || '').trim();
+        const x = item.transform[4];
+        if (!str) return;
+        if (line && x - lastRight > columnGap) line += ' | ';
+        else if (line && !line.endsWith(' ')) line += ' ';
+        line += str;
+        lastRight = x + (item.width || str.length * 5);
+      });
+      return line.replace(/\s+\|\s+/g, ' | ').trim();
+    }).filter(Boolean).join('\n');
+
     text += pt.trim() + '\n\n';
   }
   return text.trim();
@@ -52,46 +72,104 @@ function isPortuguese(s: string): boolean {
   return pt.test(s) && !en.test(s);
 }
 
+function normalizeStudentSpeaker(speaker: string): string {
+  return /^(you|student|aluno|aluna|você|voce)$/i.test(speaker.trim()) ? 'You (Student)' : speaker.trim();
+}
+
+function stripWrappingQuotes(s: string): string {
+  return s.trim().replace(/^["“”'‘’]+|["“”'‘’]+$/g, '').trim();
+}
+
+function makePronunciationGuide(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/\bhello\b/g, 'he-lou')
+    .replace(/\bhi\b/g, 'hai')
+    .replace(/\byou\b/g, 'iu')
+    .replace(/\bthanks?\b/g, 'thénks')
+    .replace(/\bplease\b/g, 'pliz')
+    .replace(/\bhow are you\b/g, 'hau ar iu')
+    .replace(/\bwhat\b/g, 'uát')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function extractVocabulary(text: string, translation: string) {
+  const ignored = new Set(['the', 'and', 'you', 'for', 'that', 'this', 'with', 'are', 'can', 'have', 'will', 'your', 'today', 'hello', 'thanks', 'please']);
+  const words = Array.from(new Set(text.match(/\b[A-Za-z][A-Za-z'-]{3,}\b/g) || []))
+    .filter(w => !ignored.has(w.toLowerCase()))
+    .slice(0, 2);
+  return words.map(word => ({ word, translation: translation || 'ver tradução da frase' }));
+}
+
+function pushDialogueLine(target: Dialogue['lines'], dialogueIdx: number, speaker: string, text: string, translation: string) {
+  const cleanText = stripWrappingQuotes(text);
+  const cleanTranslation = stripWrappingQuotes(translation);
+  if (!speaker.trim() || !cleanText) return;
+  target.push({
+    id: `pdf-${dialogueIdx}-${target.length}`,
+    speaker: normalizeStudentSpeaker(speaker),
+    text: cleanText,
+    translation: cleanTranslation,
+    pronunciationGuide: makePronunciationGuide(cleanText),
+    keyVocabulary: extractVocabulary(cleanText, cleanTranslation),
+  });
+}
+
 function parseTextToDialogues(text: string): Dialogue[] {
   try { const p = JSON.parse(text); if (Array.isArray(p)) return p; } catch (_) {}
   const m = text.match(/\[[\s\S]*\]/); if (m) { try { const p = JSON.parse(m[0]); if (Array.isArray(p)) return p; } catch (_) {} }
-  const dialogues: Dialogue[] = []; const clean = text.replace(/\r\n/g, '\n');
-  const sections = clean.split(/\n{3,}|(?:^|\n)(?:#{1,3}\s|Diálogo\s*\d*\s*[:\-]?\s*|Dialogue\s*\d*\s*[:\-]?\s*|Lesson\s*\d*\s*[:\-]?\s*)/gi).filter(s => s.trim().length > 20);
+  const dialogues: Dialogue[] = []; const clean = text.replace(/\r\n/g, '\n').replace(/[\t ]+/g, ' ');
+  const sections = clean.split(/\n{3,}|(?:^|\n)(?:#{1,3}\s*|Diálogo\s*\d*\s*[:-]?\s*|Dialogue\s*\d*\s*[:-]?\s*|Lesson\s*\d*\s*[:-]?\s*|Lição\s*\d*\s*[:-]?\s*)/gi).filter(s => s.trim().length > 20);
 
   const speakerOnly = /^([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\s.'-]{0,30}?)\s*:\s*$/;
   const speakerInline = /^([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\s.'-]{0,30}?)\s*[:\-–]\s*(.{2,})$/;
+  const twoColumnLine = /^([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\s.'-]{0,30}?)\s*[:\-–]\s*(.+?)\s+\|\s+(.+)$/;
+  const pipeRow = /^([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\s.'-]{0,30}?)\s+\|\s+(.+?)(?:\s+\|\s+(.+))?$/;
+  const numberedLine = /^\d+[.)]\s*([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\s.'-]{0,30}?)\s*[:\-–]\s*(.+)$/;
+  const skipLine = /^(speaker|personagem|personagem\s*\/\s*speaker|english|ingl[eê]s|portugu[eê]s|translation|tradu[cç][aã]o|fala|texto|frase|pron[uú]ncia|vocabul[aá]rio)\b/i;
 
   (sections.length ? sections : [clean]).forEach((sec, idx) => {
     const lines = sec.split('\n').map(l => l.trim()).filter(l => l);
     let title = ''; let start = 0;
     for (let i = 0; i < Math.min(3, lines.length); i++) {
-      if (!speakerInline.test(lines[i]) && !speakerOnly.test(lines[i]) && lines[i].length > 3 && lines[i].length < 120) {
+      if (!speakerInline.test(lines[i]) && !speakerOnly.test(lines[i]) && !twoColumnLine.test(lines[i]) && !pipeRow.test(lines[i]) && lines[i].length > 3 && lines[i].length < 120) {
         title = lines[i].replace(/^[#\-*•]+\s*/, ''); start = i + 1; break;
       }
     }
     if (!title) title = `Diálogo ${idx + 1}`;
 
-    const dLines: any[] = [];
+    const dLines: Dialogue['lines'] = [];
     let currentSpeaker = ''; let pendingText = ''; let pendingTranslation = '';
 
     const flush = () => {
-      if (currentSpeaker && pendingText) {
-        dLines.push({
-          id: `pdf-${idx}-${dLines.length}`,
-          speaker: currentSpeaker,
-          text: pendingText.trim(),
-          translation: pendingTranslation.trim(),
-        });
-      }
+      pushDialogueLine(dLines, idx, currentSpeaker, pendingText, pendingTranslation);
       pendingText = ''; pendingTranslation = '';
     };
 
     for (let i = start; i < lines.length; i++) {
-      const l = lines[i];
+      const l = lines[i].replace(/^[-*•]\s*/, '').replace(/^([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\s.'-]{0,30}?):\s*\|\s*/, '$1 | ').trim();
+      if (!l || skipLine.test(l)) continue;
+      const mTwoCol = l.match(twoColumnLine);
+      const mPipeRow = !mTwoCol ? l.match(pipeRow) : null;
+      const mNumbered = !mTwoCol && !mPipeRow ? l.match(numberedLine) : null;
       const mOnly = l.match(speakerOnly);
-      const mInline = !mOnly ? l.match(speakerInline) : null;
+      const mInline = !mTwoCol && !mPipeRow && !mNumbered && !mOnly ? l.match(speakerInline) : null;
 
-      if (mOnly) {
+      if (mTwoCol) {
+        flush();
+        pushDialogueLine(dLines, idx, mTwoCol[1], mTwoCol[2], mTwoCol[3]);
+        currentSpeaker = '';
+      } else if (mPipeRow) {
+        flush();
+        pushDialogueLine(dLines, idx, mPipeRow[1], mPipeRow[2], mPipeRow[3] || '');
+        currentSpeaker = '';
+      } else if (mNumbered) {
+        flush();
+        currentSpeaker = mNumbered[1].trim();
+        const rest = mNumbered[2].trim();
+        if (isPortuguese(rest)) pendingTranslation = rest; else pendingText = rest;
+      } else if (mOnly) {
         flush();
         currentSpeaker = mOnly[1].trim();
       } else if (mInline) {
@@ -100,7 +178,6 @@ function parseTextToDialogues(text: string): Dialogue[] {
         const rest = mInline[2].trim();
         if (isPortuguese(rest)) pendingTranslation = rest; else pendingText = rest;
       } else if (currentSpeaker) {
-        // Continuation: either original text or translation
         if (!pendingText) pendingText = l;
         else if (!pendingTranslation && isPortuguese(l)) pendingTranslation = l;
         else if (isPortuguese(l)) pendingTranslation += ' ' + l;
