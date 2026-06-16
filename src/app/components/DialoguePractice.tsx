@@ -4,6 +4,7 @@ import { Dialogue, DialogueLine, PronunciationFeedback, UserStats } from '../typ
 import { speakAmericanEnglish } from '../utils/speech';
 import { classifyDifficulty, getState, markLearned, setLevel, speakerAvatar, type SrsLevel } from '../utils/srs';
 import AriaChat from './AriaChat';
+import { translateLessonLines } from '@/lib/translations.functions';
 
 interface Props { dialogue: Dialogue; stats: UserStats; onBack: () => void; onComplete: (xp: number, scores: Record<string, number>) => void; }
 
@@ -19,8 +20,10 @@ export default function DialoguePractice({ dialogue, stats: _s, onBack, onComple
   const [blurPt, setBlurPt] = useState(true);
   const [autoplay, setAutoplay] = useState(false);
   const [celebrate, setCelebrate] = useState(false);
+  const [generatedTranslations, setGeneratedTranslations] = useState<Record<string, string>>({});
 
   const isStu = (l: DialogueLine) => /you|student/i.test(l.speaker);
+  const missingTranslation = (value?: string) => !value?.trim() || /^[•.\s]+$/.test(value.trim());
 
   const visibleLines = dialogue.lines.filter(l => lvlFilter === 'all' || (getState(l.text).level || classifyDifficulty(l.text)) === lvlFilter);
 
@@ -46,6 +49,25 @@ export default function DialoguePractice({ dialogue, stats: _s, onBack, onComple
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoplay]);
+
+  useEffect(() => {
+    const missing = dialogue.lines
+      .filter((line) => missingTranslation(line.translation) && !generatedTranslations[line.id])
+      .map((line) => ({ id: line.id, text: line.text }));
+    if (!missing.length) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const translated = await translateLessonLines({ data: { lines: missing.slice(0, 40) } });
+        if (!cancelled && Object.keys(translated).length) {
+          setGeneratedTranslations((current) => ({ ...current, ...translated }));
+        }
+      } catch (error) {
+        console.warn('lesson translation failed', error);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [dialogue.id, generatedTranslations]);
 
   const finish = () => {
     setCelebrate(true);
@@ -176,7 +198,7 @@ export default function DialoguePractice({ dialogue, stats: _s, onBack, onComple
                     {l.text}
                   </p>
                   <p onClick={() => blurPt && setBlurPt(false)} className={`text-[12px] text-slate-100/80 mt-1.5 italic transition ${blurPt ? 'blur-sm hover:blur-none cursor-pointer select-none' : ''}`}>
-                    {l.translation || '••••• ••••• ••••• ••••• •••••'}
+                    {missingTranslation(l.translation) ? (generatedTranslations[l.id] || 'Gerando tradução…') : l.translation}
                   </p>
                   {l.pronunciationGuide && <p className="text-[10px] text-white/40 font-mono mt-1">🔊 {l.pronunciationGuide}</p>}
 
