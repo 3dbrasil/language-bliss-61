@@ -67,7 +67,7 @@ async function extractPDF(file: File): Promise<string> {
 /* Detect Portuguese line (translation) vs English (original) */
 function isPortuguese(s: string): boolean {
   if (/[áàâãéêíóôõúçÁÀÂÃÉÊÍÓÔÕÚÇ]/.test(s)) return true;
-  const pt = /\b(você|voce|eu|não|nao|sim|estou|está|esta|muito|obrigad[oa]|com|para|por|que|como|onde|quando|porque|também|tambem|tudo|bem|aqui|ali|isso|isto|aquilo|fazer|tenho|tem|temos|posso|pode|quero|gosto|amigo|amiga|hoje|ontem|amanhã|amanha)\b/i;
+  const pt = /\b(você|voce|eu|não|nao|sim|estou|está|esta|sou|ser|ter|tenho|preciso|comprar|quero|gostaria|obrigad[oa]|bom|boa|dia|noite|tarde|com|para|por|que|como|onde|quando|porque|também|tambem|tudo|bem|aqui|ali|isso|isto|aquilo|fazer|tem|temos|posso|pode|gosto|amigo|amiga|hoje|ontem|amanhã|amanha|ajuda|encontrar|ficar|chegar|pedido|frase|tradu[cç][aã]o)\b/i;
   const en = /\b(the|is|are|you|i|we|they|he|she|have|has|do|does|can|will|would|with|for|from|that|this|what|where|when|how|why|hello|hi|thanks|thank|good|please)\b/i;
   return pt.test(s) && !en.test(s);
 }
