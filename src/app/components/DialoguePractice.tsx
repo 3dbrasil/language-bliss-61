@@ -221,9 +221,14 @@ export default function DialoguePractice({ dialogue, stats: _s, onBack, onComple
           <div className="bg-white/[0.03] backdrop-blur-xl border border-white/10 rounded-2xl p-5 text-center space-y-3">
             <Award className="w-8 h-8 text-[#5EEAC4] mx-auto" />
             <p className="text-xs text-slate-300">Pronto para a próxima? Você ouviu o diálogo completo.</p>
-            <button onClick={finish} className="relative overflow-hidden bg-gradient-to-r from-[#2A7FFF] to-[#00D4A0] text-white px-7 py-3 rounded-full text-sm font-bold shadow-[0_10px_30px_-5px_rgba(42,127,255,0.5)] hover:scale-105 active:scale-95 transition">
-              Concluir lição →
-            </button>
+            <div className="flex items-center justify-center gap-2">
+              <button onClick={onBack} className="flex items-center gap-1.5 bg-slate-900 border border-slate-800 text-slate-200 px-5 py-3 rounded-full text-sm font-bold hover:bg-slate-800 transition">
+                <ArrowLeft className="w-4 h-4" /> Voltar
+              </button>
+              <button onClick={finish} className="relative overflow-hidden bg-gradient-to-r from-[#2A7FFF] to-[#00D4A0] text-white px-7 py-3 rounded-full text-sm font-bold shadow-[0_10px_30px_-5px_rgba(42,127,255,0.5)] hover:scale-105 active:scale-95 transition">
+                Concluir lição →
+              </button>
+            </div>
           </div>
         </div>
       )}
