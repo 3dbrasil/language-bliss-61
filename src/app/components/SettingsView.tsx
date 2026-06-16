@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Download, Upload, Trash2, CheckCircle, AlertTriangle, Key, Volume2, Brain, Cloud, Loader2, ExternalLink, Eye, EyeOff, FileText, Sparkles } from 'lucide-react';
 import { Dialogue, UserStats, Badge } from '../types';
 import { getApiConfig, saveApiConfig, ApiConfig } from '../utils/apiConfig';
@@ -78,6 +78,7 @@ export default function SettingsView({ stats, dialogues, onImportDialogues, onDe
   const [testRes, setTestRes] = useState<{ ok: boolean; msg: string } | null>(null);
   const [dling, setDling] = useState(false);
   const [dlProg, setDlProg] = useState({ c: 0, t: 0, l: '' });
+  const dialogueListRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { setApi(getApiConfig()); }, []);
   const save = () => { saveApiConfig(api); setSaved(true); setTimeout(() => setSaved(false), 2000); };
@@ -88,6 +89,18 @@ export default function SettingsView({ stats, dialogues, onImportDialogues, onDe
 
   const [batchProg, setBatchProg] = useState<{ c: number; t: number; name: string } | null>(null);
   const [uploadLevel, setUploadLevel] = useState<'auto' | 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2'>('auto');
+
+  const keepScroll = (action: () => void) => {
+    const windowY = window.scrollY;
+    const listY = dialogueListRef.current?.scrollTop ?? 0;
+    action();
+    const restore = () => {
+      window.scrollTo({ top: windowY, left: 0, behavior: 'auto' });
+      if (dialogueListRef.current) dialogueListRef.current.scrollTop = listY;
+    };
+    requestAnimationFrame(restore);
+    setTimeout(restore, 0);
+  };
 
   const handlePDF = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []); if (!files.length) return;
@@ -321,7 +334,7 @@ export default function SettingsView({ stats, dialogues, onImportDialogues, onDe
       <Section>
         <Label>Gerenciar Diálogos ({dialogues.length})</Label>
         <p className="text-[11px] text-slate-600">Remova diálogos que você não quer praticar. Você pode resetar tudo na Zona de Perigo para restaurar os padrões.</p>
-        <div className="max-h-80 overflow-y-auto space-y-1.5 pr-1">
+        <div ref={dialogueListRef} className="max-h-80 overflow-y-auto space-y-1.5 pr-1">
           {(['A1','A2','B1','B2','C1','C2'] as const).map(lvl => {
             const items = dialogues.filter(d => d.level === lvl);
             if (!items.length) return null;
@@ -340,21 +353,23 @@ export default function SettingsView({ stats, dialogues, onImportDialogues, onDe
                         <div className="flex gap-1 shrink-0">
                           <button
                             type="button"
+                            onMouseDown={(e) => e.preventDefault()}
                             onClick={(e) => {
                               e.preventDefault();
-                              const y = window.scrollY;
-                              onDeleteDialogue(d.id);
-                              setShowDel(null);
-                              requestAnimationFrame(() => window.scrollTo({ top: y, left: 0, behavior: 'auto' }));
+                              e.stopPropagation();
+                              keepScroll(() => {
+                                onDeleteDialogue(d.id);
+                                setShowDel(null);
+                              });
                             }}
                             className="text-[10px] bg-red-500 text-white px-2 py-0.5 rounded font-bold"
                           >
                             Remover
                           </button>
-                          <button type="button" onClick={() => setShowDel(null)} className="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded font-bold">Cancelar</button>
+                          <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={(e) => { e.preventDefault(); e.stopPropagation(); keepScroll(() => setShowDel(null)); }} className="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded font-bold">Cancelar</button>
                         </div>
                       ) : (
-                        <button type="button" onClick={() => setShowDel(d.id)} className="text-slate-700 hover:text-red-400 shrink-0 p-1" aria-label="Remover diálogo">
+                        <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={(e) => { e.preventDefault(); e.stopPropagation(); keepScroll(() => setShowDel(d.id)); }} className="text-slate-700 hover:text-red-400 shrink-0 p-1" aria-label="Remover diálogo">
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       )}
