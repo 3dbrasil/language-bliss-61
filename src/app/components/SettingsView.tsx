@@ -120,7 +120,7 @@ function parseTextToDialogues(text: string): Dialogue[] {
   try { const p = JSON.parse(text); if (Array.isArray(p)) return p; } catch (_) {}
   const m = text.match(/\[[\s\S]*\]/); if (m) { try { const p = JSON.parse(m[0]); if (Array.isArray(p)) return p; } catch (_) {} }
   const dialogues: Dialogue[] = []; const clean = text.replace(/\r\n/g, '\n').replace(/[\t ]+/g, ' ');
-  const sections = clean.split(/\n{3,}|(?:^|\n)(?:#{1,3}\s*|Diálogo\s*\d*\s*[:\-]?\s*|Dialogue\s*\d*\s*[:\-]?\s*|Lesson\s*\d*\s*[:\-]?\s*|Lição\s*\d*\s*[:\-]?\s*)/gi).filter(s => s.trim().length > 20);
+  const sections = clean.split(/\n{3,}|(?:^|\n)(?:#{1,3}\s*|Diálogo\s*\d*\s*[:-]?\s*|Dialogue\s*\d*\s*[:-]?\s*|Lesson\s*\d*\s*[:-]?\s*|Lição\s*\d*\s*[:-]?\s*)/gi).filter(s => s.trim().length > 20);
 
   const speakerOnly = /^([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\s.'-]{0,30}?)\s*:\s*$/;
   const speakerInline = /^([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\s.'-]{0,30}?)\s*[:\-–]\s*(.{2,})$/;
