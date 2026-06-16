@@ -216,6 +216,29 @@ export default function SettingsView({ stats, dialogues, onImportDialogues, onDe
         </div>
         <p className="text-[11px] text-slate-500 leading-relaxed">Selecione <strong className="text-cyan-400">vários PDFs de uma vez</strong> (segure Ctrl/Cmd) ou um JSON. Cada PDF é processado em sequência.</p>
 
+        <div>
+          <Label>Nível dos PDFs</Label>
+          <div className="flex flex-wrap gap-1.5 mt-1.5">
+            {(['auto', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2'] as const).map(lv => (
+              <button
+                key={lv}
+                onClick={() => setUploadLevel(lv)}
+                className={`px-3 py-1.5 rounded-lg text-[11px] font-bold border transition ${
+                  uploadLevel === lv
+                    ? 'bg-cyan-500/15 text-cyan-300 border-cyan-500/40'
+                    : 'bg-slate-950 text-slate-500 border-slate-800 hover:text-slate-300'
+                }`}
+              >
+                {lv === 'auto' ? 'Auto-detectar' : lv}
+              </button>
+            ))}
+          </div>
+          <p className="text-[10px] text-slate-600 mt-1">
+            {uploadLevel === 'auto' ? 'O nível é inferido do conteúdo de cada PDF.' : `Todos os diálogos serão classificados como ${uploadLevel}.`}
+          </p>
+        </div>
+
+
         <div className="flex gap-2">
           <label className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold cursor-pointer transition border ${parsing ? 'bg-teal-500/10 text-teal-400 border-teal-500/20 animate-pulse' : 'bg-red-500/5 text-cyan-400 border-cyan-500/20 hover:bg-cyan-500/10'}`}>
             <FileText className="w-3.5 h-3.5" />{parsing ? 'Processando...' : '📄 Upload PDFs (vários)'}
