@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Play, Lock, CheckCircle2, Volume2, ArrowRight, Lightbulb, Flame, Sparkles, Waves } from 'lucide-react';
 import { Dialogue, Level, UserStats } from '../types';
-import { fallbackCoverImage, findCoverImage } from '../utils/imageSearch';
+import { fallbackCoverImage, findCoverImage, isLikelyBrokenCoverImageUrl } from '../utils/imageSearch';
 import bannerImg from '@/assets/map-banner.jpg';
 import catConversation from '@/assets/cat-conversation.jpg';
 import catPronunciation from '@/assets/cat-pronunciation.jpg';
@@ -45,7 +45,7 @@ export default function DuolingoMap({ dialogues, stats, onSelectDialogue }: Prop
 
   useEffect(() => {
     let cancelled = false;
-    const missing = filtered.filter(d => !d.imageUrl && !images[d.id]);
+    const missing = filtered.filter(d => (!d.imageUrl || isLikelyBrokenCoverImageUrl(d.imageUrl)) && !images[d.id]);
     if (missing.length === 0) return;
     (async () => {
       for (const d of missing) {
@@ -289,7 +289,9 @@ export default function DuolingoMap({ dialogues, stats, onSelectDialogue }: Prop
             const unlocked = isUnlocked(gIdx);
             const completed = stats.completedDialogues?.includes(d.id);
             const score = stats.pronunciationAverages?.[d.id];
-            const image = d.imageUrl || images[d.id] || fallbackCoverImage(d.title, d.situation, d.id);
+            const image = !isLikelyBrokenCoverImageUrl(d.imageUrl) && d.imageUrl
+              ? d.imageUrl
+              : images[d.id] || fallbackCoverImage(d.title, d.situation, d.id);
             const lessonPct = completed ? 100 : score ?? 0;
 
             return (
@@ -311,6 +313,10 @@ export default function DuolingoMap({ dialogues, stats, onSelectDialogue }: Prop
                     src={image}
                     alt=""
                     loading="lazy"
+                    onError={(event) => {
+                      const fallback = fallbackCoverImage(d.title, d.situation, d.id);
+                      if (event.currentTarget.src !== fallback) event.currentTarget.src = fallback;
+                    }}
                     className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                   />
                 ) : (
