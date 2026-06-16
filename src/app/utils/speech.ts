@@ -9,7 +9,7 @@ export function getAudioCache(): Map<string, ArrayBuffer> {
 }
 
 // Speak text — uses Unreal Speech if configured, otherwise browser TTS
-export async function speakAmericanEnglish(text: string, voiceName?: string): Promise<void> {
+export async function speakAmericanEnglish(text: string, voiceName?: string, rate: number = 0.85): Promise<void> {
   const config = getApiConfig();
 
   if (config.ttsProvider === 'unreal' && config.unrealSpeechApiKey) {
@@ -20,7 +20,9 @@ export async function speakAmericanEnglish(text: string, voiceName?: string): Pr
         buffer = await unrealSpeechTTS(text);
         audioCache.set(cacheKey, buffer);
       }
-      await playAudioBuffer(buffer.slice(0)); // slice to avoid detached buffer
+      // Map our rate (0.85 baseline) to playbackRate
+      const pbRate = rate / 0.85;
+      await playAudioBuffer(buffer.slice(0), pbRate);
       return;
     } catch (e) {
       console.warn('Unreal Speech failed, falling back to browser TTS:', e);
@@ -39,7 +41,7 @@ export async function speakAmericanEnglish(text: string, voiceName?: string): Pr
 
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = 'en-US';
-    utterance.rate = 0.85;
+    utterance.rate = rate;
     utterance.pitch = 1;
 
     const voices = window.speechSynthesis.getVoices();
@@ -57,6 +59,7 @@ export async function speakAmericanEnglish(text: string, voiceName?: string): Pr
     window.speechSynthesis.speak(utterance);
   });
 }
+
 
 // Get a map of speaker -> voice variation  
 export function getSpeakerVoiceMap(dialogue: Dialogue, _userCoachVoice: string): { [speaker: string]: string } {
