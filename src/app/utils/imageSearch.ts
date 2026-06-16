@@ -31,7 +31,7 @@ export function fallbackCoverImage(title: string, situation?: string, lessonId?:
 export function isLikelyBrokenCoverImageUrl(url?: string | null): boolean {
   const value = typeof url === 'string' ? url.trim() : '';
   if (!value) return false;
-  return /loremflickr\.com|placeholder|undefined|null/i.test(value) || !/^(https?:\/\/|data:image\/|\/|blob:)/i.test(value);
+  return /loremflickr\.com|placeholder|undefined|null/i.test(value.replace(/\\/g, '')) || !/^(https?:\/\/|data:image\/|\/|blob:)/i.test(value);
 }
 
 export async function findCoverImage(title: string, situation?: string, lessonId?: string, avoidUrls: string[] = []): Promise<string> {
