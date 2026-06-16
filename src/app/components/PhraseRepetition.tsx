@@ -18,6 +18,8 @@ interface Phrase {
 
 interface Props { dialogues: Dialogue[]; completedDialogues: string[]; onAddXp: (xp: number) => void; }
 
+type LevelFilter = 'all' | SrsLevel;
+
 export default function PhraseRepetition({ dialogues, completedDialogues, onAddXp }: Props) {
   const [phrases, setPhrases] = useState<Phrase[]>([]);
   const [idx, setIdx] = useState(0);
@@ -27,6 +29,7 @@ export default function PhraseRepetition({ dialogues, completedDialogues, onAddX
   const [rate, setRate] = useState(0.85);
   const [srsTick, setSrsTick] = useState(0);
   const [reviewed, setReviewed] = useState(0);
+  const [filter, setFilter] = useState<LevelFilter>('all');
 
   // Build today's review queue: due (or never reviewed), ordered by nextReview
   useEffect(() => {
@@ -44,13 +47,17 @@ export default function PhraseRepetition({ dialogues, completedDialogues, onAddX
     if (!all.length) dialogues.filter(d => d.level === 'A1').forEach(add);
 
     const now = Date.now();
-    const due = all
+    const filtered = filter === 'all'
+      ? all
+      : all.filter(p => (getState(p.text).level || classifyDifficulty(p.text)) === filter);
+    const due = filtered
       .map(p => ({ p, s: getState(p.text) }))
       .filter(x => x.s.nextReview <= now || !x.s.learned)
       .sort((a, b) => a.s.nextReview - b.s.nextReview)
       .map(x => x.p);
-    setPhrases(due.length ? due : all);
-  }, [dialogues, completedDialogues]);
+    setPhrases(due.length ? due : filtered);
+    setIdx(0);
+  }, [dialogues, completedDialogues, filter]);
 
   const cur = phrases[idx];
 
