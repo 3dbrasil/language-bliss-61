@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
 const CoverImageInput = z.object({
@@ -51,17 +52,21 @@ function unsplashUrl(photo: any): string | null {
 export const getLessonCoverImage = createServerFn({ method: "POST" })
   .inputValidator((input) => CoverImageInput.parse(input))
   .handler(async ({ data }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_PUBLISHABLE_KEY;
+    if (!supabaseUrl || !supabaseKey) throw new Error("Backend não configurado");
+
+    const supabase = createClient(supabaseUrl, supabaseKey, { auth: { persistSession: false } });
     const key = cacheKey(data.title, data.situation);
 
-    const { data: existing } = await supabaseAdmin
+    const { data: existing } = await supabase
       .from("lesson_cover_images")
       .select("image_url")
       .eq("cache_key", key)
       .maybeSingle();
     if (existing?.image_url) return existing.image_url;
 
-    const { data: usedRows } = await supabaseAdmin
+    const { data: usedRows } = await supabase
       .from("lesson_cover_images")
       .select("image_url")
       .limit(1000);
@@ -94,23 +99,31 @@ export const getLessonCoverImage = createServerFn({ method: "POST" })
     const ordered = [...candidates.filter((url) => !used.has(url)), ...candidates.filter((url) => used.has(url))];
     for (const imageUrl of ordered) {
       if (used.has(imageUrl)) continue;
-      const { data: saved, error } = await supabaseAdmin
+      const { data: saved, error } = await supabase
         .from("lesson_cover_images")
         .insert({ cache_key: key, title: data.title, situation: data.situation ?? null, image_url: imageUrl, source: "unsplash" })
         .select("image_url")
         .single();
       if (!error && saved?.image_url) return saved.image_url;
+      if (error?.code === "23505") {
+        const { data: raced } = await supabase.from("lesson_cover_images").select("image_url").eq("cache_key", key).maybeSingle();
+        if (raced?.image_url) return raced.image_url;
+      }
     }
 
     const q = encodeURIComponent(searchQuery(data.title, data.situation).replace(/\s+/g, ","));
     for (let i = 0; i < 10; i++) {
       const imageUrl = `https://loremflickr.com/900/500/${q}?lock=${hash(`${key}-${i}`)}`;
-      const { data: saved, error } = await supabaseAdmin
+      const { data: saved, error } = await supabase
         .from("lesson_cover_images")
         .insert({ cache_key: key, title: data.title, situation: data.situation ?? null, image_url: imageUrl, source: "fallback" })
         .select("image_url")
         .single();
       if (!error && saved?.image_url) return saved.image_url;
+      if (error?.code === "23505") {
+        const { data: raced } = await supabase.from("lesson_cover_images").select("image_url").eq("cache_key", key).maybeSingle();
+        if (raced?.image_url) return raced.image_url;
+      }
     }
 
     return `https://loremflickr.com/900/500/${q}?lock=${hash(key)}`;
