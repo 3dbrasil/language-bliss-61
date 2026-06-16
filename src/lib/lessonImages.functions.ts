@@ -1,10 +1,11 @@
 import { createServerFn } from "@tanstack/react-start";
-import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
 const CoverImageInput = z.object({
   title: z.string().trim().min(1).max(180),
   situation: z.string().trim().max(240).optional().nullable(),
+  lessonId: z.string().trim().min(1).max(160).optional().nullable(),
+  avoidUrls: z.array(z.string().trim().min(1).max(1200)).max(200).optional(),
 });
 
 function hash(value: string): number {
@@ -23,10 +24,20 @@ function normalize(value: string): string {
     .trim();
 }
 
-function cacheKey(title: string, situation?: string | null): string {
-  const raw = `${title}|${situation ?? ""}`;
+function cacheKey(title: string, situation?: string | null, lessonId?: string | null): string {
+  const raw = `${lessonId || "lesson"}|${title}|${situation ?? ""}`;
   const slug = normalize(raw).replace(/\s+/g, "-").slice(0, 120) || "lesson";
   return `${slug}-${hash(raw)}`;
+}
+
+function normalizeImageUrl(url: string): string {
+  try {
+    const parsed = new URL(url);
+    parsed.searchParams.delete("ixid");
+    return parsed.toString();
+  } catch (_) {
+    return url;
+  }
 }
 
 function searchQuery(title: string, situation?: string | null): string {
@@ -52,19 +63,16 @@ function unsplashUrl(photo: any): string | null {
 export const getLessonCoverImage = createServerFn({ method: "POST" })
   .inputValidator((input) => CoverImageInput.parse(input))
   .handler(async ({ data }) => {
-    const supabaseUrl = process.env.SUPABASE_URL;
-    const supabaseKey = process.env.SUPABASE_PUBLISHABLE_KEY;
-    if (!supabaseUrl || !supabaseKey) throw new Error("Backend não configurado");
-
-    const supabase = createClient(supabaseUrl, supabaseKey, { auth: { persistSession: false } });
-    const key = cacheKey(data.title, data.situation);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const key = cacheKey(data.title, data.situation, data.lessonId);
+    const avoid = new Set((data.avoidUrls ?? []).map(normalizeImageUrl));
 
     const { data: existing } = await supabase
       .from("lesson_cover_images")
       .select("image_url")
       .eq("cache_key", key)
       .maybeSingle();
-    if (existing?.image_url) return existing.image_url;
+    if (existing?.image_url && !avoid.has(normalizeImageUrl(existing.image_url))) return existing.image_url;
 
     const { data: usedRows } = await supabase
       .from("lesson_cover_images")
