@@ -132,6 +132,9 @@ export default function DialoguePractice({ dialogue, stats: _s, onBack, onComple
             <span className={`w-1.5 h-1.5 rounded-full ${o.c}`} />{o.l}
           </button>
         ))}
+        <button onClick={() => setBlurPt(b => !b)} className={`ml-1 text-[10px] font-bold px-2 py-0.5 rounded transition ${blurPt ? 'bg-purple-500/20 text-purple-300' : 'text-slate-400 hover:text-slate-200'}`} title="Embaçar traduções">
+          {blurPt ? '👁️‍🗨️ PT oculto' : '👁️ PT visível'}
+        </button>
       </div>
 
       {/* Lines */}
