@@ -19,6 +19,44 @@ const META: Record<Level, { name: string; subtitle: string; tagline: string }> =
 
 const LEVEL_ORDER: Level[] = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
+const EMOJI_MAP: { keys: string[]; emoji: string }[] = [
+  { keys: ['supermerc', 'mercado', 'compra', 'grocery', 'shop', 'loja'], emoji: '🛒' },
+  { keys: ['direç', 'direction', 'mapa', 'caminho', 'rua'], emoji: '🗺️' },
+  { keys: ['praia', 'beach', 'mar', 'oceano'], emoji: '🏖️' },
+  { keys: ['clima', 'tempo', 'weather', 'chuva', 'sol'], emoji: '🌤️' },
+  { keys: ['presente', 'gift', 'aniversário', 'birthday'], emoji: '🎁' },
+  { keys: ['bibliote', 'library', 'livro', 'book', 'leitura'], emoji: '📚' },
+  { keys: ['restaurante', 'restaurant', 'comida', 'food', 'jantar', 'almoço'], emoji: '🍽️' },
+  { keys: ['café', 'coffee', 'breakfast', 'café da manhã'], emoji: '☕' },
+  { keys: ['hotel', 'reserva', 'hospedagem'], emoji: '🏨' },
+  { keys: ['aeroporto', 'airport', 'voo', 'flight', 'viagem', 'travel'], emoji: '✈️' },
+  { keys: ['táxi', 'taxi', 'uber', 'carro', 'car', 'transporte'], emoji: '🚕' },
+  { keys: ['trem', 'train', 'metrô', 'metro', 'ônibus', 'bus'], emoji: '🚆' },
+  { keys: ['médico', 'doctor', 'hospital', 'saúde', 'health', 'remédio'], emoji: '🩺' },
+  { keys: ['escola', 'school', 'aula', 'class', 'estudo'], emoji: '🎓' },
+  { keys: ['trabalho', 'work', 'office', 'escritório', 'reunião', 'meeting'], emoji: '💼' },
+  { keys: ['telefone', 'phone', 'ligação', 'call'], emoji: '📞' },
+  { keys: ['família', 'family', 'pais', 'irmão'], emoji: '👨‍👩‍👧'},
+  { keys: ['amigo', 'friend', 'festa', 'party'], emoji: '🎉' },
+  { keys: ['casa', 'home', 'apartamento'], emoji: '🏠' },
+  { keys: ['banco', 'bank', 'dinheiro', 'money', 'pagamento'], emoji: '🏦' },
+  { keys: ['roupa', 'clothes', 'moda', 'fashion'], emoji: '👕' },
+  { keys: ['hobby', 'esporte', 'sport', 'futebol', 'gym', 'academia'], emoji: '⚽' },
+  { keys: ['music', 'música', 'concerto', 'show'], emoji: '🎵' },
+  { keys: ['filme', 'cinema', 'movie'], emoji: '🎬' },
+  { keys: ['saudaç', 'greeting', 'olá', 'hello', 'apresenta', 'introdu'], emoji: '👋' },
+  { keys: ['número', 'number', 'contagem'], emoji: '🔢' },
+  { keys: ['cor', 'color'], emoji: '🎨' },
+  { keys: ['hora', 'time', 'relógio'], emoji: '⏰' },
+];
+const FALLBACK_EMOJIS = ['💬', '🌟', '🧭', '🪴', '🎈', '🧩', '🪁', '🍀', '🌈', '🔔'];
+function pickEmoji(title: string): string {
+  const t = title.toLowerCase();
+  for (const m of EMOJI_MAP) if (m.keys.some(k => t.includes(k))) return m.emoji;
+  let h = 0; for (let i = 0; i < title.length; i++) h = (h * 31 + title.charCodeAt(i)) >>> 0;
+  return FALLBACK_EMOJIS[h % FALLBACK_EMOJIS.length];
+}
+
 export default function DuolingoMap({ dialogues, stats, onSelectDialogue }: Props) {
   const [sel, setSel] = useState<Level>('A1');
 
