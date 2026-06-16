@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, Volume2, Mic, MicOff, Check, RotateCcw, Star, BookOpen, Award, Send, Sparkles } from 'lucide-react';
+import { ArrowLeft, Volume2, Mic, MicOff, Check, RotateCcw, Star, BookOpen, Award, Send, Sparkles, CheckCircle2 } from 'lucide-react';
 import { Dialogue, DialogueLine, PronunciationFeedback, UserStats } from '../types';
 import { speakAmericanEnglish, evaluatePronunciation } from '../utils/speech';
+import { classifyDifficulty, getState, markLearned, recordResult, LEVEL_META, speakerAvatar } from '../utils/srs';
 import AriaChat from './AriaChat';
 
 
