@@ -20,57 +20,9 @@ const META: Record<Level, { name: string; subtitle: string; tagline: string }> =
 
 const LEVEL_ORDER: Level[] = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
-const IMAGE_MAP: { keys: string[]; q: string }[] = [
-  { keys: ['grocery', 'supermerc', 'mercado'], q: 'grocery,store' },
-  { keys: ['direction', 'direç'], q: 'city,map' },
-  { keys: ['neighbor', 'vizinho'], q: 'neighbors,house' },
-  { keys: ['bus stop', 'ônibus', 'bus'], q: 'bus,stop' },
-  { keys: ['picnic', 'piquenique'], q: 'picnic,park' },
-  { keys: ['beach', 'praia'], q: 'beach,ocean' },
-  { keys: ['weather', 'clima', 'tempo'], q: 'weather,sky' },
-  { keys: ['post office', 'correio', 'post'], q: 'post,office' },
-  { keys: ['birthday', 'gift', 'presente', 'aniversário'], q: 'gift,celebration' },
-  { keys: ['library', 'bibliote'], q: 'library,books' },
-  { keys: ['clothes', 'roupa', 'shopping for'], q: 'clothes,fashion' },
-  { keys: ['bakery', 'padaria'], q: 'bakery,bread' },
-  { keys: ['zoo'], q: 'zoo,animals' },
-  { keys: ['restaurant', 'restaurante'], q: 'restaurant,table' },
-  { keys: ['café', 'coffee', 'breakfast'], q: 'cafe,coffee' },
-  { keys: ['hotel', 'reserva'], q: 'hotel,room' },
-  { keys: ['airport', 'aeroporto', 'flight', 'voo', 'travel', 'viagem'], q: 'airport,travel' },
-  { keys: ['taxi', 'táxi', 'uber'], q: 'taxi,city' },
-  { keys: ['train', 'trem', 'metrô', 'metro'], q: 'train,station' },
-  { keys: ['doctor', 'médico', 'hospital', 'saúde', 'health'], q: 'doctor,clinic' },
-  { keys: ['school', 'escola', 'class', 'aula'], q: 'school,classroom' },
-  { keys: ['work', 'trabalho', 'office', 'escritório', 'meeting', 'reunião'], q: 'office,work' },
-  { keys: ['phone', 'telefone', 'call'], q: 'phone,call' },
-  { keys: ['family', 'família'], q: 'family,home' },
-  { keys: ['friend', 'amigo', 'party', 'festa'], q: 'friends,party' },
-  { keys: ['home', 'casa', 'apartamento'], q: 'home,interior' },
-  { keys: ['bank', 'banco', 'money', 'dinheiro'], q: 'bank,money' },
-  { keys: ['hobby', 'esporte', 'sport', 'futebol', 'gym', 'academia'], q: 'sport,fitness' },
-  { keys: ['music', 'música', 'concerto', 'show'], q: 'music,concert' },
-  { keys: ['movie', 'filme', 'cinema'], q: 'cinema,movie' },
-  { keys: ['greeting', 'saudaç', 'hello', 'olá', 'introdu', 'apresenta'], q: 'greeting,people' },
-  { keys: ['number', 'número'], q: 'numbers' },
-  { keys: ['color', 'cor'], q: 'colors,paint' },
-  { keys: ['time', 'hora', 'relógio'], q: 'clock,time' },
-  { keys: ['dialogo', 'conversation', 'conversa'], q: 'conversation,people' },
-];
-const FALLBACK_QUERIES = ['city', 'people,talking', 'street', 'cafe', 'travel', 'books'];
-function pickImage(title: string, id: string): string {
-  const t = title.toLowerCase();
-  let q: string | null = null;
-  for (const m of IMAGE_MAP) if (m.keys.some(k => t.includes(k))) { q = m.q; break; }
-  if (!q) {
-    let h = 0; for (let i = 0; i < title.length; i++) h = (h * 31 + title.charCodeAt(i)) >>> 0;
-    q = FALLBACK_QUERIES[h % FALLBACK_QUERIES.length];
-  }
-  return `https://source.unsplash.com/featured/600x300/?${q}&sig=${encodeURIComponent(id)}`;
-}
-
 export default function DuolingoMap({ dialogues, stats, onSelectDialogue }: Props) {
   const [sel, setSel] = useState<Level>('A1');
+  const [images, setImages] = useState<Record<string, string>>({});
 
   const ordered = useMemo(() => {
     const o: Record<Level, number> = { A1: 1, A2: 2, B1: 3, B2: 4, C1: 5, C2: 6 };
