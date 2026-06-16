@@ -119,9 +119,23 @@ export default function DialoguePractice({ dialogue, stats: _s, onBack, onComple
         </div>
       )}
 
+      {/* Difficulty filter */}
+      <div className="flex items-center gap-1 bg-slate-900/60 border border-slate-800 rounded-lg p-1 w-fit">
+        {([
+          { v: 'all' as const, l: 'Todas', c: 'bg-slate-500' },
+          { v: 'easy' as const, l: 'Fácil', c: 'bg-emerald-400' },
+          { v: 'medium' as const, l: 'Médio', c: 'bg-amber-400' },
+          { v: 'hard' as const, l: 'Difícil', c: 'bg-red-400' },
+        ]).map(o => (
+          <button key={o.v} onClick={() => setLvlFilter(o.v)} className={`flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded transition ${lvlFilter === o.v ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-slate-200'}`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${o.c}`} />{o.l}
+          </button>
+        ))}
+      </div>
+
       {/* Lines */}
       <div className="space-y-1.5">
-        {dialogue.lines.map(l => {
+        {dialogue.lines.filter(l => lvlFilter === 'all' || (getState(l.text).level || classifyDifficulty(l.text)) === lvlFilter).map(l => {
           const stu = isStu(l);
           const fb = fbs[l.id];
           const isAct = active?.id === l.id;
