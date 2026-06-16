@@ -26,6 +26,29 @@ function imageIdentity(url: string): string {
   }
 }
 
+function enrichImportedLine(line: Dialogue['lines'][number], idx: number): Dialogue['lines'][number] {
+  let speaker = (line.speaker || 'You (Student)').trim();
+  let text = (line.text || '').trim();
+  let translation = (line.translation || '').trim();
+  const inline = text.match(/^([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\s.'-]{1,30}?)\s*[:\-–]\s*(.+)$/);
+  if (inline) { speaker = inline[1].trim(); text = inline[2].trim(); }
+  if (text.includes(' | ')) {
+    const parts = text.split(/\s+\|\s+/);
+    text = parts[0].trim();
+    if (!translation && parts[1]) translation = parts.slice(1).join(' ').trim();
+  }
+  if (/^(you|student|aluno|aluna|você|voce)$/i.test(speaker)) speaker = 'You (Student)';
+  const cleanText = text.replace(/^["“”'‘’]+|["“”'‘’]+$/g, '').trim();
+  const cleanTranslation = translation.replace(/^["“”'‘’]+|["“”'‘’]+$/g, '').trim();
+  const guide = line.pronunciationGuide || cleanText.toLowerCase().replace(/\bhello\b/g, 'he-lou').replace(/\byou\b/g, 'iu').replace(/\bplease\b/g, 'pliz');
+  const keyVocabulary = line.keyVocabulary?.length ? line.keyVocabulary : (cleanText.match(/\b[A-Za-z][A-Za-z'-]{3,}\b/g) || []).slice(0, 2).map(word => ({ word, translation: cleanTranslation || 'ver tradução da frase' }));
+  return { ...line, id: line.id || `imported-line-${idx}`, speaker, text: cleanText, translation: cleanTranslation, pronunciationGuide: guide, keyVocabulary };
+}
+
+function normalizeImportedDialogue(dialogue: Dialogue): Dialogue {
+  return { ...dialogue, lines: (dialogue.lines || []).map(enrichImportedLine).filter(l => l.text) };
+}
+
 export default function App() {
   const [dialogues, setDialogues] = useState<Dialogue[]>(defaultDialogues);
   const [stats, setStats] = useState<UserStats>(INIT);
