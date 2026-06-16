@@ -3,6 +3,7 @@ import { Download, Upload, Trash2, CheckCircle, AlertTriangle, Key, Volume2, Bra
 import { Dialogue, UserStats, Badge } from '../types';
 import { getApiConfig, saveApiConfig, ApiConfig } from '../utils/apiConfig';
 import { generateAllAudios } from '../utils/speech';
+import { findCoverImage } from '../utils/imageSearch';
 
 interface Props { stats: UserStats; dialogues: Dialogue[]; onImportDialogues: (d: Dialogue[]) => void; onDeleteDialogue: (id: string) => void; onResetProgress: () => void; }
 
@@ -149,6 +150,17 @@ export default function SettingsView({ stats, dialogues, onImportDialogues, onDe
     }
 
     setPdfPreview(firstPreview);
+
+    // Busca imagem de capa para cada diálogo importado (paralelo, com fallback)
+    if (all.length) {
+      setBatchProg({ c: 0, t: all.length, name: '🖼️ Buscando imagens...' });
+      await Promise.all(all.map(async (d, i) => {
+        if (d.imageUrl) return;
+        try { d.imageUrl = await findCoverImage(d.title, d.situation); } catch (_) {}
+        setBatchProg({ c: i + 1, t: all.length, name: `🖼️ ${d.title.substring(0, 40)}` });
+      }));
+    }
+
     setParsing(false); setBatchProg(null);
     e.target.value = '';
 
