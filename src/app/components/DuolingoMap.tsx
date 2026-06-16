@@ -1,6 +1,10 @@
 import { useState, useMemo } from 'react';
-import { Play, Lock, CheckCircle2, Volume2, ArrowRight, Lightbulb, Flame } from 'lucide-react';
+import { Play, Lock, CheckCircle2, Volume2, ArrowRight, Lightbulb, Flame, Sparkles, Waves } from 'lucide-react';
 import { Dialogue, Level, UserStats } from '../types';
+import bannerImg from '@/assets/map-banner.jpg';
+import catConversation from '@/assets/cat-conversation.jpg';
+import catPronunciation from '@/assets/cat-pronunciation.jpg';
+import catAchievement from '@/assets/cat-achievement.jpg';
 
 interface Props { dialogues: Dialogue[]; stats: UserStats; onSelectDialogue: (d: Dialogue) => void; }
 
