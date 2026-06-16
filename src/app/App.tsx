@@ -177,7 +177,7 @@ export default function App() {
         const toUpload = lsCustom.filter(d => !haveIds.has(d.id));
         if (toUpload.length) {
           await supabase.from('user_custom_dialogues').upsert(
-            toUpload.map(d => ({ user_id: uid, dialogue_id: d.id, data: d as unknown as object })),
+            toUpload.map(d => ({ user_id: uid, dialogue_id: d.id, data: d as never })),
             { onConflict: 'user_id,dialogue_id' },
           );
           custom = [...custom, ...toUpload];
@@ -247,7 +247,7 @@ export default function App() {
     const uid = await getUserId();
     if (uid) {
       const { error } = await supabase.from('user_custom_dialogues').upsert(
-        normalized.map(d => ({ user_id: uid, dialogue_id: d.id, data: d as unknown as object })),
+        normalized.map(d => ({ user_id: uid, dialogue_id: d.id, data: d as never })),
         { onConflict: 'user_id,dialogue_id' },
       );
       if (error) console.error('Failed to save dialogues to cloud', error);
