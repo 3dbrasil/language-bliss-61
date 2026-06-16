@@ -21,6 +21,8 @@ export default function DialoguePractice({ dialogue, stats: _s, onBack, onComple
   const [listened, setListened] = useState<string[]>([]);
   const [vocab, setVocab] = useState(false);
   const [rate, setRate] = useState(0.85);
+  const [aria, setAria] = useState(false);
+
 
   const recRef = useRef<any>(null);
   const endRef = useRef<HTMLDivElement>(null);
