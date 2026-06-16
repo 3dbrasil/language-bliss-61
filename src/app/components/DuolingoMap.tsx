@@ -289,7 +289,7 @@ export default function DuolingoMap({ dialogues, stats, onSelectDialogue }: Prop
             const unlocked = isUnlocked(gIdx);
             const completed = stats.completedDialogues?.includes(d.id);
             const score = stats.pronunciationAverages?.[d.id];
-            const image = images[d.id];
+            const image = d.imageUrl || images[d.id];
             const lessonPct = completed ? 100 : score ?? 0;
 
             return (
