@@ -148,6 +148,39 @@ export type Database = {
         }
         Relationships: []
       }
+      lesson_cover_images: {
+        Row: {
+          cache_key: string
+          created_at: string
+          id: string
+          image_url: string
+          situation: string | null
+          source: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          cache_key: string
+          created_at?: string
+          id?: string
+          image_url: string
+          situation?: string | null
+          source?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          cache_key?: string
+          created_at?: string
+          id?: string
+          image_url?: string
+          situation?: string | null
+          source?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           cefr_target: string

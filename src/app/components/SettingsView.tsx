@@ -321,17 +321,7 @@ export default function SettingsView({ stats, dialogues, onImportDialogues, onDe
           <div className="flex items-center gap-2"><FileText className="w-4 h-4 text-amber-400" /><Label>Unsplash API</Label></div>
           <a href="https://unsplash.com/developers" target="_blank" rel="noopener noreferrer" className="text-[10px] text-amber-400 hover:underline flex items-center gap-0.5">Obter chave<ExternalLink className="w-2.5 h-2.5" /></a>
         </div>
-        <p className="text-[11px] text-slate-600">Buscar foto de capa para cada aula importada via PDF. Sem chave = fallback gratuito (LoremFlickr).</p>
-        <div>
-          <Label>Access Key</Label>
-          <input
-            type="text"
-            value={api.unsplashAccessKey}
-            onChange={e => setApi(p => ({ ...p, unsplashAccessKey: e.target.value }))}
-            placeholder="Client-ID Unsplash..."
-            className="w-full mt-1 px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-xs text-slate-300 font-mono outline-none focus:border-slate-700"
-          />
-        </div>
+        <p className="text-[11px] text-slate-600">A chave agora fica protegida no backend como <span className="font-mono text-amber-300">UNSPLASH_ACCESS_KEY</span>. As imagens escolhidas são salvas no banco para não repetir entre aulas.</p>
       </Section>
 
       {/* Save */}
