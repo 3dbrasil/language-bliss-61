@@ -292,6 +292,7 @@ export default function DuolingoMap({ dialogues, stats, onSelectDialogue }: Prop
             const image = !isLikelyBrokenCoverImageUrl(d.imageUrl) && d.imageUrl
               ? d.imageUrl
               : images[d.id] || fallbackCoverImage(d.title, d.situation, d.id);
+            const fallbackImage = fallbackCoverImage(d.title, d.situation, d.id);
             const lessonPct = completed ? 100 : score ?? 0;
 
             return (
@@ -306,6 +307,9 @@ export default function DuolingoMap({ dialogues, stats, onSelectDialogue }: Prop
                   borderRadius: 24,
                   height: 130,
                   boxShadow: '0 8px 30px rgba(0,0,0,0.12)',
+                  backgroundImage: `url(${fallbackImage})`,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
                 }}
               >
                 {image ? (
@@ -314,8 +318,7 @@ export default function DuolingoMap({ dialogues, stats, onSelectDialogue }: Prop
                     alt=""
                     loading="lazy"
                     onError={(event) => {
-                      const fallback = fallbackCoverImage(d.title, d.situation, d.id);
-                      if (event.currentTarget.src !== fallback) event.currentTarget.src = fallback;
+                      event.currentTarget.style.display = 'none';
                     }}
                     className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                   />
