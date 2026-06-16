@@ -158,44 +158,106 @@ export default function App() {
         setStats(s);
       } catch (_) { setStats(INIT); }
     }
-    // Custom dialogues
-    let custom: Dialogue[] = [];
-    try { const c = localStorage.getItem('speak_native_custom_dialogues_v2'); if (c) custom = normalizeImportedDialogues(JSON.parse(c)); } catch (_) {}
-    safeSetCustom(custom);
-    let deleted: string[] = [];
-    try { const d = localStorage.getItem('speak_native_deleted_dialogues_v2'); if (d) { const p = JSON.parse(d); if (Array.isArray(p)) deleted = p; } } catch (_) {}
-    const ids = new Set(defaultDialogues.map(d => d.id));
-    const merged = [...defaultDialogues, ...custom.filter(d => d?.id && !ids.has(d.id))].filter(d => d?.id && !deleted.includes(d.id));
-    setDialogues(merged);
+    // Custom + deleted dialogues — prefer Lovable Cloud, fall back to localStorage
+    (async () => {
+      const uid = await getUserId();
+      let custom: Dialogue[] = [];
+      let deleted: string[] = [];
+      if (uid) {
+        const [{ data: cRows }, { data: dRows }] = await Promise.all([
+          supabase.from('user_custom_dialogues').select('data').eq('user_id', uid),
+          supabase.from('user_deleted_dialogues').select('dialogue_id').eq('user_id', uid),
+        ]);
+        custom = normalizeImportedDialogues((cRows ?? []).map((r: { data: unknown }) => r.data));
+        deleted = (dRows ?? []).map((r: { dialogue_id: string }) => r.dialogue_id);
+        // One-time migration of any leftover localStorage data into the cloud
+        const lsCustom = lsReadCustom();
+        const lsDeleted = lsReadDeleted();
+        const haveIds = new Set(custom.map(d => d.id));
+        const toUpload = lsCustom.filter(d => !haveIds.has(d.id));
+        if (toUpload.length) {
+          await supabase.from('user_custom_dialogues').upsert(
+            toUpload.map(d => ({ user_id: uid, dialogue_id: d.id, data: d as unknown as object })),
+            { onConflict: 'user_id,dialogue_id' },
+          );
+          custom = [...custom, ...toUpload];
+        }
+        const haveDel = new Set(deleted);
+        const newDel = lsDeleted.filter(id => !haveDel.has(id));
+        if (newDel.length) {
+          await supabase.from('user_deleted_dialogues').upsert(
+            newDel.map(id => ({ user_id: uid, dialogue_id: id })),
+            { onConflict: 'user_id,dialogue_id' },
+          );
+          deleted = [...deleted, ...newDel];
+        }
+        if (toUpload.length || newDel.length) {
+          try { localStorage.removeItem(LS_CUSTOM); localStorage.removeItem(LS_DELETED); } catch {}
+        }
+      } else {
+        custom = lsReadCustom();
+        deleted = lsReadDeleted();
+      }
+      const ids = new Set(defaultDialogues.map(d => d.id));
+      const merged = [...defaultDialogues, ...custom.filter(d => d?.id && !ids.has(d.id))].filter(d => d?.id && !deleted.includes(d.id));
+      setDialogues(merged);
+    })();
   }, []);
 
   const save = useCallback((s: UserStats) => { setStats(s); localStorage.setItem('speak_native_user_stats_v2', JSON.stringify(s)); }, []);
 
-  const handleReset = () => {
+  const handleReset = async () => {
     localStorage.removeItem('speak_native_user_stats_v2');
-    localStorage.removeItem('speak_native_custom_dialogues_v2');
-    localStorage.removeItem('speak_native_deleted_dialogues_v2');
+    localStorage.removeItem(LS_CUSTOM);
+    localStorage.removeItem(LS_DELETED);
+    const uid = await getUserId();
+    if (uid) {
+      await Promise.all([
+        supabase.from('user_custom_dialogues').delete().eq('user_id', uid),
+        supabase.from('user_deleted_dialogues').delete().eq('user_id', uid),
+      ]);
+    }
     setStats(INIT); setDialogues(defaultDialogues); setSelected(null); setTab('map');
   };
 
-  const handleDelete = (id: string) => {
-    let custom: Dialogue[] = []; try { const c = localStorage.getItem('speak_native_custom_dialogues_v2'); if (c) custom = normalizeImportedDialogues(JSON.parse(c)); } catch (_) {}
-    safeSetCustom(custom.filter(d => d.id !== id));
-    let del: string[] = []; try { const d = localStorage.getItem('speak_native_deleted_dialogues_v2'); if (d) del = JSON.parse(d); } catch (_) {}
-    if (!del.includes(id)) del.push(id);
-    localStorage.setItem('speak_native_deleted_dialogues_v2', JSON.stringify(del));
+  const handleDelete = async (id: string) => {
     setDialogues(p => p.filter(d => d.id !== id));
+    const uid = await getUserId();
+    if (uid) {
+      await Promise.all([
+        supabase.from('user_custom_dialogues').delete().eq('user_id', uid).eq('dialogue_id', id),
+        supabase.from('user_deleted_dialogues').upsert(
+          [{ user_id: uid, dialogue_id: id }],
+          { onConflict: 'user_id,dialogue_id' },
+        ),
+      ]);
+    } else {
+      lsWriteCustom(lsReadCustom().filter(d => d.id !== id));
+      const del = lsReadDeleted();
+      if (!del.includes(id)) del.push(id);
+      lsWriteDeleted(del);
+    }
   };
 
-  const handleImport = (imported: Dialogue[]) => {
+  const handleImport = async (imported: Dialogue[]) => {
     const normalized = normalizeImportedDialogues(imported);
-    let custom: Dialogue[] = []; try { const c = localStorage.getItem('speak_native_custom_dialogues_v2'); if (c) custom = normalizeImportedDialogues(JSON.parse(c)); } catch (_) {}
-    const ids = new Set(custom.map(d => d.id));
-    const updated = [...custom, ...normalized.filter(d => !ids.has(d.id))];
-    safeSetCustom(updated);
     const allIds = new Set(dialogues.map(d => d.id));
-    setDialogues(p => [...p, ...normalized.filter(d => !allIds.has(d.id))]);
+    const fresh = normalized.filter(d => !allIds.has(d.id));
+    setDialogues(p => [...p, ...fresh]);
+    const uid = await getUserId();
+    if (uid) {
+      const { error } = await supabase.from('user_custom_dialogues').upsert(
+        normalized.map(d => ({ user_id: uid, dialogue_id: d.id, data: d as unknown as object })),
+        { onConflict: 'user_id,dialogue_id' },
+      );
+      if (error) console.error('Failed to save dialogues to cloud', error);
+    } else {
+      const current = lsReadCustom();
+      const ids = new Set(current.map(d => d.id));
+      lsWriteCustom([...current, ...normalized.filter(d => !ids.has(d.id))]);
+    }
   };
+
 
   const handleComplete = (xp: number, scores: Record<string, number>) => {
     if (!selected) return;
