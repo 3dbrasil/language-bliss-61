@@ -20,6 +20,7 @@ function keywords(title: string, situation?: string): string {
 
 export async function findCoverImage(title: string, situation?: string): Promise<string> {
   const q = keywords(title, situation);
+  const UNSPLASH_KEY = getApiConfig().unsplashAccessKey;
   if (UNSPLASH_KEY) {
     try {
       const r = await fetch(
