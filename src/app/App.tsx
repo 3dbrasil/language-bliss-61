@@ -83,7 +83,8 @@ export default function App() {
     }
     // Custom dialogues
     let custom: Dialogue[] = [];
-    try { const c = localStorage.getItem('speak_native_custom_dialogues_v2'); if (c) { const p = JSON.parse(c); if (Array.isArray(p)) custom = p; } } catch (_) {}
+    try { const c = localStorage.getItem('speak_native_custom_dialogues_v2'); if (c) { const p = JSON.parse(c); if (Array.isArray(p)) custom = p.map(normalizeImportedDialogue); } } catch (_) {}
+    localStorage.setItem('speak_native_custom_dialogues_v2', JSON.stringify(custom));
     let deleted: string[] = [];
     try { const d = localStorage.getItem('speak_native_deleted_dialogues_v2'); if (d) { const p = JSON.parse(d); if (Array.isArray(p)) deleted = p; } } catch (_) {}
     const ids = new Set(defaultDialogues.map(d => d.id));
@@ -134,7 +135,7 @@ export default function App() {
   };
 
   const handleDelete = (id: string) => {
-    let custom: Dialogue[] = []; try { const c = localStorage.getItem('speak_native_custom_dialogues_v2'); if (c) custom = JSON.parse(c); } catch (_) {}
+    let custom: Dialogue[] = []; try { const c = localStorage.getItem('speak_native_custom_dialogues_v2'); if (c) custom = JSON.parse(c).map(normalizeImportedDialogue); } catch (_) {}
     localStorage.setItem('speak_native_custom_dialogues_v2', JSON.stringify(custom.filter(d => d.id !== id)));
     let del: string[] = []; try { const d = localStorage.getItem('speak_native_deleted_dialogues_v2'); if (d) del = JSON.parse(d); } catch (_) {}
     if (!del.includes(id)) del.push(id);
@@ -143,12 +144,13 @@ export default function App() {
   };
 
   const handleImport = (imported: Dialogue[]) => {
-    let custom: Dialogue[] = []; try { const c = localStorage.getItem('speak_native_custom_dialogues_v2'); if (c) custom = JSON.parse(c); } catch (_) {}
+    const normalized = imported.map(normalizeImportedDialogue);
+    let custom: Dialogue[] = []; try { const c = localStorage.getItem('speak_native_custom_dialogues_v2'); if (c) custom = JSON.parse(c).map(normalizeImportedDialogue); } catch (_) {}
     const ids = new Set(custom.map(d => d.id));
-    const updated = [...custom, ...imported.filter(d => !ids.has(d.id))];
+    const updated = [...custom, ...normalized.filter(d => !ids.has(d.id))];
     localStorage.setItem('speak_native_custom_dialogues_v2', JSON.stringify(updated));
     const allIds = new Set(dialogues.map(d => d.id));
-    setDialogues(p => [...p, ...imported.filter(d => !allIds.has(d.id))]);
+    setDialogues(p => [...p, ...normalized.filter(d => !allIds.has(d.id))]);
   };
 
   const handleComplete = (xp: number, scores: Record<string, number>) => {
