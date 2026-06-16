@@ -26,6 +26,8 @@ const RESET_ON_ERROR: Record<SrsLevel, number> = {
   hard: 1 * HOUR,
 };
 
+let stateCache: Record<string, PhraseState> | null = null;
+
 const TOP_500 = new Set(
   'the be to of and a in that have i it for not on with he as you do at this but his by from they we say her she or an will my one all would there their what so up out if about who get which go me when make can like time no just him know take people into year your good some could them see other than then now look only come its over think also back after use two how our work first well way even new want because any these give day most us hello hi how are good morning night thanks please yes ok'.split(' ')
 );
@@ -59,29 +61,38 @@ export function hashId(text: string): string {
 }
 
 function loadAll(): Record<string, PhraseState> {
+  if (stateCache) return stateCache;
   if (typeof window === 'undefined') return {};
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); } catch { return {}; }
+  try {
+    const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') as Record<string, PhraseState>;
+    stateCache = parsed;
+    return parsed;
+  } catch {
+    stateCache = {};
+    return stateCache;
+  }
 }
 
 function saveAll(map: Record<string, PhraseState>) {
+  stateCache = map;
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(map)); } catch {}
+}
+
+function createState(text: string): PhraseState {
+  return { id: hashId(text), level: classifyDifficulty(text), history: [], consecutiveHits: 0, nextReview: Date.now(), learned: false };
 }
 
 export function getState(text: string): PhraseState {
   const id = hashId(text);
   const all = loadAll();
   if (all[id]) return all[id];
-  const level = classifyDifficulty(text);
-  const s: PhraseState = { id, level, history: [], consecutiveHits: 0, nextReview: Date.now(), learned: false };
-  all[id] = s;
-  saveAll(all);
-  return s;
+  return createState(text);
 }
 
 export function recordResult(text: string, correct: boolean): PhraseState {
   const all = loadAll();
   const id = hashId(text);
-  const s: PhraseState = all[id] || getState(text);
+  const s: PhraseState = all[id] || createState(text);
   s.history = [...s.history.slice(-9), correct];
   const now = Date.now();
 
@@ -114,7 +125,7 @@ export function recordResult(text: string, correct: boolean): PhraseState {
 export function markLearned(text: string, learned = true) {
   const all = loadAll();
   const id = hashId(text);
-  const s = all[id] || getState(text);
+  const s = all[id] || createState(text);
   s.learned = learned;
   if (learned) {
     s.consecutiveHits = Math.max(s.consecutiveHits, 5);
@@ -128,7 +139,7 @@ export function markLearned(text: string, learned = true) {
 export function setLevel(text: string, level: SrsLevel) {
   const all = loadAll();
   const id = hashId(text);
-  const s = all[id] || getState(text);
+  const s = all[id] || createState(text);
   s.level = level;
   all[id] = s;
   saveAll(all);

@@ -219,7 +219,7 @@ function Landing() {
                       key={k}
                       className="w-0.5 bg-gradient-to-t from-[#2A7FFF] to-[#00D4A0] rounded-full"
                       style={{
-                        height: `${hoveredDialogue === i ? 20 + Math.sin(k * 0.7 + i) * 18 + Math.random() * 8 : 4 + Math.sin(k) * 2}px`,
+                        height: `${hoveredDialogue === i ? 20 + Math.abs(Math.sin(k * 0.7 + i)) * 18 + ((k + i) % 4) * 2 : 4 + Math.abs(Math.sin(k)) * 2}px`,
                         transition: `height 0.${3 + (k % 5)}s ease`,
                       }}
                     />
@@ -356,7 +356,7 @@ function Landing() {
         <div className="mx-auto max-w-7xl px-6 py-8 flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-slate-500">
           <div className="flex items-center gap-2">
             <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-[#2A7FFF] to-[#00D4A0]" />
-            <span>© {new Date().getFullYear()} Speak Native</span>
+            <span>© 2026 Speak Native</span>
           </div>
           <div className="flex items-center gap-6">
             <a href="#" className="hover:text-white transition-colors">Privacidade</a>
