@@ -23,6 +23,7 @@ export default function DialoguePractice({ dialogue, stats: _s, onBack, onComple
   const [vocab, setVocab] = useState(false);
   const [rate, setRate] = useState(0.85);
   const [aria, setAria] = useState(false);
+  const [srsTick, setSrsTick] = useState(0);
 
 
   const recRef = useRef<any>(null);
