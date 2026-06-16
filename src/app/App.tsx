@@ -13,19 +13,6 @@ const PhraseRepetition = lazy(() => import('./components/PhraseRepetition'));
 
 const INIT: UserStats = { xp: 0, streak: 1, lastActive: null, badges: [], completedDialogues: [], unlockedLevels: ['A1'], pronunciationAverages: {} };
 
-function imageIdentity(url: string): string {
-  try {
-    const parsed = new URL(url);
-    if (parsed.hostname.includes('images.unsplash.com') || parsed.hostname.includes('images.pexels.com')) {
-      return `${parsed.origin}${parsed.pathname}`;
-    }
-    parsed.searchParams.delete('ixid');
-    return parsed.toString();
-  } catch (_) {
-    return url;
-  }
-}
-
 function enrichImportedLine(line: Dialogue['lines'][number], idx: number): Dialogue['lines'][number] {
   let speaker = (line.speaker || 'You (Student)').trim();
   let text = (line.text || '').trim();
@@ -168,7 +155,7 @@ export default function App() {
   const handleAddXp = (xp: number) => { const s = { ...stats }; s.xp += xp; s.lastActive = new Date().toISOString().split('T')[0]; save(s); };
   const vocab = useMemo(
     () => dialogues.filter(d => stats.completedDialogues.includes(d.id)).flatMap(d => d.lines.flatMap(l => l.keyVocabulary?.map(v => v.word) || [])),
-    [dialogues, stats.completedDialogues],
+    [dialogues, stats],
   );
   const curLvl: Level = stats.unlockedLevels.length > 0 ? stats.unlockedLevels[stats.unlockedLevels.length - 1] : 'A1';
 
