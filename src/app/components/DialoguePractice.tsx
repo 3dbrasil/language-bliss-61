@@ -172,8 +172,6 @@ export default function DialoguePractice({ dialogue, stats: _s, onBack, onComple
         <button onClick={finish} className="bg-cyan-500 text-white px-5 py-2 rounded-lg text-xs font-bold">Concluir lição</button>
       </div>
 
-      )}
-
       {aria && <AriaChat dialogue={dialogue} onClose={() => setAria(false)} />}
     </div>
   );
