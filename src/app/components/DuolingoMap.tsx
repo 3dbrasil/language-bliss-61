@@ -19,42 +19,53 @@ const META: Record<Level, { name: string; subtitle: string; tagline: string }> =
 
 const LEVEL_ORDER: Level[] = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
-const EMOJI_MAP: { keys: string[]; emoji: string }[] = [
-  { keys: ['supermerc', 'mercado', 'compra', 'grocery', 'shop', 'loja'], emoji: '🛒' },
-  { keys: ['direç', 'direction', 'mapa', 'caminho', 'rua'], emoji: '🗺️' },
-  { keys: ['praia', 'beach', 'mar', 'oceano'], emoji: '🏖️' },
-  { keys: ['clima', 'tempo', 'weather', 'chuva', 'sol'], emoji: '🌤️' },
-  { keys: ['presente', 'gift', 'aniversário', 'birthday'], emoji: '🎁' },
-  { keys: ['bibliote', 'library', 'livro', 'book', 'leitura'], emoji: '📚' },
-  { keys: ['restaurante', 'restaurant', 'comida', 'food', 'jantar', 'almoço'], emoji: '🍽️' },
-  { keys: ['café', 'coffee', 'breakfast', 'café da manhã'], emoji: '☕' },
-  { keys: ['hotel', 'reserva', 'hospedagem'], emoji: '🏨' },
-  { keys: ['aeroporto', 'airport', 'voo', 'flight', 'viagem', 'travel'], emoji: '✈️' },
-  { keys: ['táxi', 'taxi', 'uber', 'carro', 'car', 'transporte'], emoji: '🚕' },
-  { keys: ['trem', 'train', 'metrô', 'metro', 'ônibus', 'bus'], emoji: '🚆' },
-  { keys: ['médico', 'doctor', 'hospital', 'saúde', 'health', 'remédio'], emoji: '🩺' },
-  { keys: ['escola', 'school', 'aula', 'class', 'estudo'], emoji: '🎓' },
-  { keys: ['trabalho', 'work', 'office', 'escritório', 'reunião', 'meeting'], emoji: '💼' },
-  { keys: ['telefone', 'phone', 'ligação', 'call'], emoji: '📞' },
-  { keys: ['família', 'family', 'pais', 'irmão'], emoji: '👨‍👩‍👧'},
-  { keys: ['amigo', 'friend', 'festa', 'party'], emoji: '🎉' },
-  { keys: ['casa', 'home', 'apartamento'], emoji: '🏠' },
-  { keys: ['banco', 'bank', 'dinheiro', 'money', 'pagamento'], emoji: '🏦' },
-  { keys: ['roupa', 'clothes', 'moda', 'fashion'], emoji: '👕' },
-  { keys: ['hobby', 'esporte', 'sport', 'futebol', 'gym', 'academia'], emoji: '⚽' },
-  { keys: ['music', 'música', 'concerto', 'show'], emoji: '🎵' },
-  { keys: ['filme', 'cinema', 'movie'], emoji: '🎬' },
-  { keys: ['saudaç', 'greeting', 'olá', 'hello', 'apresenta', 'introdu'], emoji: '👋' },
-  { keys: ['número', 'number', 'contagem'], emoji: '🔢' },
-  { keys: ['cor', 'color'], emoji: '🎨' },
-  { keys: ['hora', 'time', 'relógio'], emoji: '⏰' },
+const IMAGE_MAP: { keys: string[]; q: string }[] = [
+  { keys: ['grocery', 'supermerc', 'mercado'], q: 'grocery,store' },
+  { keys: ['direction', 'direç'], q: 'city,map' },
+  { keys: ['neighbor', 'vizinho'], q: 'neighbors,house' },
+  { keys: ['bus stop', 'ônibus', 'bus'], q: 'bus,stop' },
+  { keys: ['picnic', 'piquenique'], q: 'picnic,park' },
+  { keys: ['beach', 'praia'], q: 'beach,ocean' },
+  { keys: ['weather', 'clima', 'tempo'], q: 'weather,sky' },
+  { keys: ['post office', 'correio', 'post'], q: 'post,office' },
+  { keys: ['birthday', 'gift', 'presente', 'aniversário'], q: 'gift,celebration' },
+  { keys: ['library', 'bibliote'], q: 'library,books' },
+  { keys: ['clothes', 'roupa', 'shopping for'], q: 'clothes,fashion' },
+  { keys: ['bakery', 'padaria'], q: 'bakery,bread' },
+  { keys: ['zoo'], q: 'zoo,animals' },
+  { keys: ['restaurant', 'restaurante'], q: 'restaurant,table' },
+  { keys: ['café', 'coffee', 'breakfast'], q: 'cafe,coffee' },
+  { keys: ['hotel', 'reserva'], q: 'hotel,room' },
+  { keys: ['airport', 'aeroporto', 'flight', 'voo', 'travel', 'viagem'], q: 'airport,travel' },
+  { keys: ['taxi', 'táxi', 'uber'], q: 'taxi,city' },
+  { keys: ['train', 'trem', 'metrô', 'metro'], q: 'train,station' },
+  { keys: ['doctor', 'médico', 'hospital', 'saúde', 'health'], q: 'doctor,clinic' },
+  { keys: ['school', 'escola', 'class', 'aula'], q: 'school,classroom' },
+  { keys: ['work', 'trabalho', 'office', 'escritório', 'meeting', 'reunião'], q: 'office,work' },
+  { keys: ['phone', 'telefone', 'call'], q: 'phone,call' },
+  { keys: ['family', 'família'], q: 'family,home' },
+  { keys: ['friend', 'amigo', 'party', 'festa'], q: 'friends,party' },
+  { keys: ['home', 'casa', 'apartamento'], q: 'home,interior' },
+  { keys: ['bank', 'banco', 'money', 'dinheiro'], q: 'bank,money' },
+  { keys: ['hobby', 'esporte', 'sport', 'futebol', 'gym', 'academia'], q: 'sport,fitness' },
+  { keys: ['music', 'música', 'concerto', 'show'], q: 'music,concert' },
+  { keys: ['movie', 'filme', 'cinema'], q: 'cinema,movie' },
+  { keys: ['greeting', 'saudaç', 'hello', 'olá', 'introdu', 'apresenta'], q: 'greeting,people' },
+  { keys: ['number', 'número'], q: 'numbers' },
+  { keys: ['color', 'cor'], q: 'colors,paint' },
+  { keys: ['time', 'hora', 'relógio'], q: 'clock,time' },
+  { keys: ['dialogo', 'conversation', 'conversa'], q: 'conversation,people' },
 ];
-const FALLBACK_EMOJIS = ['💬', '🌟', '🧭', '🪴', '🎈', '🧩', '🪁', '🍀', '🌈', '🔔'];
-function pickEmoji(title: string): string {
+const FALLBACK_QUERIES = ['city', 'people,talking', 'street', 'cafe', 'travel', 'books'];
+function pickImage(title: string, id: string): string {
   const t = title.toLowerCase();
-  for (const m of EMOJI_MAP) if (m.keys.some(k => t.includes(k))) return m.emoji;
-  let h = 0; for (let i = 0; i < title.length; i++) h = (h * 31 + title.charCodeAt(i)) >>> 0;
-  return FALLBACK_EMOJIS[h % FALLBACK_EMOJIS.length];
+  let q: string | null = null;
+  for (const m of IMAGE_MAP) if (m.keys.some(k => t.includes(k))) { q = m.q; break; }
+  if (!q) {
+    let h = 0; for (let i = 0; i < title.length; i++) h = (h * 31 + title.charCodeAt(i)) >>> 0;
+    q = FALLBACK_QUERIES[h % FALLBACK_QUERIES.length];
+  }
+  return `https://source.unsplash.com/featured/600x300/?${q}&sig=${encodeURIComponent(id)}`;
 }
 
 export default function DuolingoMap({ dialogues, stats, onSelectDialogue }: Props) {
