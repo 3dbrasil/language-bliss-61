@@ -15,6 +15,8 @@ export default function PhraseRepetition({ dialogues, completedDialogues, onAddX
   const [showMan, setShowMan] = useState(false);
   const [manTxt, setManTxt] = useState('');
   const [spk, setSpk] = useState(false);
+  const [rate, setRate] = useState(0.85);
+
   const [total, setTotal] = useState(0);
   const [score, setScore] = useState(0);
   const recRef = useRef<any>(null);
