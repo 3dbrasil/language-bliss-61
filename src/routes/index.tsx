@@ -275,8 +275,8 @@ function Landing() {
                     </div>
                     <div className="flex items-center gap-1 px-3 py-2 rounded-2xl bg-[#00D4A0]/10 border border-[#00D4A0]/20">
                       {Array.from({ length: 18 }).map((_, k) => (
-                        <span key={k} className="w-0.5 bg-[#00D4A0] rounded-full" style={{ height: `${6 + Math.sin(k) * 8 + Math.random() * 6}px` }} />
-                      ))}
+                         <span key={k} className="w-0.5 bg-[#00D4A0] rounded-full" style={{ height: `${6 + Math.abs(Math.sin(k * 1.3)) * 14}px` }} />
+                       ))}
                       <span className="ml-auto text-[10px] text-[#00D4A0] font-semibold">96%</span>
                     </div>
                   </div>
