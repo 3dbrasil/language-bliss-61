@@ -306,19 +306,16 @@ export default function DuolingoMap({ dialogues, stats, onSelectDialogue }: Prop
                   boxShadow: '0 8px 30px rgba(0,0,0,0.12)',
                 }}
               >
-                <img
-                  src={image}
-                  alt=""
-                  loading="lazy"
-                  className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                  onError={(e) => {
-                    const img = e.currentTarget;
-                    if (!img.dataset.fb) {
-                      img.dataset.fb = '1';
-                      img.src = `https://picsum.photos/seed/${encodeURIComponent(d.id)}/600/300`;
-                    }
-                  }}
-                />
+                {image ? (
+                  <img
+                    src={image}
+                    alt=""
+                    loading="lazy"
+                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                  />
+                ) : (
+                  <div className="absolute inset-0 bg-gradient-to-br from-slate-700 to-slate-900 animate-pulse" />
+                )}
                 <div
                   className="absolute inset-0"
                   style={{ background: 'linear-gradient(135deg, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.1) 100%)' }}
