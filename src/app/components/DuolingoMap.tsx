@@ -100,30 +100,8 @@ export default function DuolingoMap({ dialogues, stats, onSelectDialogue }: Prop
         )}
       </header>
 
-      {/* Level tabs */}
-      <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
-        {available.map(l => {
-          const active = sel === l;
-          const ld = dialogues.filter(d => d.level === l);
-          const lc = ld.filter(d => stats.completedDialogues?.includes(d.id)).length;
-          return (
-            <button
-              key={l}
-              onClick={() => setSel(l)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-full text-[11px] font-bold uppercase tracking-[0.18em] whitespace-nowrap shrink-0 transition-all duration-300 border backdrop-blur-md ${
-                active
-                  ? 'bg-gradient-to-r from-[#2A7FFF]/15 to-[#00D4A0]/15 text-white border-[#2A7FFF]/40 shadow-[0_0_20px_rgba(42,127,255,0.25)]'
-                  : 'bg-white/[0.02] text-slate-500 border-white/5 hover:border-white/15 hover:text-slate-200'
-              }`}
-            >
-              <span>{l}</span>
-              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${active ? 'bg-white/15 text-white' : 'bg-white/[0.04] text-slate-500'}`}>
-                {lc}/{ld.length}
-              </span>
-            </button>
-          );
-        })}
-      </div>
+
+
 
       {/* Bento with imagery */}
       <div className="grid grid-cols-1 sm:grid-cols-12 gap-5 stagger">
