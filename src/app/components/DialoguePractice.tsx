@@ -131,11 +131,20 @@ export default function DialoguePractice({ dialogue, stats: _s, onBack, onComple
               : stu ? 'bg-blue-500/[0.03] border-blue-500/10' : 'bg-slate-900/40 border-slate-800/60'}`}>
               <div className="px-3.5 py-2.5">
                 <div className="flex items-center justify-between mb-1">
-                  <div className="flex items-center gap-1.5">
-                    <span className={`text-[10px] font-semibold ${stu ? 'text-blue-400' : 'text-slate-300'}`}>{stu ? '🎙️ Você' : l.speaker}</span>
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    {(() => { const a = speakerAvatar(l.speaker); return (
+                      <div className={`w-6 h-6 rounded-full ${a.color} flex items-center justify-center text-white text-[10px] font-bold shrink-0`}>{a.initial}</div>
+                    ); })()}
+                    <span className={`text-[10px] font-semibold ${stu ? 'text-blue-400' : 'text-slate-300'} truncate`}>{stu ? '🎙️ Você' : l.speaker}</span>
+                    {(() => { const m = LEVEL_META[classifyDifficulty(l.text)]; return (
+                      <span className={`text-[9px] font-bold px-1 py-0.5 rounded border ${m.cls}`} title={`Dificuldade: ${m.label}`}>{m.emoji}</span>
+                    ); })()}
                     {fb && <span className={`text-[10px] font-bold ${scoreClr(fb.score)}`}>{fb.score}%</span>}
                   </div>
                   <div className="flex gap-1">
+                    {(() => { const st = getState(l.text); void srsTick; return (
+                      <button onClick={() => { markLearned(l.text, !st.learned); setSrsTick(x => x + 1); }} title={st.learned ? 'Aprendida' : 'Marcar como aprendida'} className={`w-6 h-6 rounded flex items-center justify-center ${st.learned ? 'text-emerald-400' : 'text-slate-500 hover:text-slate-300'}`}><CheckCircle2 className="w-3.5 h-3.5" /></button>
+                    ); })()}
                     <button onClick={() => speak(l)} disabled={!!speakingId} className={`w-6 h-6 rounded flex items-center justify-center ${spking ? 'bg-cyan-500 text-white animate-pulse' : 'text-slate-300 hover:text-slate-300 hover:bg-slate-800'}`}><Volume2 className="w-3.5 h-3.5" /></button>
                     {stu && <button onClick={() => { setActive(isAct ? null : l); setCurFb(null); setTrans(''); setErr(''); setManual(false); setManTxt(''); }}
                       className={`w-6 h-6 rounded flex items-center justify-center ${isAct ? 'bg-cyan-500 text-white' : 'text-cyan-300 hover:text-cyan-400 hover:bg-slate-800'}`}><Mic className="w-3.5 h-3.5" /></button>}
