@@ -76,6 +76,7 @@ export default function DialoguePractice({ dialogue, stats: _s, onBack, onComple
         <div className="flex items-center gap-0.5 bg-slate-900 rounded-md p-0.5 border border-slate-800">
           {[
             { v: 0.6, l: '0.6x' },
+            { v: 0.75, l: '0.8x' },
             { v: 0.85, l: '1x' },
             { v: 1.1, l: '1.3x' },
           ].map(o => (
