@@ -64,11 +64,13 @@ function loadAll(): Record<string, PhraseState> {
   if (stateCache) return stateCache;
   if (typeof window === 'undefined') return {};
   try {
-    stateCache = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+    const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') as Record<string, PhraseState>;
+    stateCache = parsed;
+    return parsed;
   } catch {
     stateCache = {};
+    return stateCache;
   }
-  return stateCache;
 }
 
 function saveAll(map: Record<string, PhraseState>) {
