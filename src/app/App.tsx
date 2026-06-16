@@ -183,7 +183,7 @@ export default function App() {
     let custom: Dialogue[] = []; try { const c = localStorage.getItem('speak_native_custom_dialogues_v2'); if (c) custom = normalizeImportedDialogues(JSON.parse(c)); } catch (_) {}
     const ids = new Set(custom.map(d => d.id));
     const updated = [...custom, ...normalized.filter(d => !ids.has(d.id))];
-    localStorage.setItem('speak_native_custom_dialogues_v2', JSON.stringify(updated));
+    safeSetCustom(updated);
     const allIds = new Set(dialogues.map(d => d.id));
     setDialogues(p => [...p, ...normalized.filter(d => !allIds.has(d.id))]);
   };
