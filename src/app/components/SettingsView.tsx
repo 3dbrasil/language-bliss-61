@@ -26,7 +26,7 @@ async function extractPDF(file: File): Promise<string> {
   const pdf = await lib.getDocument({ data: new Uint8Array(buf) }).promise;
   let text = '';
   const yTolerance = 3;
-  const columnGap = 18;
+  const columnGap = 40;
   for (let i = 1; i <= pdf.numPages; i++) {
     const page = await pdf.getPage(i);
     const content = await page.getTextContent();
