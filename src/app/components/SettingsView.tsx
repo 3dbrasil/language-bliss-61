@@ -119,7 +119,10 @@ export default function SettingsView({ stats, dialogues, onImportDialogues, onDe
         if (!firstPreview) firstPreview = txt.substring(0, 600) + (txt.length > 600 ? '\n...' : '');
         const parsed = parseTextToDialogues(txt);
         if (parsed.length) {
-          parsed.forEach((d, k) => { d.id = `pdf-${Date.now()}-${i}-${k}`; });
+          parsed.forEach((d, k) => {
+            d.id = `pdf-${Date.now()}-${i}-${k}`;
+            if (uploadLevel !== 'auto') d.level = uploadLevel;
+          });
           all.push(...parsed);
         } else {
           errors.push(`${file.name}: nenhum diálogo extraído`);
