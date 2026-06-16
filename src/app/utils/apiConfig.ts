@@ -126,13 +126,15 @@ export async function unrealSpeechTTS(text: string): Promise<ArrayBuffer> {
 }
 
 // Play audio from ArrayBuffer
-export function playAudioBuffer(buffer: ArrayBuffer): Promise<void> {
+export function playAudioBuffer(buffer: ArrayBuffer, rate: number = 1): Promise<void> {
   return new Promise((resolve, reject) => {
     const blob = new Blob([buffer], { type: 'audio/mpeg' });
     const url = URL.createObjectURL(blob);
     const audio = new Audio(url);
+    audio.playbackRate = rate;
     audio.onended = () => { URL.revokeObjectURL(url); resolve(); };
     audio.onerror = (e) => { URL.revokeObjectURL(url); reject(e); };
     audio.play().catch(reject);
   });
 }
+
