@@ -114,12 +114,12 @@ export default function App() {
   const curLvl: Level = stats.unlockedLevels.length > 0 ? stats.unlockedLevels[stats.unlockedLevels.length - 1] : 'A1';
 
   return (
-    <div className="flex min-h-screen bg-slate-950">
+    <div className="flex min-h-screen bg-[#020617] text-slate-300 relative">
       <Sidebar stats={stats} activeTab={tab} setActiveTab={t => { setTab(t); setSelected(null); }} />
 
-      <main className="flex-1 p-5 sm:p-7 lg:p-8 overflow-y-auto min-h-screen">
-        <div className="max-w-3xl mx-auto">
-          <div className="lg:hidden h-12" />
+      <main className="flex-1 overflow-y-auto min-h-screen relative">
+        <div className="max-w-6xl mx-auto px-6 sm:px-10 lg:px-12 py-10 sm:py-12">
+          <div className="lg:hidden h-10" />
           {selected ? <DialoguePractice dialogue={selected} stats={stats} onBack={() => setSelected(null)} onComplete={handleComplete} />
             : tab === 'map' ? <DuolingoMap dialogues={dialogues} stats={stats} onSelectDialogue={setSelected} />
             : tab === 'cumulative' ? <CumulativeArena stats={stats} learnedVocabulary={vocab} currentLevel={curLvl} onAddXp={handleAddXp} />
@@ -129,6 +129,24 @@ export default function App() {
       </main>
 
       {showCeleb && celeb && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-fade-in" onClick={() => setShowCeleb(false)}>
+          <div className="bg-slate-900/90 backdrop-blur-xl rounded-3xl p-8 max-w-sm w-full text-center space-y-5 border border-slate-800/60 ocean-glow" onClick={e => e.stopPropagation()}>
+            <div className="w-16 h-16 bg-gradient-to-br from-cyan-500 to-teal-500 rounded-2xl flex items-center justify-center mx-auto shadow-[0_0_30px_rgba(6,182,212,0.4)]"><Trophy className="w-8 h-8 text-white" /></div>
+            <div>
+              <h3 className="text-2xl font-medium text-white" style={{ fontFamily: "'Playfair Display', serif" }}>{celeb.title}</h3>
+              <p className="text-xs text-slate-500 mt-1.5">{celeb.desc}</p>
+            </div>
+            <div className="bg-cyan-500/10 rounded-2xl p-4 border border-cyan-500/20">
+              <div className="flex items-center justify-center gap-1.5"><Sparkles className="w-3.5 h-3.5 text-cyan-400" /><span className="text-[10px] font-bold text-cyan-400 uppercase tracking-[0.18em]">Você ganhou</span></div>
+              <p className="text-3xl font-bold text-cyan-400 mt-1" style={{ fontFamily: "'Playfair Display', serif" }}>+{celeb.xp} XP</p>
+            </div>
+            <button onClick={() => setShowCeleb(false)} className="w-full bg-white text-slate-950 py-3 rounded-full text-sm font-semibold hover:scale-[1.02] active:scale-[0.98] transition-transform">Continuar</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowCeleb(false)}>
           <div className="bg-slate-900 rounded-2xl p-6 max-w-xs w-full text-center space-y-4 border border-slate-800 animate-fade-in" onClick={e => e.stopPropagation()}>
             <div className="w-14 h-14 bg-gradient-to-br from-teal-400 to-cyan-500 rounded-2xl flex items-center justify-center mx-auto shadow-lg shadow-cyan-500/20"><Trophy className="w-7 h-7 text-white" /></div>
