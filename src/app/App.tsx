@@ -1,16 +1,15 @@
-import { useState, useEffect, useCallback } from 'react';
+import { Suspense, lazy, useState, useEffect, useCallback, useMemo } from 'react';
 import { defaultDialogues } from './data/defaultDialogues';
 import { Dialogue, UserStats, Level, Badge } from './types';
 import TopNav from './components/TopNav';
 import DuolingoMap from './components/DuolingoMap';
-import DialoguePractice from './components/DialoguePractice';
-import CumulativeArena from './components/CumulativeArena';
-import SettingsView from './components/SettingsView';
-import PhraseRepetition from './components/PhraseRepetition';
 import { Sparkles, Trophy } from 'lucide-react';
 import { preloadVoices } from './utils/speech';
-import { findCoverImage } from './utils/imageSearch';
-import { fillMissingLineTranslations, hasMissingTranslations } from './utils/translations';
+
+const DialoguePractice = lazy(() => import('./components/DialoguePractice'));
+const CumulativeArena = lazy(() => import('./components/CumulativeArena'));
+const SettingsView = lazy(() => import('./components/SettingsView'));
+const PhraseRepetition = lazy(() => import('./components/PhraseRepetition'));
 
 const INIT: UserStats = { xp: 0, streak: 1, lastActive: null, badges: [], completedDialogues: [], unlockedLevels: ['A1'], pronunciationAverages: {} };
 
@@ -59,6 +58,14 @@ function normalizeImportedDialogue(dialogue: Dialogue): Dialogue {
   return { ...dialogue, lines };
 }
 
+function LoadingPanel() {
+  return (
+    <div className="py-16 text-center text-sm text-slate-400 animate-pulse">
+      Carregando…
+    </div>
+  );
+}
+
 export default function App() {
   const [dialogues, setDialogues] = useState<Dialogue[]>(defaultDialogues);
   const [stats, setStats] = useState<UserStats>(INIT);
@@ -100,50 +107,7 @@ export default function App() {
     const ids = new Set(defaultDialogues.map(d => d.id));
     const merged = [...defaultDialogues, ...custom.filter(d => d?.id && !ids.has(d.id))].filter(d => d?.id && !deleted.includes(d.id));
     setDialogues(merged);
-    repairRepeatedImages(merged, custom, deleted);
-    repairMissingTranslations(custom, deleted);
   }, []);
-
-  const repairMissingTranslations = async (custom: Dialogue[], deleted: string[]) => {
-    if (!hasMissingTranslations(custom)) return;
-    const fixedCustom = await fillMissingLineTranslations(custom.map(normalizeImportedDialogue));
-    localStorage.setItem('speak_native_custom_dialogues_v2', JSON.stringify(fixedCustom));
-    const builtinIds = new Set(defaultDialogues.map(d => d.id));
-    const repaired = [...defaultDialogues, ...fixedCustom.filter(d => d?.id && !builtinIds.has(d.id))].filter(d => d?.id && !deleted.includes(d.id));
-    setDialogues(repaired);
-  };
-
-  const repairRepeatedImages = async (merged: Dialogue[], custom: Dialogue[], deleted: string[]) => {
-    const seen = new Set<string>();
-    const avoid = new Set<string>();
-    const fixedCustom = [...custom];
-    let changed = false;
-
-    for (const d of merged) {
-      if (!d.imageUrl) continue;
-      const identity = imageIdentity(d.imageUrl);
-      if (seen.has(identity)) {
-        const idx = fixedCustom.findIndex(c => c.id === d.id);
-        if (idx >= 0) {
-          try {
-            const imageUrl = await findCoverImage(d.title, d.situation, d.id, [...avoid]);
-            fixedCustom[idx] = { ...fixedCustom[idx], imageUrl };
-            avoid.add(imageIdentity(imageUrl));
-            changed = true;
-          } catch (_) {}
-        }
-        continue;
-      }
-      seen.add(identity);
-      avoid.add(identity);
-    }
-
-    if (!changed) return;
-    const builtinIds = new Set(defaultDialogues.map(d => d.id));
-    const repaired = [...defaultDialogues, ...fixedCustom.filter(d => d?.id && !builtinIds.has(d.id))].filter(d => d?.id && !deleted.includes(d.id));
-    localStorage.setItem('speak_native_custom_dialogues_v2', JSON.stringify(fixedCustom));
-    setDialogues(repaired);
-  };
 
   const save = useCallback((s: UserStats) => { setStats(s); localStorage.setItem('speak_native_user_stats_v2', JSON.stringify(s)); }, []);
 
@@ -202,7 +166,10 @@ export default function App() {
   };
 
   const handleAddXp = (xp: number) => { const s = { ...stats }; s.xp += xp; s.lastActive = new Date().toISOString().split('T')[0]; save(s); };
-  const vocab = dialogues.filter(d => stats.completedDialogues.includes(d.id)).flatMap(d => d.lines.flatMap(l => l.keyVocabulary?.map(v => v.word) || []));
+  const vocab = useMemo(
+    () => dialogues.filter(d => stats.completedDialogues.includes(d.id)).flatMap(d => d.lines.flatMap(l => l.keyVocabulary?.map(v => v.word) || [])),
+    [dialogues, stats.completedDialogues],
+  );
   const curLvl: Level = stats.unlockedLevels.length > 0 ? stats.unlockedLevels[stats.unlockedLevels.length - 1] : 'A1';
 
   return (
@@ -218,11 +185,14 @@ export default function App() {
 
       <main className="flex-1 relative z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-          {selected ? <DialoguePractice dialogue={selected} stats={stats} onBack={() => setSelected(null)} onComplete={handleComplete} />
-            : tab === 'map' ? <DuolingoMap dialogues={dialogues} stats={stats} onSelectDialogue={setSelected} />
-            : tab === 'cumulative' ? <CumulativeArena stats={stats} learnedVocabulary={vocab} currentLevel={curLvl} onAddXp={handleAddXp} />
-            : tab === 'repetition' ? <PhraseRepetition dialogues={dialogues} completedDialogues={stats.completedDialogues} onAddXp={handleAddXp} />
-            : <SettingsView stats={stats} dialogues={dialogues} onImportDialogues={handleImport} onDeleteDialogue={handleDelete} onResetProgress={handleReset} />}
+          {selected ? (
+            <Suspense fallback={<LoadingPanel />}>
+              <DialoguePractice dialogue={selected} stats={stats} onBack={() => setSelected(null)} onComplete={handleComplete} />
+            </Suspense>
+          ) : tab === 'map' ? <DuolingoMap dialogues={dialogues} stats={stats} onSelectDialogue={setSelected} />
+            : tab === 'cumulative' ? <Suspense fallback={<LoadingPanel />}><CumulativeArena stats={stats} learnedVocabulary={vocab} currentLevel={curLvl} onAddXp={handleAddXp} /></Suspense>
+            : tab === 'repetition' ? <Suspense fallback={<LoadingPanel />}><PhraseRepetition dialogues={dialogues} completedDialogues={stats.completedDialogues} onAddXp={handleAddXp} /></Suspense>
+            : <Suspense fallback={<LoadingPanel />}><SettingsView stats={stats} dialogues={dialogues} onImportDialogues={handleImport} onDeleteDialogue={handleDelete} onResetProgress={handleReset} /></Suspense>}
         </div>
       </main>
 
