@@ -42,6 +42,22 @@ export default function DuolingoMap({ dialogues, stats, onSelectDialogue }: Prop
   const total = dialogues.length;
   const pct = total > 0 ? Math.round((done / total) * 100) : 0;
   const filtered = dialogues.filter(d => d.level === sel).sort((a, b) => a.order - b.order);
+
+  useEffect(() => {
+    let cancelled = false;
+    const missing = filtered.filter(d => !images[d.id]);
+    if (missing.length === 0) return;
+    (async () => {
+      for (const d of missing) {
+        try {
+          const url = await findCoverImage(d.title, d.situation, d.id);
+          if (cancelled) return;
+          if (url) setImages(prev => (prev[d.id] ? prev : { ...prev, [d.id]: url }));
+        } catch (_) { /* ignore */ }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [filtered, images]);
   const available = LEVEL_ORDER.filter(l => dialogues.some(d => d.level === l));
   const meta = META[sel];
   const doneInLvl = filtered.filter(d => stats.completedDialogues?.includes(d.id)).length;
