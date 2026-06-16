@@ -7,6 +7,8 @@ import CumulativeArena from './components/CumulativeArena';
 import { Sparkles, Trophy } from 'lucide-react';
 import { preloadVoices } from './utils/speech';
 import { isLikelyBrokenCoverImageUrl } from './utils/imageSearch';
+import { supabase } from '@/integrations/supabase/client';
+
 
 const DialoguePractice = lazy(() => import('./components/DialoguePractice'));
 const SettingsView = lazy(() => import('./components/SettingsView'));
