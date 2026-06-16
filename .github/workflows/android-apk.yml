@@ -34,8 +34,15 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Build web app
-        run: npm run build
+      - name: Create stub dist for Capacitor
+        run: |
+          mkdir -p dist
+          cat > dist/index.html <<'EOF'
+          <!doctype html>
+          <html><head><meta charset="utf-8"><title>Speak Native</title>
+          <meta http-equiv="refresh" content="0;url=https://language-bliss-61.lovable.app">
+          </head><body>Loading...</body></html>
+          EOF
 
       - name: Add Android platform
         run: |
