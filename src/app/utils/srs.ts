@@ -28,6 +28,10 @@ const RESET_ON_ERROR: Record<SrsLevel, number> = {
 
 let stateCache: Record<string, PhraseState> | null = null;
 
+function isSrsLevel(value: unknown): value is SrsLevel {
+  return value === 'easy' || value === 'medium' || value === 'hard';
+}
+
 const TOP_500 = new Set(
   'the be to of and a in that have i it for not on with he as you do at this but his by from they we say her she or an will my one all would there their what so up out if about who get which go me when make can like time no just him know take people into year your good some could them see other than then now look only come its over think also back after use two how our work first well way even new want because any these give day most us hello hi how are good morning night thanks please yes ok'.split(' ')
 );
@@ -64,9 +68,24 @@ function loadAll(): Record<string, PhraseState> {
   if (stateCache) return stateCache;
   if (typeof window === 'undefined') return {};
   try {
-    const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') as Record<string, PhraseState>;
-    stateCache = parsed;
-    return parsed;
+    const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') as Record<string, unknown>;
+    const safe: Record<string, PhraseState> = {};
+    Object.entries(parsed && typeof parsed === 'object' ? parsed : {}).forEach(([key, value]) => {
+      if (!value || typeof value !== 'object') return;
+      const raw = value as Partial<PhraseState>;
+      const id = typeof raw.id === 'string' && raw.id ? raw.id : key;
+      const level = isSrsLevel(raw.level) ? raw.level : 'easy';
+      safe[id] = {
+        id,
+        level,
+        history: Array.isArray(raw.history) ? raw.history.filter((item): item is boolean => typeof item === 'boolean').slice(-10) : [],
+        consecutiveHits: typeof raw.consecutiveHits === 'number' && Number.isFinite(raw.consecutiveHits) ? Math.max(0, raw.consecutiveHits) : 0,
+        nextReview: typeof raw.nextReview === 'number' && Number.isFinite(raw.nextReview) ? raw.nextReview : Date.now(),
+        learned: raw.learned === true,
+      };
+    });
+    stateCache = safe;
+    return safe;
   } catch {
     stateCache = {};
     return stateCache;
