@@ -1,10 +1,11 @@
 import { createServerFn } from "@tanstack/react-start";
-import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
 const CoverImageInput = z.object({
   title: z.string().trim().min(1).max(180),
   situation: z.string().trim().max(240).optional().nullable(),
+  lessonId: z.string().trim().min(1).max(160).optional().nullable(),
+  avoidUrls: z.array(z.string().trim().min(1).max(1200)).max(200).optional(),
 });
 
 function hash(value: string): number {
@@ -23,10 +24,30 @@ function normalize(value: string): string {
     .trim();
 }
 
-function cacheKey(title: string, situation?: string | null): string {
-  const raw = `${title}|${situation ?? ""}`;
+function cacheKey(title: string, situation?: string | null, lessonId?: string | null): string {
+  const raw = `${lessonId || "lesson"}|${title}|${situation ?? ""}`;
   const slug = normalize(raw).replace(/\s+/g, "-").slice(0, 120) || "lesson";
   return `${slug}-${hash(raw)}`;
+}
+
+function normalizeImageUrl(url: string): string {
+  try {
+    const parsed = new URL(url);
+    parsed.searchParams.delete("ixid");
+    return parsed.toString();
+  } catch (_) {
+    return url;
+  }
+}
+
+function imageIdentity(url: string): string {
+  try {
+    const parsed = new URL(url);
+    if (parsed.hostname.includes("images.unsplash.com") || parsed.hostname.includes("images.pexels.com")) {
+      return `${parsed.origin}${parsed.pathname}`;
+    }
+  } catch (_) {}
+  return normalizeImageUrl(url);
 }
 
 function searchQuery(title: string, situation?: string | null): string {
@@ -52,27 +73,25 @@ function unsplashUrl(photo: any): string | null {
 export const getLessonCoverImage = createServerFn({ method: "POST" })
   .inputValidator((input) => CoverImageInput.parse(input))
   .handler(async ({ data }) => {
-    const supabaseUrl = process.env.SUPABASE_URL;
-    const supabaseKey = process.env.SUPABASE_PUBLISHABLE_KEY;
-    if (!supabaseUrl || !supabaseKey) throw new Error("Backend não configurado");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const key = cacheKey(data.title, data.situation, data.lessonId);
+    const avoid = new Set((data.avoidUrls ?? []).map(imageIdentity));
 
-    const supabase = createClient(supabaseUrl, supabaseKey, { auth: { persistSession: false } });
-    const key = cacheKey(data.title, data.situation);
-
-    const { data: existing } = await supabase
+    const { data: existing } = await supabaseAdmin
       .from("lesson_cover_images")
       .select("image_url")
       .eq("cache_key", key)
       .maybeSingle();
-    if (existing?.image_url) return existing.image_url;
+    if (existing?.image_url && !avoid.has(imageIdentity(existing.image_url))) return existing.image_url;
+    const shouldReplaceExisting = !!existing?.image_url;
 
-    const { data: usedRows } = await supabase
+    const { data: usedRows } = await supabaseAdmin
       .from("lesson_cover_images")
       .select("image_url")
       .limit(1000);
-    const used = new Set((usedRows ?? []).map((row) => row.image_url));
+    const used = new Set((usedRows ?? []).map((row: { image_url: string }) => imageIdentity(row.image_url)));
 
-    const candidates: string[] = [];
+    const candidates: Array<{ url: string; identity: string }> = [];
     const unsplashKey = process.env.UNSPLASH_ACCESS_KEY;
     if (unsplashKey) {
       try {
@@ -88,7 +107,11 @@ export const getLessonCoverImage = createServerFn({ method: "POST" })
           const payload = await response.json();
           for (const photo of payload?.results ?? []) {
             const url = unsplashUrl(photo);
-            if (url && !candidates.includes(url)) candidates.push(url);
+            const normalizedUrl = url ? normalizeImageUrl(url) : null;
+            const identity = normalizedUrl ? imageIdentity(normalizedUrl) : null;
+            if (normalizedUrl && identity && !candidates.some((candidate) => candidate.identity === identity)) {
+              candidates.push({ url: normalizedUrl, identity });
+            }
           }
         }
       } catch (_) {
@@ -96,33 +119,32 @@ export const getLessonCoverImage = createServerFn({ method: "POST" })
       }
     }
 
-    const ordered = [...candidates.filter((url) => !used.has(url)), ...candidates.filter((url) => used.has(url))];
-    for (const imageUrl of ordered) {
-      if (used.has(imageUrl)) continue;
-      const { data: saved, error } = await supabase
-        .from("lesson_cover_images")
-        .insert({ cache_key: key, title: data.title, situation: data.situation ?? null, image_url: imageUrl, source: "unsplash" })
-        .select("image_url")
-        .single();
+    const ordered = candidates.filter((candidate) => !used.has(candidate.identity) && !avoid.has(candidate.identity));
+    for (const candidate of ordered) {
+      const imageUrl = candidate.url;
+      const payload = { cache_key: key, title: data.title, situation: data.situation ?? null, image_url: imageUrl, source: "unsplash" };
+      const { data: saved, error } = shouldReplaceExisting
+        ? await supabaseAdmin.from("lesson_cover_images").update(payload).eq("cache_key", key).select("image_url").single()
+        : await supabaseAdmin.from("lesson_cover_images").insert(payload).select("image_url").single();
       if (!error && saved?.image_url) return saved.image_url;
       if (error?.code === "23505") {
-        const { data: raced } = await supabase.from("lesson_cover_images").select("image_url").eq("cache_key", key).maybeSingle();
-        if (raced?.image_url) return raced.image_url;
+        const { data: raced } = await supabaseAdmin.from("lesson_cover_images").select("image_url").eq("cache_key", key).maybeSingle();
+        if (raced?.image_url && !avoid.has(imageIdentity(raced.image_url))) return raced.image_url;
       }
     }
 
     const q = encodeURIComponent(searchQuery(data.title, data.situation).replace(/\s+/g, ","));
     for (let i = 0; i < 10; i++) {
       const imageUrl = `https://loremflickr.com/900/500/${q}?lock=${hash(`${key}-${i}`)}`;
-      const { data: saved, error } = await supabase
-        .from("lesson_cover_images")
-        .insert({ cache_key: key, title: data.title, situation: data.situation ?? null, image_url: imageUrl, source: "fallback" })
-        .select("image_url")
-        .single();
+      if (used.has(imageIdentity(imageUrl)) || avoid.has(imageIdentity(imageUrl))) continue;
+      const payload = { cache_key: key, title: data.title, situation: data.situation ?? null, image_url: imageUrl, source: "fallback" };
+      const { data: saved, error } = shouldReplaceExisting
+        ? await supabaseAdmin.from("lesson_cover_images").update(payload).eq("cache_key", key).select("image_url").single()
+        : await supabaseAdmin.from("lesson_cover_images").insert(payload).select("image_url").single();
       if (!error && saved?.image_url) return saved.image_url;
       if (error?.code === "23505") {
-        const { data: raced } = await supabase.from("lesson_cover_images").select("image_url").eq("cache_key", key).maybeSingle();
-        if (raced?.image_url) return raced.image_url;
+        const { data: raced } = await supabaseAdmin.from("lesson_cover_images").select("image_url").eq("cache_key", key).maybeSingle();
+        if (raced?.image_url && !avoid.has(imageIdentity(raced.image_url))) return raced.image_url;
       }
     }
 
