@@ -67,6 +67,20 @@ export const Route = createFileRoute("/api/chat")({
 
           const body = (await request.json()) as Body;
           if (!Array.isArray(body.messages)) return new Response("Bad request", { status: 400 });
+          if (body.messages.length === 0 || body.messages.length > MAX_MESSAGES) {
+            return new Response("Too many messages", { status: 400 });
+          }
+          let totalBytes = 0;
+          for (const m of body.messages) {
+            if (!m || typeof m !== "object") return new Response("Bad request", { status: 400 });
+            const parts = Array.isArray((m as any).parts) ? (m as any).parts : [];
+            for (const p of parts) {
+              const t = typeof p?.text === "string" ? p.text : "";
+              if (t.length > MAX_PART_BYTES) return new Response("Message part too large", { status: 413 });
+              totalBytes += t.length;
+            }
+            if (totalBytes > MAX_TOTAL_BYTES) return new Response("Payload too large", { status: 413 });
+          }
 
           const lovableKey = process.env.LOVABLE_API_KEY;
           const supabaseUrl = process.env.SUPABASE_URL;
