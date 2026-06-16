@@ -316,7 +316,7 @@ export default function SettingsView({ stats, dialogues, onImportDialogues, onDe
       </Section>
 
       {/* Unsplash — imagens das aulas */}
-      <Section icon={<FileText className="w-3.5 h-3.5 text-amber-400" />} title="Imagens das Aulas (Unsplash)">
+      <Section>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2"><FileText className="w-4 h-4 text-amber-400" /><Label>Unsplash API</Label></div>
           <a href="https://unsplash.com/developers" target="_blank" rel="noopener noreferrer" className="text-[10px] text-amber-400 hover:underline flex items-center gap-0.5">Obter chave<ExternalLink className="w-2.5 h-2.5" /></a>
