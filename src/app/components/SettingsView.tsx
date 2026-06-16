@@ -119,11 +119,14 @@ function pushDialogueLine(target: Dialogue['lines'], dialogueIdx: number, speake
 function parseTextToDialogues(text: string): Dialogue[] {
   try { const p = JSON.parse(text); if (Array.isArray(p)) return p; } catch (_) {}
   const m = text.match(/\[[\s\S]*\]/); if (m) { try { const p = JSON.parse(m[0]); if (Array.isArray(p)) return p; } catch (_) {} }
-  const dialogues: Dialogue[] = []; const clean = text.replace(/\r\n/g, '\n');
-  const sections = clean.split(/\n{3,}|(?:^|\n)(?:#{1,3}\s|Diálogo\s*\d*\s*[:\-]?\s*|Dialogue\s*\d*\s*[:\-]?\s*|Lesson\s*\d*\s*[:\-]?\s*)/gi).filter(s => s.trim().length > 20);
+  const dialogues: Dialogue[] = []; const clean = text.replace(/\r\n/g, '\n').replace(/[\t ]+/g, ' ');
+  const sections = clean.split(/\n{3,}|(?:^|\n)(?:#{1,3}\s*|Diálogo\s*\d*\s*[:\-]?\s*|Dialogue\s*\d*\s*[:\-]?\s*|Lesson\s*\d*\s*[:\-]?\s*|Lição\s*\d*\s*[:\-]?\s*)/gi).filter(s => s.trim().length > 20);
 
   const speakerOnly = /^([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\s.'-]{0,30}?)\s*:\s*$/;
   const speakerInline = /^([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\s.'-]{0,30}?)\s*[:\-–]\s*(.{2,})$/;
+  const twoColumnLine = /^([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\s.'-]{0,30}?)\s*[:\-–]\s*(.+?)\s+\|\s+(.+)$/;
+  const numberedLine = /^\d+[.)]\s*([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\s.'-]{0,30}?)\s*[:\-–]\s*(.+)$/;
+  const skipLine = /^(speaker|personagem|personagem\s*\/\s*speaker|english|ingl[eê]s|portugu[eê]s|translation|tradu[cç][aã]o|fala|texto|frase|pron[uú]ncia|vocabul[aá]rio)\b/i;
 
   (sections.length ? sections : [clean]).forEach((sec, idx) => {
     const lines = sec.split('\n').map(l => l.trim()).filter(l => l);
@@ -135,27 +138,32 @@ function parseTextToDialogues(text: string): Dialogue[] {
     }
     if (!title) title = `Diálogo ${idx + 1}`;
 
-    const dLines: any[] = [];
+    const dLines: Dialogue['lines'] = [];
     let currentSpeaker = ''; let pendingText = ''; let pendingTranslation = '';
 
     const flush = () => {
-      if (currentSpeaker && pendingText) {
-        dLines.push({
-          id: `pdf-${idx}-${dLines.length}`,
-          speaker: currentSpeaker,
-          text: pendingText.trim(),
-          translation: pendingTranslation.trim(),
-        });
-      }
+      pushDialogueLine(dLines, idx, currentSpeaker, pendingText, pendingTranslation);
       pendingText = ''; pendingTranslation = '';
     };
 
     for (let i = start; i < lines.length; i++) {
-      const l = lines[i];
+      const l = lines[i].replace(/^[-*•]\s*/, '').trim();
+      if (!l || skipLine.test(l)) continue;
+      const mTwoCol = l.match(twoColumnLine);
+      const mNumbered = !mTwoCol ? l.match(numberedLine) : null;
       const mOnly = l.match(speakerOnly);
-      const mInline = !mOnly ? l.match(speakerInline) : null;
+      const mInline = !mTwoCol && !mNumbered && !mOnly ? l.match(speakerInline) : null;
 
-      if (mOnly) {
+      if (mTwoCol) {
+        flush();
+        pushDialogueLine(dLines, idx, mTwoCol[1], mTwoCol[2], mTwoCol[3]);
+        currentSpeaker = '';
+      } else if (mNumbered) {
+        flush();
+        currentSpeaker = mNumbered[1].trim();
+        const rest = mNumbered[2].trim();
+        if (isPortuguese(rest)) pendingTranslation = rest; else pendingText = rest;
+      } else if (mOnly) {
         flush();
         currentSpeaker = mOnly[1].trim();
       } else if (mInline) {
@@ -164,7 +172,6 @@ function parseTextToDialogues(text: string): Dialogue[] {
         const rest = mInline[2].trim();
         if (isPortuguese(rest)) pendingTranslation = rest; else pendingText = rest;
       } else if (currentSpeaker) {
-        // Continuation: either original text or translation
         if (!pendingText) pendingText = l;
         else if (!pendingTranslation && isPortuguese(l)) pendingTranslation = l;
         else if (isPortuguese(l)) pendingTranslation += ' ' + l;
