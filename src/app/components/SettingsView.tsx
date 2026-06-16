@@ -154,11 +154,16 @@ export default function SettingsView({ stats, dialogues, onImportDialogues, onDe
     // Busca imagem de capa para cada diálogo importado (paralelo, com fallback)
     if (all.length) {
       setBatchProg({ c: 0, t: all.length, name: '🖼️ Buscando imagens...' });
-      await Promise.all(all.map(async (d, i) => {
+      const usedImageUrls = new Set(dialogues.map(d => d.imageUrl).filter(Boolean) as string[]);
+      for (let i = 0; i < all.length; i++) {
+        const d = all[i];
         if (d.imageUrl) return;
-        try { d.imageUrl = await findCoverImage(d.title, d.situation); } catch (_) {}
+        try {
+          d.imageUrl = await findCoverImage(d.title, d.situation, d.id, [...usedImageUrls]);
+          if (d.imageUrl) usedImageUrls.add(d.imageUrl);
+        } catch (_) {}
         setBatchProg({ c: i + 1, t: all.length, name: `🖼️ ${d.title.substring(0, 40)}` });
-      }));
+      }
     }
 
     setParsing(false); setBatchProg(null);
