@@ -1,6 +1,7 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Play, Lock, CheckCircle2, Volume2, ArrowRight, Lightbulb, Flame, Sparkles, Waves } from 'lucide-react';
 import { Dialogue, Level, UserStats } from '../types';
+import { findCoverImage } from '../utils/imageSearch';
 import bannerImg from '@/assets/map-banner.jpg';
 import catConversation from '@/assets/cat-conversation.jpg';
 import catPronunciation from '@/assets/cat-pronunciation.jpg';
