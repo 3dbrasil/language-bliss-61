@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, Volume2, Mic, MicOff, Check, RotateCcw, Star, BookOpen, Award, Send, Sparkles } from 'lucide-react';
+import { ArrowLeft, Volume2, Mic, MicOff, Check, RotateCcw, Star, BookOpen, Award, Send, Sparkles, CheckCircle2 } from 'lucide-react';
 import { Dialogue, DialogueLine, PronunciationFeedback, UserStats } from '../types';
 import { speakAmericanEnglish, evaluatePronunciation } from '../utils/speech';
+import { classifyDifficulty, getState, markLearned, recordResult, LEVEL_META, speakerAvatar } from '../utils/srs';
 import AriaChat from './AriaChat';
 
 
@@ -22,6 +23,7 @@ export default function DialoguePractice({ dialogue, stats: _s, onBack, onComple
   const [vocab, setVocab] = useState(false);
   const [rate, setRate] = useState(0.85);
   const [aria, setAria] = useState(false);
+  const [srsTick, setSrsTick] = useState(0);
 
 
   const recRef = useRef<any>(null);
@@ -48,7 +50,7 @@ export default function DialoguePractice({ dialogue, stats: _s, onBack, onComple
 
   const speak = async (l: DialogueLine) => { if (speakingId) return; setSpeakingId(l.id); try { await speakAmericanEnglish(l.text, undefined, rate); if (!listened.includes(l.id)) setListened(p => [...p, l.id]); } catch (e) { console.error(e); } setSpeakingId(null); };
   const toggleRec = () => { if (!recRef.current) { setManual(true); return; } if (rec) recRef.current.stop(); else { setTrans(''); setErr(''); setManual(false); try { recRef.current.start(); } catch (e) { console.error(e); } } };
-  const evalSpoken = async (t?: string) => { if (!active) return; const s = t || trans; if (!s.trim()) return; setEvaluating(true); setErr(''); const fb = await evaluatePronunciation(active.text, s); setCurFb(fb); setFbs(p => ({ ...p, [active.id]: fb })); setEvaluating(false); };
+  const evalSpoken = async (t?: string) => { if (!active) return; const s = t || trans; if (!s.trim()) return; setEvaluating(true); setErr(''); const fb = await evaluatePronunciation(active.text, s); setCurFb(fb); setFbs(p => ({ ...p, [active.id]: fb })); recordResult(active.text, fb.score >= 70); setSrsTick(x => x + 1); setEvaluating(false); };
   const finish = () => { const sc: Record<string, number> = {}; Object.entries(fbs).forEach(([id, fb]) => sc[id] = fb.score); const avg = Object.values(sc).length > 0 ? Math.round(Object.values(sc).reduce((a, b) => a + b, 0) / Object.values(sc).length) : 0; onComplete(avg >= 80 ? 30 : avg >= 60 ? 25 : 15, sc); };
   const isStu = (l: DialogueLine) => /you|student/i.test(l.speaker);
   const scoreClr = (s: number) => s >= 80 ? 'text-emerald-400' : s >= 60 ? 'text-teal-400' : 'text-red-400';
@@ -129,11 +131,20 @@ export default function DialoguePractice({ dialogue, stats: _s, onBack, onComple
               : stu ? 'bg-blue-500/[0.03] border-blue-500/10' : 'bg-slate-900/40 border-slate-800/60'}`}>
               <div className="px-3.5 py-2.5">
                 <div className="flex items-center justify-between mb-1">
-                  <div className="flex items-center gap-1.5">
-                    <span className={`text-[10px] font-semibold ${stu ? 'text-blue-400' : 'text-slate-300'}`}>{stu ? '🎙️ Você' : l.speaker}</span>
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    {(() => { const a = speakerAvatar(l.speaker); return (
+                      <div className={`w-6 h-6 rounded-full ${a.color} flex items-center justify-center text-white text-[10px] font-bold shrink-0`}>{a.initial}</div>
+                    ); })()}
+                    <span className={`text-[10px] font-semibold ${stu ? 'text-blue-400' : 'text-slate-300'} truncate`}>{stu ? '🎙️ Você' : l.speaker}</span>
+                    {(() => { const m = LEVEL_META[classifyDifficulty(l.text)]; return (
+                      <span className={`text-[9px] font-bold px-1 py-0.5 rounded border ${m.cls}`} title={`Dificuldade: ${m.label}`}>{m.emoji}</span>
+                    ); })()}
                     {fb && <span className={`text-[10px] font-bold ${scoreClr(fb.score)}`}>{fb.score}%</span>}
                   </div>
                   <div className="flex gap-1">
+                    {(() => { const st = getState(l.text); void srsTick; return (
+                      <button onClick={() => { markLearned(l.text, !st.learned); setSrsTick(x => x + 1); }} title={st.learned ? 'Aprendida' : 'Marcar como aprendida'} className={`w-6 h-6 rounded flex items-center justify-center ${st.learned ? 'text-emerald-400' : 'text-slate-500 hover:text-slate-300'}`}><CheckCircle2 className="w-3.5 h-3.5" /></button>
+                    ); })()}
                     <button onClick={() => speak(l)} disabled={!!speakingId} className={`w-6 h-6 rounded flex items-center justify-center ${spking ? 'bg-cyan-500 text-white animate-pulse' : 'text-slate-300 hover:text-slate-300 hover:bg-slate-800'}`}><Volume2 className="w-3.5 h-3.5" /></button>
                     {stu && <button onClick={() => { setActive(isAct ? null : l); setCurFb(null); setTrans(''); setErr(''); setManual(false); setManTxt(''); }}
                       className={`w-6 h-6 rounded flex items-center justify-center ${isAct ? 'bg-cyan-500 text-white' : 'text-cyan-300 hover:text-cyan-400 hover:bg-slate-800'}`}><Mic className="w-3.5 h-3.5" /></button>}
