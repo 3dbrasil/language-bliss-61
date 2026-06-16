@@ -46,7 +46,16 @@ function enrichImportedLine(line: Dialogue['lines'][number], idx: number): Dialo
 }
 
 function normalizeImportedDialogue(dialogue: Dialogue): Dialogue {
-  return { ...dialogue, lines: (dialogue.lines || []).map(enrichImportedLine).filter(l => l.text) };
+  const lines = (dialogue.lines || []).map(enrichImportedLine).filter(l => l.text);
+  const hasStudent = lines.some(l => /you|student/i.test(l.speaker));
+  if (!hasStudent) {
+    const speakers = Array.from(new Set(lines.map(l => l.speaker).filter(Boolean)));
+    const studentSpeaker = speakers[1];
+    if (studentSpeaker) {
+      return { ...dialogue, lines: lines.map(l => l.speaker === studentSpeaker ? { ...l, speaker: 'You (Student)' } : l) };
+    }
+  }
+  return { ...dialogue, lines };
 }
 
 export default function App() {

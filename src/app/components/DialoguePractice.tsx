@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { ArrowLeft, Volume2, BookOpen, Award, Sparkles, CheckCircle2, Play } from 'lucide-react';
 import { Dialogue, DialogueLine, PronunciationFeedback, UserStats } from '../types';
 import { speakAmericanEnglish } from '../utils/speech';
@@ -37,7 +37,6 @@ export default function DialoguePractice({ dialogue, stats: _s, onBack, onComple
   const [revealIdx, setRevealIdx] = useState(0);
   const [autoplay, setAutoplay] = useState(false);
   const [celebrate, setCelebrate] = useState(false);
-  const endRef = useRef<HTMLDivElement>(null);
 
   const isStu = (l: DialogueLine) => /you|student/i.test(l.speaker);
 
@@ -49,8 +48,6 @@ export default function DialoguePractice({ dialogue, stats: _s, onBack, onComple
     const t = setTimeout(() => setRevealIdx(i => Math.min(i + 1, visibleLines.length)), 250);
     return () => clearTimeout(t);
   }, [revealIdx, visibleLines.length]);
-
-  useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' }); }, [revealIdx]);
 
   const speak = async (l: DialogueLine) => {
     if (speakingId) return;
@@ -237,7 +234,6 @@ export default function DialoguePractice({ dialogue, stats: _s, onBack, onComple
             </div>
           </div>
         )}
-        <div ref={endRef} />
       </div>
 
       {/* Aria CTA — at the END of the lesson */}
