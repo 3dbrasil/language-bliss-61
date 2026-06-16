@@ -1,4 +1,3 @@
-import { getLessonCoverImage } from "@/lib/lessonImages.functions";
 import coffeeShopCover from "@/assets/lesson-covers/coffee-shop.jpg";
 import firstDayWorkCover from "@/assets/lesson-covers/first-day-work.jpg";
 import groceryStoreCover from "@/assets/lesson-covers/grocery-store.jpg";
@@ -16,7 +15,7 @@ const PHOTO_COVERS = [
     url: coffeeShopCover,
   },
   {
-    test: /work|office|job|interview|empresa|trabalho|co-?worker|startup/i,
+    test: /first day|office|work|empresa|trabalho|co-?worker/i,
     url: firstDayWorkCover,
   },
   {
@@ -93,13 +92,5 @@ export async function findCoverImage(
   lessonId?: string,
   avoidUrls: string[] = [],
 ): Promise<string> {
-  const localFallback = fallbackCoverImage(title, situation, lessonId);
-  try {
-    const url = await getLessonCoverImage({ data: { title, situation, lessonId, avoidUrls } });
-    return url && !isLikelyBrokenCoverImageUrl(url)
-      ? url
-      : localFallback;
-  } catch (_) {
-    return localFallback;
-  }
+  return fallbackCoverImage(title, situation, lessonId);
 }
