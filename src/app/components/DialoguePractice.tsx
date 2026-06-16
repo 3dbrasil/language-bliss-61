@@ -18,6 +18,8 @@ export default function DialoguePractice({ dialogue, stats: _s, onBack, onComple
   const [curFb, setCurFb] = useState<PronunciationFeedback | null>(null);
   const [listened, setListened] = useState<string[]>([]);
   const [vocab, setVocab] = useState(false);
+  const [rate, setRate] = useState(0.85);
+
   const recRef = useRef<any>(null);
   const endRef = useRef<HTMLDivElement>(null);
 
