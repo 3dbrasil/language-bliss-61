@@ -119,8 +119,9 @@ export const getLessonCoverImage = createServerFn({ method: "POST" })
       }
     }
 
-    const ordered = candidates.filter((url) => !used.has(url) && !avoid.has(url));
-    for (const imageUrl of ordered) {
+    const ordered = candidates.filter((candidate) => !used.has(candidate.identity) && !avoid.has(candidate.identity));
+    for (const candidate of ordered) {
+      const imageUrl = candidate.url;
       const payload = { cache_key: key, title: data.title, situation: data.situation ?? null, image_url: imageUrl, source: "unsplash" };
       const { data: saved, error } = shouldReplaceExisting
         ? await supabaseAdmin.from("lesson_cover_images").update(payload).eq("cache_key", key).select("image_url").single()
@@ -128,14 +129,14 @@ export const getLessonCoverImage = createServerFn({ method: "POST" })
       if (!error && saved?.image_url) return saved.image_url;
       if (error?.code === "23505") {
         const { data: raced } = await supabaseAdmin.from("lesson_cover_images").select("image_url").eq("cache_key", key).maybeSingle();
-        if (raced?.image_url && !avoid.has(normalizeImageUrl(raced.image_url))) return raced.image_url;
+        if (raced?.image_url && !avoid.has(imageIdentity(raced.image_url))) return raced.image_url;
       }
     }
 
     const q = encodeURIComponent(searchQuery(data.title, data.situation).replace(/\s+/g, ","));
     for (let i = 0; i < 10; i++) {
       const imageUrl = `https://loremflickr.com/900/500/${q}?lock=${hash(`${key}-${i}`)}`;
-      if (used.has(imageUrl) || avoid.has(imageUrl)) continue;
+      if (used.has(imageIdentity(imageUrl)) || avoid.has(imageIdentity(imageUrl))) continue;
       const payload = { cache_key: key, title: data.title, situation: data.situation ?? null, image_url: imageUrl, source: "fallback" };
       const { data: saved, error } = shouldReplaceExisting
         ? await supabaseAdmin.from("lesson_cover_images").update(payload).eq("cache_key", key).select("image_url").single()
@@ -143,7 +144,7 @@ export const getLessonCoverImage = createServerFn({ method: "POST" })
       if (!error && saved?.image_url) return saved.image_url;
       if (error?.code === "23505") {
         const { data: raced } = await supabaseAdmin.from("lesson_cover_images").select("image_url").eq("cache_key", key).maybeSingle();
-        if (raced?.image_url && !avoid.has(normalizeImageUrl(raced.image_url))) return raced.image_url;
+        if (raced?.image_url && !avoid.has(imageIdentity(raced.image_url))) return raced.image_url;
       }
     }
 
