@@ -114,10 +114,17 @@ export default function App() {
   const curLvl: Level = stats.unlockedLevels.length > 0 ? stats.unlockedLevels[stats.unlockedLevels.length - 1] : 'A1';
 
   return (
-    <div className="flex min-h-screen bg-[#020617] text-slate-300 relative">
+    <div className="flex min-h-screen bg-[#0A0F1A] text-slate-300 relative overflow-hidden">
+      {/* Ambient ocean orbs — same DNA as the landing */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-[-15%] right-[-10%] w-[700px] h-[700px] rounded-full bg-[#2A7FFF]/12 blur-[140px]" />
+        <div className="absolute bottom-[-20%] left-[-10%] w-[600px] h-[600px] rounded-full bg-[#00D4A0]/10 blur-[140px]" />
+        <div className="absolute top-[40%] left-[40%] w-[400px] h-[400px] rounded-full bg-[#7C5CFF]/6 blur-[120px]" />
+      </div>
+
       <Sidebar stats={stats} activeTab={tab} setActiveTab={t => { setTab(t); setSelected(null); }} />
 
-      <main className="flex-1 overflow-y-auto min-h-screen relative pb-24 lg:pb-0">
+      <main className="flex-1 overflow-y-auto min-h-screen relative pb-24 lg:pb-0 z-10">
         <div className="max-w-6xl mx-auto px-5 sm:px-10 lg:px-12 py-8 sm:py-12">
           <div className="lg:hidden h-12" />
           {selected ? <DialoguePractice dialogue={selected} stats={stats} onBack={() => setSelected(null)} onComplete={handleComplete} />
