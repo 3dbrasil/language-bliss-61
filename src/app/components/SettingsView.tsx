@@ -242,11 +242,43 @@ export default function SettingsView({ stats, dialogues, onImportDialogues, onDe
         </div>
       </Section>
 
-      {/* Custom dialogues */}
-      {custom.length > 0 && <Section>
-        <Label>Diálogos Importados ({custom.length})</Label>
-        {custom.map(d => <div key={d.id} className="flex items-center justify-between bg-slate-800/30 rounded-lg p-2 border border-slate-800"><div><p className="text-xs font-semibold text-slate-300">{d.title}</p><p className="text-[10px] text-slate-600">{d.level} · {d.lines.length} falas</p></div>{showDel === d.id ? <div className="flex gap-1"><button onClick={() => { onDeleteDialogue(d.id); setShowDel(null); }} className="text-[10px] bg-red-500 text-white px-2 py-0.5 rounded font-bold">Sim</button><button onClick={() => setShowDel(null)} className="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded font-bold">Não</button></div> : <button onClick={() => setShowDel(d.id)} className="text-slate-700 hover:text-red-400"><Trash2 className="w-3.5 h-3.5" /></button>}</div>)}
-      </Section>}
+      {/* All dialogues — remove any */}
+      <Section>
+        <Label>Gerenciar Diálogos ({dialogues.length})</Label>
+        <p className="text-[11px] text-slate-600">Remova diálogos que você não quer praticar. Você pode resetar tudo na Zona de Perigo para restaurar os padrões.</p>
+        <div className="max-h-80 overflow-y-auto space-y-1.5 pr-1">
+          {(['A1','A2','B1','B2','C1','C2'] as const).map(lvl => {
+            const items = dialogues.filter(d => d.level === lvl);
+            if (!items.length) return null;
+            return (
+              <div key={lvl}>
+                <p className="text-[9px] font-bold text-cyan-400 uppercase tracking-widest mt-2 mb-1">{lvl} · {items.length}</p>
+                {items.map(d => {
+                  const isCustom = !builtinIds.includes(d.id);
+                  return (
+                    <div key={d.id} className="flex items-center justify-between bg-slate-800/30 rounded-lg p-2 border border-slate-800">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-semibold text-slate-300 truncate">{d.title} {isCustom && <span className="text-[9px] text-cyan-500">(importado)</span>}</p>
+                        <p className="text-[10px] text-slate-600">{d.lines.length} falas</p>
+                      </div>
+                      {showDel === d.id ? (
+                        <div className="flex gap-1 shrink-0">
+                          <button onClick={() => { onDeleteDialogue(d.id); setShowDel(null); }} className="text-[10px] bg-red-500 text-white px-2 py-0.5 rounded font-bold">Remover</button>
+                          <button onClick={() => setShowDel(null)} className="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded font-bold">Cancelar</button>
+                        </div>
+                      ) : (
+                        <button onClick={() => setShowDel(d.id)} className="text-slate-700 hover:text-red-400 shrink-0 p-1" aria-label="Remover diálogo">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
+        </div>
+      </Section>
 
       {/* Danger */}
       <Section className="!border-red-500/15">
