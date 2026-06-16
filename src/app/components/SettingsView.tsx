@@ -315,6 +315,25 @@ export default function SettingsView({ stats, dialogues, onImportDialogues, onDe
         <button onClick={() => testApi('unreal')} disabled={!api.unrealSpeechApiKey || testing === 'unreal'} className="flex items-center gap-1 px-3 py-1.5 text-[11px] font-semibold text-purple-400 bg-purple-500/5 border border-purple-500/15 rounded-lg disabled:opacity-30 hover:bg-purple-500/10">{testing === 'unreal' ? <Loader2 className="w-3 h-3 animate-spin" /> : <Volume2 className="w-3 h-3" />}Testar Voz</button>
       </Section>
 
+      {/* Unsplash — imagens das aulas */}
+      <Section>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2"><FileText className="w-4 h-4 text-amber-400" /><Label>Unsplash API</Label></div>
+          <a href="https://unsplash.com/developers" target="_blank" rel="noopener noreferrer" className="text-[10px] text-amber-400 hover:underline flex items-center gap-0.5">Obter chave<ExternalLink className="w-2.5 h-2.5" /></a>
+        </div>
+        <p className="text-[11px] text-slate-600">Buscar foto de capa para cada aula importada via PDF. Sem chave = fallback gratuito (LoremFlickr).</p>
+        <div>
+          <Label>Access Key</Label>
+          <input
+            type="text"
+            value={api.unsplashAccessKey}
+            onChange={e => setApi(p => ({ ...p, unsplashAccessKey: e.target.value }))}
+            placeholder="Client-ID Unsplash..."
+            className="w-full mt-1 px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-xs text-slate-300 font-mono outline-none focus:border-slate-700"
+          />
+        </div>
+      </Section>
+
       {/* Save */}
       <button onClick={save} className={`w-full py-2.5 rounded-xl text-xs font-bold transition-all ${saved ? 'bg-emerald-600 text-white' : 'bg-cyan-500 text-white hover:bg-cyan-600'}`}>{saved ? '✅ Salvo!' : 'Salvar Configurações'}</button>
 
