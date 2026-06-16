@@ -3,11 +3,11 @@ import { defaultDialogues } from './data/defaultDialogues';
 import { Dialogue, UserStats, Level, Badge } from './types';
 import TopNav from './components/TopNav';
 import DuolingoMap from './components/DuolingoMap';
+import CumulativeArena from './components/CumulativeArena';
 import { Sparkles, Trophy } from 'lucide-react';
 import { preloadVoices } from './utils/speech';
 
 const DialoguePractice = lazy(() => import('./components/DialoguePractice'));
-const CumulativeArena = lazy(() => import('./components/CumulativeArena'));
 const SettingsView = lazy(() => import('./components/SettingsView'));
 const PhraseRepetition = lazy(() => import('./components/PhraseRepetition'));
 
@@ -211,7 +211,7 @@ export default function App() {
               <DialoguePractice dialogue={selected} stats={stats} onBack={() => setSelected(null)} onComplete={handleComplete} />
             </Suspense>
           ) : tab === 'map' ? <DuolingoMap dialogues={dialogues} stats={stats} onSelectDialogue={setSelected} />
-            : tab === 'cumulative' ? <Suspense fallback={<LoadingPanel />}><CumulativeArena stats={stats} learnedVocabulary={vocab} currentLevel={curLvl} onAddXp={handleAddXp} /></Suspense>
+            : tab === 'cumulative' ? <CumulativeArena stats={stats} learnedVocabulary={vocab} currentLevel={curLvl} onAddXp={handleAddXp} />
             : tab === 'repetition' ? <Suspense fallback={<LoadingPanel />}><PhraseRepetition dialogues={dialogues} completedDialogues={stats.completedDialogues} onAddXp={handleAddXp} /></Suspense>
             : <Suspense fallback={<LoadingPanel />}><SettingsView stats={stats} dialogues={dialogues} onImportDialogues={handleImport} onDeleteDialogue={handleDelete} onResetProgress={handleReset} /></Suspense>}
         </div>

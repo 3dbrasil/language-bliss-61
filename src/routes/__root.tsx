@@ -43,6 +43,15 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
 
   useEffect(() => {
     if (typeof window === "undefined" || !window.location.pathname.startsWith("/app")) return;
+    const message = String(error?.message || error || "");
+    const isChunkError = /loading chunk|chunkloaderror|failed to fetch dynamically imported module|importing a module script failed/i.test(message);
+    if (isChunkError) {
+      const chunkRecoveryKey = "speak_native_chunk_reloaded_once";
+      if (sessionStorage.getItem(chunkRecoveryKey)) return;
+      sessionStorage.setItem(chunkRecoveryKey, "1");
+      window.location.reload();
+      return;
+    }
     const recoveryKey = "speak_native_recovered_once";
     if (sessionStorage.getItem(recoveryKey)) return;
     sessionStorage.setItem(recoveryKey, "1");
