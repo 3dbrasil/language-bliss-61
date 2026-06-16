@@ -40,6 +40,16 @@ function normalizeImageUrl(url: string): string {
   }
 }
 
+function imageIdentity(url: string): string {
+  try {
+    const parsed = new URL(url);
+    if (parsed.hostname.includes("images.unsplash.com") || parsed.hostname.includes("images.pexels.com")) {
+      return `${parsed.origin}${parsed.pathname}`;
+    }
+  } catch (_) {}
+  return normalizeImageUrl(url);
+}
+
 function searchQuery(title: string, situation?: string | null): string {
   const generic = new Set([
     "dialogo", "dialogue", "lesson", "aula", "importado", "importada", "falas",
@@ -65,23 +75,23 @@ export const getLessonCoverImage = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const key = cacheKey(data.title, data.situation, data.lessonId);
-    const avoid = new Set((data.avoidUrls ?? []).map(normalizeImageUrl));
+    const avoid = new Set((data.avoidUrls ?? []).map(imageIdentity));
 
     const { data: existing } = await supabaseAdmin
       .from("lesson_cover_images")
       .select("image_url")
       .eq("cache_key", key)
       .maybeSingle();
-    if (existing?.image_url && !avoid.has(normalizeImageUrl(existing.image_url))) return existing.image_url;
+    if (existing?.image_url && !avoid.has(imageIdentity(existing.image_url))) return existing.image_url;
     const shouldReplaceExisting = !!existing?.image_url;
 
     const { data: usedRows } = await supabaseAdmin
       .from("lesson_cover_images")
       .select("image_url")
       .limit(1000);
-    const used = new Set((usedRows ?? []).map((row: { image_url: string }) => normalizeImageUrl(row.image_url)));
+    const used = new Set((usedRows ?? []).map((row: { image_url: string }) => imageIdentity(row.image_url)));
 
-    const candidates: string[] = [];
+    const candidates: Array<{ url: string; identity: string }> = [];
     const unsplashKey = process.env.UNSPLASH_ACCESS_KEY;
     if (unsplashKey) {
       try {
@@ -98,7 +108,10 @@ export const getLessonCoverImage = createServerFn({ method: "POST" })
           for (const photo of payload?.results ?? []) {
             const url = unsplashUrl(photo);
             const normalizedUrl = url ? normalizeImageUrl(url) : null;
-            if (normalizedUrl && !candidates.includes(normalizedUrl)) candidates.push(normalizedUrl);
+            const identity = normalizedUrl ? imageIdentity(normalizedUrl) : null;
+            if (normalizedUrl && identity && !candidates.some((candidate) => candidate.identity === identity)) {
+              candidates.push({ url: normalizedUrl, identity });
+            }
           }
         }
       } catch (_) {
