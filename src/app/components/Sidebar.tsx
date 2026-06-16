@@ -105,22 +105,45 @@ export default function Sidebar({ stats, activeTab, setActiveTab }: SidebarProps
     <>
       <button
         onClick={() => setOpen(!open)}
-        className="lg:hidden fixed top-3 left-3 z-50 w-9 h-9 bg-slate-900/80 backdrop-blur border border-slate-800 rounded-lg flex items-center justify-center"
+        className="lg:hidden fixed top-3 right-3 z-50 w-10 h-10 bg-white/[0.06] backdrop-blur-xl border border-white/10 rounded-2xl flex items-center justify-center"
         aria-label="Menu"
       >
-        {open ? <X className="w-4 h-4 text-slate-300" /> : <Menu className="w-4 h-4 text-slate-300" />}
+        {open ? <X className="w-4 h-4 text-slate-200" /> : <Menu className="w-4 h-4 text-slate-200" />}
       </button>
       {open && <div className="lg:hidden fixed inset-0 bg-black/60 z-30" onClick={() => setOpen(false)} />}
-      <aside className="hidden lg:flex w-72 border-r border-slate-800/50 bg-[#020617]/80 backdrop-blur-xl flex-col shrink-0 sticky top-0 h-screen z-20">
+      <aside className="hidden lg:flex w-72 border-r border-white/5 bg-[#0A0F1A]/80 backdrop-blur-xl flex-col shrink-0 sticky top-0 h-screen z-20">
         {content}
       </aside>
       <aside
-        className={`lg:hidden fixed inset-y-0 left-0 w-72 bg-[#020617]/95 backdrop-blur-xl border-r border-slate-800/50 z-40 transition-transform duration-300 ${
+        className={`lg:hidden fixed inset-y-0 left-0 w-72 bg-[#0A0F1A]/95 backdrop-blur-xl border-r border-white/5 z-40 transition-transform duration-300 ${
           open ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
         {content}
       </aside>
+
+      {/* Mobile bottom nav */}
+      <nav className="lg:hidden fixed bottom-0 inset-x-0 z-30 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2">
+        <div className="mx-auto max-w-md flex items-center justify-around gap-1 px-2 py-2 rounded-2xl bg-[#0A0F1A]/85 backdrop-blur-xl border border-white/10 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.6)]">
+          {nav.map((item) => {
+            const Icon = item.icon;
+            const active = activeTab === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => setActiveTab(item.id)}
+                aria-label={item.label}
+                className={`flex-1 flex flex-col items-center gap-0.5 py-1.5 px-2 rounded-xl transition-all ${
+                  active ? 'text-white bg-white/[0.06]' : 'text-slate-500 hover:text-slate-200'
+                }`}
+              >
+                <Icon className={`w-[18px] h-[18px] ${active ? 'text-[#00D4A0]' : ''}`} strokeWidth={1.8} />
+                <span className="text-[9px] font-medium tracking-wide">{item.label.split(' ')[0]}</span>
+              </button>
+            );
+          })}
+        </div>
+      </nav>
     </>
   );
 }

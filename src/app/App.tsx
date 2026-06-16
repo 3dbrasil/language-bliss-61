@@ -117,9 +117,9 @@ export default function App() {
     <div className="flex min-h-screen bg-[#020617] text-slate-300 relative">
       <Sidebar stats={stats} activeTab={tab} setActiveTab={t => { setTab(t); setSelected(null); }} />
 
-      <main className="flex-1 overflow-y-auto min-h-screen relative">
-        <div className="max-w-6xl mx-auto px-6 sm:px-10 lg:px-12 py-10 sm:py-12">
-          <div className="lg:hidden h-10" />
+      <main className="flex-1 overflow-y-auto min-h-screen relative pb-24 lg:pb-0">
+        <div className="max-w-6xl mx-auto px-5 sm:px-10 lg:px-12 py-8 sm:py-12">
+          <div className="lg:hidden h-12" />
           {selected ? <DialoguePractice dialogue={selected} stats={stats} onBack={() => setSelected(null)} onComplete={handleComplete} />
             : tab === 'map' ? <DuolingoMap dialogues={dialogues} stats={stats} onSelectDialogue={setSelected} />
             : tab === 'cumulative' ? <CumulativeArena stats={stats} learnedVocabulary={vocab} currentLevel={curLvl} onAddXp={handleAddXp} />
