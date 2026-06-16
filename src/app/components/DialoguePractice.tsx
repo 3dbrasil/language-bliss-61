@@ -73,8 +73,18 @@ export default function DialoguePractice({ dialogue, stats: _s, onBack, onComple
       {/* Controls */}
       <div className="flex items-center gap-2">
         <div className="flex gap-0.5 flex-1">{dialogue.lines.map(l => <div key={l.id} className={`h-1 flex-1 rounded-full ${fbs[l.id] ? fbs[l.id].score >= 80 ? 'bg-emerald-500' : fbs[l.id].score >= 60 ? 'bg-teal-400' : 'bg-red-400' : listened.includes(l.id) ? 'bg-blue-500/40' : isStu(l) ? 'bg-cyan-500/20' : 'bg-slate-800'}`} />)}</div>
+        <div className="flex items-center gap-0.5 bg-slate-900 rounded-md p-0.5 border border-slate-800">
+          {[
+            { v: 0.6, l: '0.6x' },
+            { v: 0.85, l: '1x' },
+            { v: 1.1, l: '1.3x' },
+          ].map(o => (
+            <button key={o.v} onClick={() => setRate(o.v)} className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${rate === o.v ? 'bg-cyan-500 text-white' : 'text-slate-300 hover:text-white'}`}>{o.l}</button>
+          ))}
+        </div>
         <button onClick={() => setVocab(!vocab)} className={`flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold transition ${vocab ? 'bg-cyan-500 text-white' : 'bg-slate-900 text-slate-300 border border-slate-800 hover:text-slate-300'}`}><BookOpen className="w-3 h-3" />Vocab</button>
       </div>
+
 
       {vocab && vocabList.length > 0 && (
         <div className="bg-slate-900/60 rounded-xl p-3 border border-slate-800 grid grid-cols-1 sm:grid-cols-2 gap-1">
