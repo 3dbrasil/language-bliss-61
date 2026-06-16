@@ -28,11 +28,16 @@ async function extractPDF(file: File): Promise<string> {
   for (let i = 1; i <= pdf.numPages; i++) {
     const page = await pdf.getPage(i);
     const content = await page.getTextContent();
-    let lastY = -1; let pt = '';
+    let lastY = -1; let lastX = -1; let pt = '';
     for (const item of content.items as any[]) {
-      if (lastY !== -1 && Math.abs(item.transform[5] - lastY) > 5) pt += '\n';
-      pt += item.str; if (item.str && !item.str.endsWith(' ')) pt += ' ';
-      lastY = item.transform[5];
+      const y = item.transform[5]; const x = item.transform[4];
+      if (lastY !== -1 && Math.abs(y - lastY) > 3) {
+        pt += '\n';
+      } else if (lastX !== -1 && x - lastX > 15 && pt && !pt.endsWith(' ')) {
+        pt += ' ';
+      }
+      pt += item.str;
+      lastY = y; lastX = x + (item.width || 0);
     }
     text += pt.trim() + '\n\n';
   }
