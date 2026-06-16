@@ -21,6 +21,7 @@ export default function DialoguePractice({ dialogue, stats: _s, onBack, onComple
   const [autoplay, setAutoplay] = useState(false);
   const [celebrate, setCelebrate] = useState(false);
   const [generatedTranslations, setGeneratedTranslations] = useState<Record<string, string>>({});
+  const [visibleCount, setVisibleCount] = useState(80);
 
   const isStu = useCallback((l: DialogueLine) => /you|student/i.test(l.speaker), []);
   const missingTranslation = useCallback(
@@ -35,6 +36,11 @@ export default function DialoguePractice({ dialogue, stats: _s, onBack, onComple
       ),
     [dialogue.lines, lvlFilter, srsTick],
   );
+  const renderedLines = useMemo(() => visibleLines.slice(0, visibleCount), [visibleLines, visibleCount]);
+
+  useEffect(() => {
+    setVisibleCount(80);
+  }, [dialogue.id, lvlFilter]);
 
   const speak = useCallback(
     async (l: DialogueLine) => {
@@ -211,7 +217,7 @@ export default function DialoguePractice({ dialogue, stats: _s, onBack, onComple
 
       {/* Chat bubbles */}
       <div className="space-y-5 pt-2">
-        {visibleLines.map((l) => {
+        {renderedLines.map((l) => {
           const stu = isStu(l);
           const avatar = speakerAvatar(l.speaker);
           const hue = stu ? studentHue : speakerHues[l.speaker] || speakerHues[Object.keys(speakerHues)[0]];
@@ -267,6 +273,15 @@ export default function DialoguePractice({ dialogue, stats: _s, onBack, onComple
         })}
 
       </div>
+
+      {visibleLines.length > renderedLines.length && (
+        <button
+          onClick={() => setVisibleCount((count) => count + 80)}
+          className="w-full py-3 rounded-2xl bg-slate-900/70 border border-slate-800 text-xs font-bold text-slate-300 hover:text-white hover:border-slate-700 transition"
+        >
+          Mostrar mais falas ({renderedLines.length}/{visibleLines.length})
+        </button>
+      )}
 
       {/* Aria CTA — at the END of the lesson */}
       {visibleLines.length > 0 && (
