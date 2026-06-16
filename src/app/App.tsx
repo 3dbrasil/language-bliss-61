@@ -85,7 +85,7 @@ function normalizeImportedDialogues(value: unknown): Dialogue[] {
   return value.map((dialogue) => normalizeImportedDialogue(dialogue as Partial<Dialogue>)).filter((dialogue): dialogue is Dialogue => Boolean(dialogue));
 }
 
-// Strip heavy fields (base64 data URLs) before persisting to avoid localStorage quota errors.
+// Strip heavy fields (base64 data URLs) before persisting to avoid quota errors.
 function slimForStorage(dialogues: Dialogue[]): Dialogue[] {
   return dialogues.map((d) => {
     const copy: Dialogue = { ...d };
@@ -96,20 +96,27 @@ function slimForStorage(dialogues: Dialogue[]): Dialogue[] {
   });
 }
 
-function safeSetCustom(custom: Dialogue[]): void {
-  const payload = JSON.stringify(slimForStorage(custom));
-  try {
-    localStorage.setItem('speak_native_custom_dialogues_v2', payload);
-  } catch (e) {
-    console.warn('localStorage quota exceeded; retrying without imageUrl.', e);
-    const stripped = JSON.stringify(custom.map(({ imageUrl: _img, ...rest }) => rest));
-    try {
-      localStorage.setItem('speak_native_custom_dialogues_v2', stripped);
-    } catch (e2) {
-      console.error('Failed to persist custom dialogues even after stripping images.', e2);
-    }
-  }
+const LS_CUSTOM = 'speak_native_custom_dialogues_v2';
+const LS_DELETED = 'speak_native_deleted_dialogues_v2';
+
+function lsReadCustom(): Dialogue[] {
+  try { const c = localStorage.getItem(LS_CUSTOM); return c ? normalizeImportedDialogues(JSON.parse(c)) : []; } catch { return []; }
 }
+function lsReadDeleted(): string[] {
+  try { const d = localStorage.getItem(LS_DELETED); const p = d ? JSON.parse(d) : []; return Array.isArray(p) ? p : []; } catch { return []; }
+}
+function lsWriteCustom(custom: Dialogue[]): void {
+  try { localStorage.setItem(LS_CUSTOM, JSON.stringify(slimForStorage(custom))); }
+  catch { try { localStorage.setItem(LS_CUSTOM, JSON.stringify(custom.map(({ imageUrl: _i, ...r }) => r))); } catch (e) { console.error('LS quota', e); } }
+}
+function lsWriteDeleted(ids: string[]): void {
+  try { localStorage.setItem(LS_DELETED, JSON.stringify(ids)); } catch (e) { console.error('LS quota', e); }
+}
+
+async function getUserId(): Promise<string | null> {
+  try { const { data } = await supabase.auth.getUser(); return data.user?.id ?? null; } catch { return null; }
+}
+
 
 function LoadingPanel() {
   return (
