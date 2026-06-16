@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { ArrowLeft, Volume2, BookOpen, Award, Sparkles, CheckCircle2, Play } from 'lucide-react';
 import { Dialogue, DialogueLine, PronunciationFeedback, UserStats } from '../types';
 import { speakAmericanEnglish } from '../utils/speech';
@@ -22,17 +22,34 @@ export default function DialoguePractice({ dialogue, stats: _s, onBack, onComple
   const [celebrate, setCelebrate] = useState(false);
   const [generatedTranslations, setGeneratedTranslations] = useState<Record<string, string>>({});
 
-  const isStu = (l: DialogueLine) => /you|student/i.test(l.speaker);
-  const missingTranslation = (value?: string) => !value?.trim() || /^[•.\s]+$/.test(value.trim());
+  const isStu = useCallback((l: DialogueLine) => /you|student/i.test(l.speaker), []);
+  const missingTranslation = useCallback(
+    (value?: string) => !value?.trim() || /^[•.\s]+$/.test(value.trim()),
+    [],
+  );
 
-  const visibleLines = dialogue.lines.filter(l => lvlFilter === 'all' || (getState(l.text).level || classifyDifficulty(l.text)) === lvlFilter);
+  const visibleLines = useMemo(
+    () =>
+      dialogue.lines.filter(
+        (l) => lvlFilter === 'all' || (getState(l.text).level || classifyDifficulty(l.text)) === lvlFilter,
+      ),
+    [dialogue.lines, lvlFilter, srsTick],
+  );
 
-  const speak = async (l: DialogueLine) => {
-    if (speakingId) return;
-    setSpeakingId(l.id);
-    try { await speakAmericanEnglish(l.text, undefined, rate); if (!listened.includes(l.id)) setListened(p => [...p, l.id]); } catch (e) { console.error(e); }
-    setSpeakingId(null);
-  };
+  const speak = useCallback(
+    async (l: DialogueLine) => {
+      if (speakingId) return;
+      setSpeakingId(l.id);
+      try {
+        await speakAmericanEnglish(l.text, undefined, rate);
+        setListened((p) => (p.includes(l.id) ? p : [...p, l.id]));
+      } catch (e) {
+        console.error(e);
+      }
+      setSpeakingId(null);
+    },
+    [speakingId, rate],
+  );
 
   /* autoplay */
   useEffect(() => {
@@ -42,20 +59,31 @@ export default function DialoguePractice({ dialogue, stats: _s, onBack, onComple
       for (const l of visibleLines) {
         if (cancelled) return;
         await speak(l);
-        await new Promise(r => setTimeout(r, 450));
+        await new Promise((r) => setTimeout(r, 450));
       }
       if (!cancelled) setAutoplay(false);
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoplay]);
 
+  // Run translation fetch ONCE per dialogue.id — depending on generatedTranslations
+  // re-triggered the effect after every setState (re-render loop). Use a ref to track
+  // which dialogue we already translated.
+  const translatedForRef = useRef<string | null>(null);
   useEffect(() => {
+    if (translatedForRef.current === dialogue.id) return;
     const missing = dialogue.lines
-      .filter((line) => missingTranslation(line.translation) && !generatedTranslations[line.id])
+      .filter((line) => missingTranslation(line.translation))
       .map((line) => ({ id: line.id, text: line.text }));
-    if (!missing.length) return;
+    if (!missing.length) {
+      translatedForRef.current = dialogue.id;
+      return;
+    }
     let cancelled = false;
+    translatedForRef.current = dialogue.id;
     (async () => {
       try {
         const translated = await translateLessonLines({ data: { lines: missing.slice(0, 40) } });
@@ -66,8 +94,10 @@ export default function DialoguePractice({ dialogue, stats: _s, onBack, onComple
         console.warn('lesson translation failed', error);
       }
     })();
-    return () => { cancelled = true; };
-  }, [dialogue.id, dialogue.lines, generatedTranslations]);
+    return () => {
+      cancelled = true;
+    };
+  }, [dialogue.id, dialogue.lines, missingTranslation]);
 
   const finish = () => {
     setCelebrate(true);
@@ -79,10 +109,22 @@ export default function DialoguePractice({ dialogue, stats: _s, onBack, onComple
     }, 1400);
   };
 
-  const vocabList = (() => { const v: { word: string; translation: string }[] = []; const s = new Set<string>(); dialogue.lines.forEach(l => l.keyVocabulary?.forEach(k => { if (!s.has(k.word.toLowerCase())) { s.add(k.word.toLowerCase()); v.push(k); } })); return v; })();
+  const vocabList = useMemo(() => {
+    const v: { word: string; translation: string }[] = [];
+    const s = new Set<string>();
+    dialogue.lines.forEach((l) =>
+      l.keyVocabulary?.forEach((k) => {
+        if (!s.has(k.word.toLowerCase())) {
+          s.add(k.word.toLowerCase());
+          v.push(k);
+        }
+      }),
+    );
+    return v;
+  }, [dialogue.lines]);
 
   /* assign a stable bubble palette per non-student speaker */
-  const speakerHues = (() => {
+  const speakerHues = useMemo(() => {
     const palettes = [
       { bg: 'from-[#00D4A0]/25 to-[#00D4A0]/10', border: 'border-[#00D4A0]/30', ring: 'shadow-[0_8px_30px_-10px_rgba(0,212,160,0.6)]', name: 'text-[#5EEAC4]' },
       { bg: 'from-[#A855F7]/25 to-[#A855F7]/10', border: 'border-[#A855F7]/30', ring: 'shadow-[0_8px_30px_-10px_rgba(168,85,247,0.6)]', name: 'text-[#C99BFF]' },
@@ -91,9 +133,14 @@ export default function DialoguePractice({ dialogue, stats: _s, onBack, onComple
     ];
     const map: Record<string, typeof palettes[number]> = {};
     let i = 0;
-    dialogue.lines.forEach(l => { if (!isStu(l) && !map[l.speaker]) { map[l.speaker] = palettes[i % palettes.length]; i++; } });
+    dialogue.lines.forEach((l) => {
+      if (!isStu(l) && !map[l.speaker]) {
+        map[l.speaker] = palettes[i % palettes.length];
+        i++;
+      }
+    });
     return map;
-  })();
+  }, [dialogue.lines, isStu]);
 
   const studentHue = { bg: 'from-[#2A7FFF] to-[#1E6BFF]', border: 'border-[#2A7FFF]/40', ring: 'shadow-[0_10px_30px_-10px_rgba(42,127,255,0.7)]' };
 
@@ -102,7 +149,7 @@ export default function DialoguePractice({ dialogue, stats: _s, onBack, onComple
       {/* Hero */}
       {dialogue.imageUrl ? (
         <div className="relative rounded-3xl overflow-hidden h-48">
-          <img src={dialogue.imageUrl} alt="" className="w-full h-full object-cover" />
+          <img src={dialogue.imageUrl} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-t from-[#0B0E17] via-[#0B0E17]/60 to-transparent" />
           <div className="absolute inset-0 flex flex-col justify-end p-6">
             <span className="text-[10px] font-bold text-slate-200 uppercase tracking-[0.2em]">{dialogue.level}</span>
