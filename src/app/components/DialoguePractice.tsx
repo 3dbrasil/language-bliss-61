@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, Volume2, Check, RotateCcw, BookOpen, Award, Sparkles, CheckCircle2, Play } from 'lucide-react';
+import { ArrowLeft, Volume2, BookOpen, Award, Sparkles, CheckCircle2, Play } from 'lucide-react';
 import { Dialogue, DialogueLine, PronunciationFeedback, UserStats } from '../types';
 import { speakAmericanEnglish } from '../utils/speech';
 import { classifyDifficulty, getState, markLearned, setLevel, speakerAvatar, type SrsLevel } from '../utils/srs';
