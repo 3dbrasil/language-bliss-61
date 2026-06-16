@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { defaultDialogues } from './data/defaultDialogues';
 import { Dialogue, UserStats, Level, Badge } from './types';
-import Sidebar from './components/Sidebar';
+import TopNav from './components/TopNav';
 import DuolingoMap from './components/DuolingoMap';
 import DialoguePractice from './components/DialoguePractice';
 import CumulativeArena from './components/CumulativeArena';
@@ -114,7 +114,7 @@ export default function App() {
   const curLvl: Level = stats.unlockedLevels.length > 0 ? stats.unlockedLevels[stats.unlockedLevels.length - 1] : 'A1';
 
   return (
-    <div className="flex min-h-screen bg-[#0A0F1A] text-slate-300 relative overflow-hidden">
+    <div className="flex flex-col min-h-screen bg-[#0A0F1A] text-slate-300 relative overflow-hidden">
       {/* Ambient ocean orbs — same DNA as the landing */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
         <div className="absolute top-[-15%] right-[-10%] w-[700px] h-[700px] rounded-full bg-[#2A7FFF]/12 blur-[140px]" />
@@ -122,11 +122,10 @@ export default function App() {
         <div className="absolute top-[40%] left-[40%] w-[400px] h-[400px] rounded-full bg-[#7C5CFF]/6 blur-[120px]" />
       </div>
 
-      <Sidebar stats={stats} activeTab={tab} setActiveTab={t => { setTab(t); setSelected(null); }} />
+      <TopNav stats={stats} activeTab={tab} setActiveTab={(t) => { setTab(t); setSelected(null); }} />
 
-      <main className="flex-1 overflow-y-auto min-h-screen relative pb-24 lg:pb-0 z-10">
-        <div className="max-w-6xl mx-auto px-5 sm:px-10 lg:px-12 py-8 sm:py-12">
-          <div className="lg:hidden h-12" />
+      <main className="flex-1 relative z-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
           {selected ? <DialoguePractice dialogue={selected} stats={stats} onBack={() => setSelected(null)} onComplete={handleComplete} />
             : tab === 'map' ? <DuolingoMap dialogues={dialogues} stats={stats} onSelectDialogue={setSelected} />
             : tab === 'cumulative' ? <CumulativeArena stats={stats} learnedVocabulary={vocab} currentLevel={curLvl} onAddXp={handleAddXp} />

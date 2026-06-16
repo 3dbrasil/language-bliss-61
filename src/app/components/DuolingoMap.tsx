@@ -262,7 +262,7 @@ export default function DuolingoMap({ dialogues, stats, onSelectDialogue }: Prop
           </span>
         </div>
 
-        <div className="space-y-2 stagger">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 stagger">
           {filtered.map(d => {
             const gIdx = ordered.findIndex(o => o.id === d.id);
             const unlocked = isUnlocked(gIdx);
@@ -274,80 +274,63 @@ export default function DuolingoMap({ dialogues, stats, onSelectDialogue }: Prop
                 key={d.id}
                 onClick={() => unlocked && onSelectDialogue(d)}
                 disabled={!unlocked}
-                className={`group w-full text-left flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all duration-300 border ${
+                className={`group relative aspect-square text-left rounded-2xl overflow-hidden border transition-all duration-300 ${
                   completed
-                    ? 'bg-cyan-500/[0.04] border-cyan-500/20 hover:border-cyan-400/40'
+                    ? 'border-cyan-500/30 hover:border-cyan-400/60 hover:-translate-y-0.5'
                     : unlocked
-                      ? 'bg-slate-900/30 border-slate-800/60 hover:border-cyan-500/30 hover:bg-slate-900/50 cursor-pointer hover:-translate-y-px'
-                      : 'bg-slate-950/40 border-slate-900/60 opacity-40 cursor-not-allowed'
+                      ? 'border-white/10 hover:border-cyan-500/40 hover:-translate-y-0.5 cursor-pointer'
+                      : 'border-white/5 opacity-40 cursor-not-allowed'
                 }`}
               >
                 {d.imageUrl ? (
-                  <div className="w-12 h-12 rounded-xl overflow-hidden shrink-0 relative ring-1 ring-slate-800/60">
-                    <img
-                      src={d.imageUrl}
-                      alt=""
-                      className={`w-full h-full object-cover ${!unlocked ? 'grayscale brightness-50' : ''}`}
-                      loading="lazy"
-                    />
-                    {completed && (
-                      <div className="absolute inset-0 bg-cyan-500/30 backdrop-blur-[1px] flex items-center justify-center">
-                        <CheckCircle2 className="w-4 h-4 text-white" strokeWidth={2.5} />
-                      </div>
-                    )}
-                  </div>
+                  <img
+                    src={d.imageUrl}
+                    alt=""
+                    loading="lazy"
+                    className={`absolute inset-0 w-full h-full object-cover ${!unlocked ? 'grayscale brightness-50' : 'group-hover:scale-105 transition-transform duration-500'}`}
+                  />
                 ) : (
-                  <div
-                    className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${
-                      completed
-                        ? 'bg-cyan-500/10 text-cyan-400'
-                        : unlocked
-                          ? 'bg-slate-800/60 text-slate-400 group-hover:text-cyan-400'
-                          : 'bg-slate-900/60 text-slate-700'
-                    }`}
-                  >
-                    {completed ? <CheckCircle2 className="w-4 h-4" strokeWidth={2} />
-                      : unlocked ? <Play className="w-4 h-4 ml-0.5" strokeWidth={2} />
-                      : <Lock className="w-4 h-4" strokeWidth={2} />}
-                  </div>
+                  <div className="absolute inset-0 bg-gradient-to-br from-slate-800/60 to-slate-900/60" />
                 )}
+                <div className="absolute inset-0 bg-gradient-to-t from-[#0A0F1A] via-[#0A0F1A]/60 to-transparent" />
 
-                <div className="flex-1 min-w-0">
-                  <p className={`text-sm font-semibold leading-tight ${
-                    completed ? 'text-cyan-200' : unlocked ? 'text-slate-100' : 'text-slate-600'
-                  }`}>
-                    {d.title}
-                  </p>
-                  <p className="text-xs text-slate-500 mt-1 line-clamp-1 font-light">
-                    {d.situation}
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-3 shrink-0">
+                <div className="absolute top-2 right-2 flex items-center gap-1">
                   {score !== undefined && (
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                      score >= 80
-                        ? 'bg-cyan-500/10 text-cyan-300 border-cyan-500/20'
-                        : score >= 60
-                          ? 'bg-teal-500/10 text-teal-300 border-teal-500/20'
-                          : 'bg-red-500/10 text-red-300 border-red-500/20'
+                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full backdrop-blur-md ${
+                      score >= 80 ? 'bg-cyan-500/30 text-cyan-100'
+                        : score >= 60 ? 'bg-teal-500/30 text-teal-100'
+                        : 'bg-red-500/30 text-red-100'
                     }`}>
                       {score}%
                     </span>
                   )}
-                  <div className="hidden sm:flex items-center gap-1 text-slate-600">
-                    <Volume2 className="w-3 h-3" />
-                    <span className="text-[10px]">{d.lines.length}</span>
+                  <div className={`w-7 h-7 rounded-full flex items-center justify-center backdrop-blur-md ${
+                    completed ? 'bg-cyan-500/80 text-white'
+                      : unlocked ? 'bg-white/10 text-white group-hover:bg-cyan-500/80'
+                      : 'bg-black/40 text-slate-500'
+                  }`}>
+                    {completed ? <CheckCircle2 className="w-3.5 h-3.5" strokeWidth={2.5} />
+                      : unlocked ? <Play className="w-3 h-3 ml-0.5" strokeWidth={2.5} />
+                      : <Lock className="w-3 h-3" strokeWidth={2.5} />}
                   </div>
-                  {unlocked && !completed && (
-                    <ArrowRight className="w-4 h-4 text-slate-600 group-hover:text-cyan-400 group-hover:translate-x-0.5 transition-all" strokeWidth={1.8} />
-                  )}
+                </div>
+
+                <div className="absolute bottom-0 inset-x-0 p-2.5">
+                  <p className={`text-[11px] font-semibold leading-tight line-clamp-2 ${
+                    completed ? 'text-cyan-100' : unlocked ? 'text-white' : 'text-slate-500'
+                  }`}>
+                    {d.title}
+                  </p>
+                  <div className="flex items-center gap-1 mt-1 text-slate-400">
+                    <Volume2 className="w-2.5 h-2.5" />
+                    <span className="text-[9px]">{d.lines.length} linhas</span>
+                  </div>
                 </div>
               </button>
             );
           })}
           {filtered.length === 0 && (
-            <p className="text-center text-sm text-slate-600 py-12 italic" style={{ fontFamily: "'Playfair Display', serif" }}>
+            <p className="col-span-full text-center text-sm text-slate-600 py-12 italic" style={{ fontFamily: "'Playfair Display', serif" }}>
               Nenhuma lição neste nível. Importe via Configurações.
             </p>
           )}
