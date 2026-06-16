@@ -72,6 +72,50 @@ function isPortuguese(s: string): boolean {
   return pt.test(s) && !en.test(s);
 }
 
+function normalizeStudentSpeaker(speaker: string): string {
+  return /^(you|student|aluno|aluna|você|voce)$/i.test(speaker.trim()) ? 'You (Student)' : speaker.trim();
+}
+
+function stripWrappingQuotes(s: string): string {
+  return s.trim().replace(/^["“”'‘’]+|["“”'‘’]+$/g, '').trim();
+}
+
+function makePronunciationGuide(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/\bhello\b/g, 'he-lou')
+    .replace(/\bhi\b/g, 'hai')
+    .replace(/\byou\b/g, 'iu')
+    .replace(/\bthanks?\b/g, 'thénks')
+    .replace(/\bplease\b/g, 'pliz')
+    .replace(/\bhow are you\b/g, 'hau ar iu')
+    .replace(/\bwhat\b/g, 'uát')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function extractVocabulary(text: string, translation: string) {
+  const ignored = new Set(['the', 'and', 'you', 'for', 'that', 'this', 'with', 'are', 'can', 'have', 'will', 'your', 'today', 'hello', 'thanks', 'please']);
+  const words = Array.from(new Set(text.match(/\b[A-Za-z][A-Za-z'-]{3,}\b/g) || []))
+    .filter(w => !ignored.has(w.toLowerCase()))
+    .slice(0, 2);
+  return words.map(word => ({ word, translation: translation || 'ver tradução da frase' }));
+}
+
+function pushDialogueLine(target: Dialogue['lines'], dialogueIdx: number, speaker: string, text: string, translation: string) {
+  const cleanText = stripWrappingQuotes(text);
+  const cleanTranslation = stripWrappingQuotes(translation);
+  if (!speaker.trim() || !cleanText) return;
+  target.push({
+    id: `pdf-${dialogueIdx}-${target.length}`,
+    speaker: normalizeStudentSpeaker(speaker),
+    text: cleanText,
+    translation: cleanTranslation,
+    pronunciationGuide: makePronunciationGuide(cleanText),
+    keyVocabulary: extractVocabulary(cleanText, cleanTranslation),
+  });
+}
+
 function parseTextToDialogues(text: string): Dialogue[] {
   try { const p = JSON.parse(text); if (Array.isArray(p)) return p; } catch (_) {}
   const m = text.match(/\[[\s\S]*\]/); if (m) { try { const p = JSON.parse(m[0]); if (Array.isArray(p)) return p; } catch (_) {} }
