@@ -7,6 +7,8 @@ import CumulativeArena from './components/CumulativeArena';
 import { Sparkles, Trophy } from 'lucide-react';
 import { preloadVoices } from './utils/speech';
 import { isLikelyBrokenCoverImageUrl } from './utils/imageSearch';
+import { supabase } from '@/integrations/supabase/client';
+
 
 const DialoguePractice = lazy(() => import('./components/DialoguePractice'));
 const SettingsView = lazy(() => import('./components/SettingsView'));
@@ -83,7 +85,7 @@ function normalizeImportedDialogues(value: unknown): Dialogue[] {
   return value.map((dialogue) => normalizeImportedDialogue(dialogue as Partial<Dialogue>)).filter((dialogue): dialogue is Dialogue => Boolean(dialogue));
 }
 
-// Strip heavy fields (base64 data URLs) before persisting to avoid localStorage quota errors.
+// Strip heavy fields (base64 data URLs) before persisting to avoid quota errors.
 function slimForStorage(dialogues: Dialogue[]): Dialogue[] {
   return dialogues.map((d) => {
     const copy: Dialogue = { ...d };
@@ -94,20 +96,27 @@ function slimForStorage(dialogues: Dialogue[]): Dialogue[] {
   });
 }
 
-function safeSetCustom(custom: Dialogue[]): void {
-  const payload = JSON.stringify(slimForStorage(custom));
-  try {
-    localStorage.setItem('speak_native_custom_dialogues_v2', payload);
-  } catch (e) {
-    console.warn('localStorage quota exceeded; retrying without imageUrl.', e);
-    const stripped = JSON.stringify(custom.map(({ imageUrl: _img, ...rest }) => rest));
-    try {
-      localStorage.setItem('speak_native_custom_dialogues_v2', stripped);
-    } catch (e2) {
-      console.error('Failed to persist custom dialogues even after stripping images.', e2);
-    }
-  }
+const LS_CUSTOM = 'speak_native_custom_dialogues_v2';
+const LS_DELETED = 'speak_native_deleted_dialogues_v2';
+
+function lsReadCustom(): Dialogue[] {
+  try { const c = localStorage.getItem(LS_CUSTOM); return c ? normalizeImportedDialogues(JSON.parse(c)) : []; } catch { return []; }
 }
+function lsReadDeleted(): string[] {
+  try { const d = localStorage.getItem(LS_DELETED); const p = d ? JSON.parse(d) : []; return Array.isArray(p) ? p : []; } catch { return []; }
+}
+function lsWriteCustom(custom: Dialogue[]): void {
+  try { localStorage.setItem(LS_CUSTOM, JSON.stringify(slimForStorage(custom))); }
+  catch { try { localStorage.setItem(LS_CUSTOM, JSON.stringify(custom.map(({ imageUrl: _i, ...r }) => r))); } catch (e) { console.error('LS quota', e); } }
+}
+function lsWriteDeleted(ids: string[]): void {
+  try { localStorage.setItem(LS_DELETED, JSON.stringify(ids)); } catch (e) { console.error('LS quota', e); }
+}
+
+async function getUserId(): Promise<string | null> {
+  try { const { data } = await supabase.auth.getUser(); return data.user?.id ?? null; } catch { return null; }
+}
+
 
 function LoadingPanel() {
   return (
@@ -149,44 +158,106 @@ export default function App() {
         setStats(s);
       } catch (_) { setStats(INIT); }
     }
-    // Custom dialogues
-    let custom: Dialogue[] = [];
-    try { const c = localStorage.getItem('speak_native_custom_dialogues_v2'); if (c) custom = normalizeImportedDialogues(JSON.parse(c)); } catch (_) {}
-    safeSetCustom(custom);
-    let deleted: string[] = [];
-    try { const d = localStorage.getItem('speak_native_deleted_dialogues_v2'); if (d) { const p = JSON.parse(d); if (Array.isArray(p)) deleted = p; } } catch (_) {}
-    const ids = new Set(defaultDialogues.map(d => d.id));
-    const merged = [...defaultDialogues, ...custom.filter(d => d?.id && !ids.has(d.id))].filter(d => d?.id && !deleted.includes(d.id));
-    setDialogues(merged);
+    // Custom + deleted dialogues — prefer Lovable Cloud, fall back to localStorage
+    (async () => {
+      const uid = await getUserId();
+      let custom: Dialogue[] = [];
+      let deleted: string[] = [];
+      if (uid) {
+        const [{ data: cRows }, { data: dRows }] = await Promise.all([
+          supabase.from('user_custom_dialogues').select('data').eq('user_id', uid),
+          supabase.from('user_deleted_dialogues').select('dialogue_id').eq('user_id', uid),
+        ]);
+        custom = normalizeImportedDialogues((cRows ?? []).map((r: { data: unknown }) => r.data));
+        deleted = (dRows ?? []).map((r: { dialogue_id: string }) => r.dialogue_id);
+        // One-time migration of any leftover localStorage data into the cloud
+        const lsCustom = lsReadCustom();
+        const lsDeleted = lsReadDeleted();
+        const haveIds = new Set(custom.map(d => d.id));
+        const toUpload = lsCustom.filter(d => !haveIds.has(d.id));
+        if (toUpload.length) {
+          await supabase.from('user_custom_dialogues').upsert(
+            toUpload.map(d => ({ user_id: uid, dialogue_id: d.id, data: d as never })),
+            { onConflict: 'user_id,dialogue_id' },
+          );
+          custom = [...custom, ...toUpload];
+        }
+        const haveDel = new Set(deleted);
+        const newDel = lsDeleted.filter(id => !haveDel.has(id));
+        if (newDel.length) {
+          await supabase.from('user_deleted_dialogues').upsert(
+            newDel.map(id => ({ user_id: uid, dialogue_id: id })),
+            { onConflict: 'user_id,dialogue_id' },
+          );
+          deleted = [...deleted, ...newDel];
+        }
+        if (toUpload.length || newDel.length) {
+          try { localStorage.removeItem(LS_CUSTOM); localStorage.removeItem(LS_DELETED); } catch {}
+        }
+      } else {
+        custom = lsReadCustom();
+        deleted = lsReadDeleted();
+      }
+      const ids = new Set(defaultDialogues.map(d => d.id));
+      const merged = [...defaultDialogues, ...custom.filter(d => d?.id && !ids.has(d.id))].filter(d => d?.id && !deleted.includes(d.id));
+      setDialogues(merged);
+    })();
   }, []);
 
   const save = useCallback((s: UserStats) => { setStats(s); localStorage.setItem('speak_native_user_stats_v2', JSON.stringify(s)); }, []);
 
-  const handleReset = () => {
+  const handleReset = async () => {
     localStorage.removeItem('speak_native_user_stats_v2');
-    localStorage.removeItem('speak_native_custom_dialogues_v2');
-    localStorage.removeItem('speak_native_deleted_dialogues_v2');
+    localStorage.removeItem(LS_CUSTOM);
+    localStorage.removeItem(LS_DELETED);
+    const uid = await getUserId();
+    if (uid) {
+      await Promise.all([
+        supabase.from('user_custom_dialogues').delete().eq('user_id', uid),
+        supabase.from('user_deleted_dialogues').delete().eq('user_id', uid),
+      ]);
+    }
     setStats(INIT); setDialogues(defaultDialogues); setSelected(null); setTab('map');
   };
 
-  const handleDelete = (id: string) => {
-    let custom: Dialogue[] = []; try { const c = localStorage.getItem('speak_native_custom_dialogues_v2'); if (c) custom = normalizeImportedDialogues(JSON.parse(c)); } catch (_) {}
-    safeSetCustom(custom.filter(d => d.id !== id));
-    let del: string[] = []; try { const d = localStorage.getItem('speak_native_deleted_dialogues_v2'); if (d) del = JSON.parse(d); } catch (_) {}
-    if (!del.includes(id)) del.push(id);
-    localStorage.setItem('speak_native_deleted_dialogues_v2', JSON.stringify(del));
+  const handleDelete = async (id: string) => {
     setDialogues(p => p.filter(d => d.id !== id));
+    const uid = await getUserId();
+    if (uid) {
+      await Promise.all([
+        supabase.from('user_custom_dialogues').delete().eq('user_id', uid).eq('dialogue_id', id),
+        supabase.from('user_deleted_dialogues').upsert(
+          [{ user_id: uid, dialogue_id: id }],
+          { onConflict: 'user_id,dialogue_id' },
+        ),
+      ]);
+    } else {
+      lsWriteCustom(lsReadCustom().filter(d => d.id !== id));
+      const del = lsReadDeleted();
+      if (!del.includes(id)) del.push(id);
+      lsWriteDeleted(del);
+    }
   };
 
-  const handleImport = (imported: Dialogue[]) => {
+  const handleImport = async (imported: Dialogue[]) => {
     const normalized = normalizeImportedDialogues(imported);
-    let custom: Dialogue[] = []; try { const c = localStorage.getItem('speak_native_custom_dialogues_v2'); if (c) custom = normalizeImportedDialogues(JSON.parse(c)); } catch (_) {}
-    const ids = new Set(custom.map(d => d.id));
-    const updated = [...custom, ...normalized.filter(d => !ids.has(d.id))];
-    safeSetCustom(updated);
     const allIds = new Set(dialogues.map(d => d.id));
-    setDialogues(p => [...p, ...normalized.filter(d => !allIds.has(d.id))]);
+    const fresh = normalized.filter(d => !allIds.has(d.id));
+    setDialogues(p => [...p, ...fresh]);
+    const uid = await getUserId();
+    if (uid) {
+      const { error } = await supabase.from('user_custom_dialogues').upsert(
+        normalized.map(d => ({ user_id: uid, dialogue_id: d.id, data: d as never })),
+        { onConflict: 'user_id,dialogue_id' },
+      );
+      if (error) console.error('Failed to save dialogues to cloud', error);
+    } else {
+      const current = lsReadCustom();
+      const ids = new Set(current.map(d => d.id));
+      lsWriteCustom([...current, ...normalized.filter(d => !ids.has(d.id))]);
+    }
   };
+
 
   const handleComplete = (xp: number, scores: Record<string, number>) => {
     if (!selected) return;
