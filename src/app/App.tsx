@@ -9,6 +9,7 @@ import SettingsView from './components/SettingsView';
 import PhraseRepetition from './components/PhraseRepetition';
 import { Sparkles, Trophy } from 'lucide-react';
 import { preloadVoices } from './utils/speech';
+import { findCoverImage } from './utils/imageSearch';
 
 const INIT: UserStats = { xp: 0, streak: 1, lastActive: null, badges: [], completedDialogues: [], unlockedLevels: ['A1'], pronunciationAverages: {} };
 
@@ -52,7 +53,39 @@ export default function App() {
     const ids = new Set(defaultDialogues.map(d => d.id));
     const merged = [...defaultDialogues, ...custom.filter(d => d?.id && !ids.has(d.id))].filter(d => d?.id && !deleted.includes(d.id));
     setDialogues(merged);
+    repairRepeatedImages(merged, custom, deleted);
   }, []);
+
+  const repairRepeatedImages = async (merged: Dialogue[], custom: Dialogue[], deleted: string[]) => {
+    const seen = new Set<string>();
+    const avoid = new Set<string>();
+    const fixedCustom = [...custom];
+    let changed = false;
+
+    for (const d of merged) {
+      if (!d.imageUrl) continue;
+      if (seen.has(d.imageUrl)) {
+        const idx = fixedCustom.findIndex(c => c.id === d.id);
+        if (idx >= 0) {
+          try {
+            const imageUrl = await findCoverImage(d.title, d.situation, d.id, [...avoid]);
+            fixedCustom[idx] = { ...fixedCustom[idx], imageUrl };
+            avoid.add(imageUrl);
+            changed = true;
+          } catch (_) {}
+        }
+        continue;
+      }
+      seen.add(d.imageUrl);
+      avoid.add(d.imageUrl);
+    }
+
+    if (!changed) return;
+    const builtinIds = new Set(defaultDialogues.map(d => d.id));
+    const repaired = [...defaultDialogues, ...fixedCustom.filter(d => d?.id && !builtinIds.has(d.id))].filter(d => d?.id && !deleted.includes(d.id));
+    localStorage.setItem('speak_native_custom_dialogues_v2', JSON.stringify(fixedCustom));
+    setDialogues(repaired);
+  };
 
   const save = useCallback((s: UserStats) => { setStats(s); localStorage.setItem('speak_native_user_stats_v2', JSON.stringify(s)); }, []);
 
