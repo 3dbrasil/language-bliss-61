@@ -24,6 +24,7 @@ export default function DialoguePractice({ dialogue, stats: _s, onBack, onComple
   const [rate, setRate] = useState(0.85);
   const [aria, setAria] = useState(false);
   const [srsTick, setSrsTick] = useState(0);
+  const [lvlFilter, setLvlFilter] = useState<'all' | SrsLevel>('all');
 
 
   const recRef = useRef<any>(null);
