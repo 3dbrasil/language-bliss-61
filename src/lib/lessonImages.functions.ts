@@ -67,18 +67,19 @@ export const getLessonCoverImage = createServerFn({ method: "POST" })
     const key = cacheKey(data.title, data.situation, data.lessonId);
     const avoid = new Set((data.avoidUrls ?? []).map(normalizeImageUrl));
 
-    const { data: existing } = await supabase
+    const { data: existing } = await supabaseAdmin
       .from("lesson_cover_images")
       .select("image_url")
       .eq("cache_key", key)
       .maybeSingle();
     if (existing?.image_url && !avoid.has(normalizeImageUrl(existing.image_url))) return existing.image_url;
+    const shouldReplaceExisting = !!existing?.image_url;
 
-    const { data: usedRows } = await supabase
+    const { data: usedRows } = await supabaseAdmin
       .from("lesson_cover_images")
       .select("image_url")
       .limit(1000);
-    const used = new Set((usedRows ?? []).map((row) => row.image_url));
+    const used = new Set((usedRows ?? []).map((row: { image_url: string }) => normalizeImageUrl(row.image_url)));
 
     const candidates: string[] = [];
     const unsplashKey = process.env.UNSPLASH_ACCESS_KEY;
@@ -96,7 +97,8 @@ export const getLessonCoverImage = createServerFn({ method: "POST" })
           const payload = await response.json();
           for (const photo of payload?.results ?? []) {
             const url = unsplashUrl(photo);
-            if (url && !candidates.includes(url)) candidates.push(url);
+            const normalizedUrl = url ? normalizeImageUrl(url) : null;
+            if (normalizedUrl && !candidates.includes(normalizedUrl)) candidates.push(normalizedUrl);
           }
         }
       } catch (_) {
@@ -104,18 +106,18 @@ export const getLessonCoverImage = createServerFn({ method: "POST" })
       }
     }
 
-    const ordered = [...candidates.filter((url) => !used.has(url)), ...candidates.filter((url) => used.has(url))];
+    const ordered = candidates.filter((url) => !used.has(url) && !avoid.has(url));
     for (const imageUrl of ordered) {
-      if (used.has(imageUrl)) continue;
-      const { data: saved, error } = await supabase
+      const query = supabaseAdmin
         .from("lesson_cover_images")
-        .insert({ cache_key: key, title: data.title, situation: data.situation ?? null, image_url: imageUrl, source: "unsplash" })
+        [shouldReplaceExisting ? "update" : "insert"]({ cache_key: key, title: data.title, situation: data.situation ?? null, image_url: imageUrl, source: "unsplash" });
+      const { data: saved, error } = await (shouldReplaceExisting ? query.eq("cache_key", key) : query)
         .select("image_url")
         .single();
       if (!error && saved?.image_url) return saved.image_url;
       if (error?.code === "23505") {
-        const { data: raced } = await supabase.from("lesson_cover_images").select("image_url").eq("cache_key", key).maybeSingle();
-        if (raced?.image_url) return raced.image_url;
+        const { data: raced } = await supabaseAdmin.from("lesson_cover_images").select("image_url").eq("cache_key", key).maybeSingle();
+        if (raced?.image_url && !avoid.has(normalizeImageUrl(raced.image_url))) return raced.image_url;
       }
     }
 
