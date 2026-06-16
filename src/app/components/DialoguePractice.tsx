@@ -16,7 +16,7 @@ export default function DialoguePractice({ dialogue, stats: _s, onBack, onComple
   const [aria, setAria] = useState(false);
   const [srsTick, setSrsTick] = useState(0);
   const [lvlFilter, setLvlFilter] = useState<'all' | SrsLevel>('all');
-  const [blurPt, setBlurPt] = useState(false);
+  const [blurPt, setBlurPt] = useState(true);
   const [autoplay, setAutoplay] = useState(false);
   const [celebrate, setCelebrate] = useState(false);
 
@@ -175,7 +175,9 @@ export default function DialoguePractice({ dialogue, stats: _s, onBack, onComple
                   <p className={`text-[15px] font-bold leading-relaxed tracking-wide ${stu ? 'text-white' : 'text-white'}`}>
                     {l.text}
                   </p>
-                  <p onClick={() => blurPt && setBlurPt(false)} className={`text-[12px] text-slate-100/80 mt-1.5 italic transition ${blurPt ? 'blur-sm hover:blur-none cursor-pointer select-none' : ''}`}>{l.translation || 'Tradução em português indisponível neste PDF.'}</p>
+                  {l.translation && (
+                    <p onClick={() => blurPt && setBlurPt(false)} className={`text-[12px] text-slate-100/80 mt-1.5 italic transition ${blurPt ? 'blur-sm hover:blur-none cursor-pointer select-none' : ''}`}>{l.translation}</p>
+                  )}
                   {l.pronunciationGuide && <p className="text-[10px] text-white/40 font-mono mt-1">🔊 {l.pronunciationGuide}</p>}
 
                   {/* Play + learned buttons */}
