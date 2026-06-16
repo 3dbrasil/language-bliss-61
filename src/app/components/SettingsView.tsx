@@ -103,9 +103,37 @@ function extractVocabulary(text: string, translation: string) {
   return words.map(word => ({ word, translation: translation || 'ver tradução da frase' }));
 }
 
+function splitMixedEnPt(raw: string): { en: string; pt: string } {
+  const text = raw.trim();
+  if (!text) return { en: '', pt: '' };
+  const ptStart = /[áàâãéêíóôõúçÁÀÂÃÉÊÍÓÔÕÚÇ]|\b(você|voce|não|nao|olá|ola|obrigad[oa]|por favor|bom dia|boa (tarde|noite)|tudo bem|como (está|esta|vai)|onde|quando|porque|também|tambem|gostaria|preciso|quero|tradu[cç][aã]o)\b/i.exec(text);
+  if (!ptStart || ptStart.index === 0) {
+    return isPortuguese(text) ? { en: '', pt: text } : { en: text, pt: '' };
+  }
+  let cut = ptStart.index;
+  const boundary = text.slice(0, cut).search(/[.!?|]\s+[^.!?|]*$/);
+  if (boundary > 0) cut = boundary + 1;
+  return {
+    en: text.slice(0, cut).replace(/[|\-–]\s*$/, '').trim(),
+    pt: text.slice(cut).replace(/^[|\-–]\s*/, '').trim(),
+  };
+}
+
 function pushDialogueLine(target: Dialogue['lines'], dialogueIdx: number, speaker: string, text: string, translation: string) {
-  const cleanText = stripWrappingQuotes(text);
-  const cleanTranslation = stripWrappingQuotes(translation);
+  let cleanText = stripWrappingQuotes(text);
+  let cleanTranslation = stripWrappingQuotes(translation);
+  // If translation is empty and the text mixes English + Portuguese (common in PDF imports), split them
+  if (!cleanTranslation && cleanText) {
+    const split = splitMixedEnPt(cleanText);
+    if (split.en && split.pt) {
+      cleanText = split.en;
+      cleanTranslation = split.pt;
+    }
+  } else if (cleanText && cleanTranslation) {
+    // Even when translation exists, strip a trailing PT chunk that bled into the English line
+    const split = splitMixedEnPt(cleanText);
+    if (split.en && split.pt) cleanText = split.en;
+  }
   if (!speaker.trim() || !cleanText) return;
   target.push({
     id: `pdf-${dialogueIdx}-${target.length}`,
