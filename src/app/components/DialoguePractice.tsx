@@ -18,6 +18,8 @@ export default function DialoguePractice({ dialogue, stats: _s, onBack, onComple
   const [curFb, setCurFb] = useState<PronunciationFeedback | null>(null);
   const [listened, setListened] = useState<string[]>([]);
   const [vocab, setVocab] = useState(false);
+  const [rate, setRate] = useState(0.85);
+
   const recRef = useRef<any>(null);
   const endRef = useRef<HTMLDivElement>(null);
 
@@ -40,7 +42,7 @@ export default function DialoguePractice({ dialogue, stats: _s, onBack, onComple
   const allDone = stuLines.every(l => fbs[l.id]?.score >= 60);
   const vocabList = (() => { const v: { word: string; translation: string }[] = []; const s = new Set<string>(); dialogue.lines.forEach(l => l.keyVocabulary?.forEach(k => { if (!s.has(k.word.toLowerCase())) { s.add(k.word.toLowerCase()); v.push(k); } })); return v; })();
 
-  const speak = async (l: DialogueLine) => { if (speakingId) return; setSpeakingId(l.id); try { await speakAmericanEnglish(l.text); if (!listened.includes(l.id)) setListened(p => [...p, l.id]); } catch (e) { console.error(e); } setSpeakingId(null); };
+  const speak = async (l: DialogueLine) => { if (speakingId) return; setSpeakingId(l.id); try { await speakAmericanEnglish(l.text, undefined, rate); if (!listened.includes(l.id)) setListened(p => [...p, l.id]); } catch (e) { console.error(e); } setSpeakingId(null); };
   const toggleRec = () => { if (!recRef.current) { setManual(true); return; } if (rec) recRef.current.stop(); else { setTrans(''); setErr(''); setManual(false); try { recRef.current.start(); } catch (e) { console.error(e); } } };
   const evalSpoken = async (t?: string) => { if (!active) return; const s = t || trans; if (!s.trim()) return; setEvaluating(true); setErr(''); const fb = await evaluatePronunciation(active.text, s); setCurFb(fb); setFbs(p => ({ ...p, [active.id]: fb })); setEvaluating(false); };
   const finish = () => { const sc: Record<string, number> = {}; Object.entries(fbs).forEach(([id, fb]) => sc[id] = fb.score); const avg = Object.values(sc).length > 0 ? Math.round(Object.values(sc).reduce((a, b) => a + b, 0) / Object.values(sc).length) : 0; onComplete(avg >= 80 ? 30 : avg >= 60 ? 25 : 15, sc); };
@@ -71,8 +73,18 @@ export default function DialoguePractice({ dialogue, stats: _s, onBack, onComple
       {/* Controls */}
       <div className="flex items-center gap-2">
         <div className="flex gap-0.5 flex-1">{dialogue.lines.map(l => <div key={l.id} className={`h-1 flex-1 rounded-full ${fbs[l.id] ? fbs[l.id].score >= 80 ? 'bg-emerald-500' : fbs[l.id].score >= 60 ? 'bg-teal-400' : 'bg-red-400' : listened.includes(l.id) ? 'bg-blue-500/40' : isStu(l) ? 'bg-cyan-500/20' : 'bg-slate-800'}`} />)}</div>
+        <div className="flex items-center gap-0.5 bg-slate-900 rounded-md p-0.5 border border-slate-800">
+          {[
+            { v: 0.6, l: '0.6x' },
+            { v: 0.85, l: '1x' },
+            { v: 1.1, l: '1.3x' },
+          ].map(o => (
+            <button key={o.v} onClick={() => setRate(o.v)} className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${rate === o.v ? 'bg-cyan-500 text-white' : 'text-slate-300 hover:text-white'}`}>{o.l}</button>
+          ))}
+        </div>
         <button onClick={() => setVocab(!vocab)} className={`flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold transition ${vocab ? 'bg-cyan-500 text-white' : 'bg-slate-900 text-slate-300 border border-slate-800 hover:text-slate-300'}`}><BookOpen className="w-3 h-3" />Vocab</button>
       </div>
+
 
       {vocab && vocabList.length > 0 && (
         <div className="bg-slate-900/60 rounded-xl p-3 border border-slate-800 grid grid-cols-1 sm:grid-cols-2 gap-1">

@@ -15,6 +15,8 @@ export default function PhraseRepetition({ dialogues, completedDialogues, onAddX
   const [showMan, setShowMan] = useState(false);
   const [manTxt, setManTxt] = useState('');
   const [spk, setSpk] = useState(false);
+  const [rate, setRate] = useState(0.85);
+
   const [total, setTotal] = useState(0);
   const [score, setScore] = useState(0);
   const recRef = useRef<any>(null);
@@ -32,7 +34,7 @@ export default function PhraseRepetition({ dialogues, completedDialogues, onAddX
   }, []);
 
   const cur = phrases[idx];
-  const speak = async () => { if (!cur || spk) return; setSpk(true); try { await speakAmericanEnglish(cur.text); } catch (_) { } setSpk(false); };
+  const speak = async () => { if (!cur || spk) return; setSpk(true); try { await speakAmericanEnglish(cur.text, undefined, rate); } catch (_) { } setSpk(false); };
   const toggleRec = () => { if (!recRef.current) { setShowMan(true); return; } if (isRec) recRef.current.stop(); else { setTrans(''); setFb(null); try { recRef.current.start(); } catch (_) { } } };
   const evaluate = async (t?: string) => { if (!cur) return; const s = t || trans; if (!s.trim()) return; setEvaling(true); const f = await evaluatePronunciation(cur.text, s); setFb(f); setScore(p => p + f.score); setTotal(p => p + 1); if (f.score >= 70) onAddXp(5); setEvaling(false); };
   const next = () => { setIdx(p => (p + 1) % phrases.length); setFb(null); setTrans(''); setManTxt(''); setShowMan(false); };
@@ -49,10 +51,22 @@ export default function PhraseRepetition({ dialogues, completedDialogues, onAddX
       {cur && (
         <div className="bg-slate-900/60 rounded-xl border border-slate-800 overflow-hidden">
           <div className="p-5 space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2">
               <span className="text-[10px] font-semibold text-slate-300">{cur.level} · {cur.title}</span>
-              <button onClick={speak} disabled={spk} className={`w-8 h-8 rounded-lg flex items-center justify-center ${spk ? 'bg-purple-500 text-white animate-pulse' : 'bg-slate-800 text-slate-300 hover:text-white'}`}><Volume2 className="w-4 h-4" /></button>
+              <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-0.5 bg-slate-800/60 rounded-md p-0.5 border border-slate-700">
+                  {[
+                    { v: 0.6, l: '0.6x' },
+                    { v: 0.85, l: '1x' },
+                    { v: 1.1, l: '1.3x' },
+                  ].map(o => (
+                    <button key={o.v} onClick={() => setRate(o.v)} className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${rate === o.v ? 'bg-purple-500 text-white' : 'text-slate-300 hover:text-white'}`}>{o.l}</button>
+                  ))}
+                </div>
+                <button onClick={speak} disabled={spk} className={`w-8 h-8 rounded-lg flex items-center justify-center ${spk ? 'bg-purple-500 text-white animate-pulse' : 'bg-slate-800 text-slate-300 hover:text-white'}`}><Volume2 className="w-4 h-4" /></button>
+              </div>
             </div>
+
             <p className="text-lg font-bold text-slate-100 leading-relaxed">"{cur.text}"</p>
             <p className="text-xs text-slate-300">{cur.translation}</p>
             {cur.pronunciationGuide && <p className="text-[10px] text-purple-400/40 font-mono">🔊 {cur.pronunciationGuide}</p>}
