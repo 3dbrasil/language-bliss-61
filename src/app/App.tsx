@@ -13,10 +13,14 @@ const PhraseRepetition = lazy(() => import('./components/PhraseRepetition'));
 
 const INIT: UserStats = { xp: 0, streak: 1, lastActive: null, badges: [], completedDialogues: [], unlockedLevels: ['A1'], pronunciationAverages: {} };
 
+function isLevel(value: unknown): value is Level {
+  return value === 'A1' || value === 'A2' || value === 'B1' || value === 'B2' || value === 'C1' || value === 'C2';
+}
+
 function enrichImportedLine(line: Dialogue['lines'][number], idx: number): Dialogue['lines'][number] {
-  let speaker = (line.speaker || 'You (Student)').trim();
-  let text = (line.text || '').trim();
-  let translation = (line.translation || '').trim();
+  let speaker = (typeof line.speaker === 'string' && line.speaker.trim() ? line.speaker : 'You (Student)').trim();
+  let text = (typeof line.text === 'string' ? line.text : '').trim();
+  let translation = (typeof line.translation === 'string' ? line.translation : '').trim();
   const inline = text.match(/^([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\s.'-]{1,30}?)\s*[:\-–]\s*(.+)$/);
   if (inline) { speaker = inline[1].trim(); text = inline[2].trim(); }
   if (text.includes(' | ')) {
@@ -27,22 +31,52 @@ function enrichImportedLine(line: Dialogue['lines'][number], idx: number): Dialo
   if (/^(you|student|aluno|aluna|você|voce)$/i.test(speaker)) speaker = 'You (Student)';
   const cleanText = text.replace(/^["“”'‘’]+|["“”'‘’]+$/g, '').trim();
   const cleanTranslation = translation.replace(/^["“”'‘’]+|["“”'‘’]+$/g, '').trim();
-  const guide = line.pronunciationGuide || cleanText.toLowerCase().replace(/\bhello\b/g, 'he-lou').replace(/\byou\b/g, 'iu').replace(/\bplease\b/g, 'pliz');
-  const keyVocabulary = line.keyVocabulary?.length ? line.keyVocabulary : (cleanText.match(/\b[A-Za-z][A-Za-z'-]{3,}\b/g) || []).slice(0, 2).map(word => ({ word, translation: cleanTranslation || 'ver tradução da frase' }));
+  const guide = typeof line.pronunciationGuide === 'string' && line.pronunciationGuide.trim()
+    ? line.pronunciationGuide
+    : cleanText.toLowerCase().replace(/\bhello\b/g, 'he-lou').replace(/\byou\b/g, 'iu').replace(/\bplease\b/g, 'pliz');
+  const importedVocabulary = Array.isArray(line.keyVocabulary)
+    ? line.keyVocabulary
+      .map((item) => ({
+        word: typeof item?.word === 'string' ? item.word.trim() : '',
+        translation: typeof item?.translation === 'string' ? item.translation.trim() : cleanTranslation || 'ver tradução da frase',
+      }))
+      .filter((item) => item.word)
+    : [];
+  const keyVocabulary = importedVocabulary.length ? importedVocabulary : (cleanText.match(/\b[A-Za-z][A-Za-z'-]{3,}\b/g) || []).slice(0, 2).map(word => ({ word, translation: cleanTranslation || 'ver tradução da frase' }));
   return { ...line, id: line.id || `imported-line-${idx}`, speaker, text: cleanText, translation: cleanTranslation, pronunciationGuide: guide, keyVocabulary };
 }
 
-function normalizeImportedDialogue(dialogue: Dialogue): Dialogue {
-  const lines = (dialogue.lines || []).map(enrichImportedLine).filter(l => l.text);
+function normalizeImportedDialogue(dialogue: Partial<Dialogue> | null | undefined): Dialogue | null {
+  if (!dialogue || typeof dialogue !== 'object') return null;
+  const rawLines = Array.isArray(dialogue.lines) ? dialogue.lines : [];
+  const lines = rawLines
+    .filter((line): line is Dialogue['lines'][number] => !!line && typeof line === 'object')
+    .map(enrichImportedLine)
+    .filter(l => l.text);
+  if (!lines.length) return null;
+  const safeDialogue: Dialogue = {
+    id: typeof dialogue.id === 'string' && dialogue.id.trim() ? dialogue.id.trim() : `imported-${lines[0].id}`,
+    title: typeof dialogue.title === 'string' && dialogue.title.trim() ? dialogue.title.trim() : 'Diálogo importado',
+    situation: typeof dialogue.situation === 'string' && dialogue.situation.trim() ? dialogue.situation.trim() : `${lines.length} falas`,
+    level: isLevel(dialogue.level) ? dialogue.level : 'A1',
+    order: typeof dialogue.order === 'number' && Number.isFinite(dialogue.order) ? dialogue.order : 1,
+    imageUrl: typeof dialogue.imageUrl === 'string' ? dialogue.imageUrl : undefined,
+    lines,
+  };
   const hasStudent = lines.some(l => /you|student/i.test(l.speaker));
   if (!hasStudent) {
     const speakers = Array.from(new Set(lines.map(l => l.speaker).filter(Boolean)));
     const studentSpeaker = speakers[1];
     if (studentSpeaker) {
-      return { ...dialogue, lines: lines.map(l => l.speaker === studentSpeaker ? { ...l, speaker: 'You (Student)' } : l) };
+      return { ...safeDialogue, lines: lines.map(l => l.speaker === studentSpeaker ? { ...l, speaker: 'You (Student)' } : l) };
     }
   }
-  return { ...dialogue, lines };
+  return safeDialogue;
+}
+
+function normalizeImportedDialogues(value: unknown): Dialogue[] {
+  if (!Array.isArray(value)) return [];
+  return value.map((dialogue) => normalizeImportedDialogue(dialogue as Partial<Dialogue>)).filter((dialogue): dialogue is Dialogue => Boolean(dialogue));
 }
 
 function LoadingPanel() {
@@ -87,7 +121,7 @@ export default function App() {
     }
     // Custom dialogues
     let custom: Dialogue[] = [];
-    try { const c = localStorage.getItem('speak_native_custom_dialogues_v2'); if (c) { const p = JSON.parse(c); if (Array.isArray(p)) custom = p.map(normalizeImportedDialogue); } } catch (_) {}
+    try { const c = localStorage.getItem('speak_native_custom_dialogues_v2'); if (c) custom = normalizeImportedDialogues(JSON.parse(c)); } catch (_) {}
     localStorage.setItem('speak_native_custom_dialogues_v2', JSON.stringify(custom));
     let deleted: string[] = [];
     try { const d = localStorage.getItem('speak_native_deleted_dialogues_v2'); if (d) { const p = JSON.parse(d); if (Array.isArray(p)) deleted = p; } } catch (_) {}
@@ -106,7 +140,7 @@ export default function App() {
   };
 
   const handleDelete = (id: string) => {
-    let custom: Dialogue[] = []; try { const c = localStorage.getItem('speak_native_custom_dialogues_v2'); if (c) custom = JSON.parse(c).map(normalizeImportedDialogue); } catch (_) {}
+    let custom: Dialogue[] = []; try { const c = localStorage.getItem('speak_native_custom_dialogues_v2'); if (c) custom = normalizeImportedDialogues(JSON.parse(c)); } catch (_) {}
     localStorage.setItem('speak_native_custom_dialogues_v2', JSON.stringify(custom.filter(d => d.id !== id)));
     let del: string[] = []; try { const d = localStorage.getItem('speak_native_deleted_dialogues_v2'); if (d) del = JSON.parse(d); } catch (_) {}
     if (!del.includes(id)) del.push(id);
@@ -115,8 +149,8 @@ export default function App() {
   };
 
   const handleImport = (imported: Dialogue[]) => {
-    const normalized = imported.map(normalizeImportedDialogue);
-    let custom: Dialogue[] = []; try { const c = localStorage.getItem('speak_native_custom_dialogues_v2'); if (c) custom = JSON.parse(c).map(normalizeImportedDialogue); } catch (_) {}
+    const normalized = normalizeImportedDialogues(imported);
+    let custom: Dialogue[] = []; try { const c = localStorage.getItem('speak_native_custom_dialogues_v2'); if (c) custom = normalizeImportedDialogues(JSON.parse(c)); } catch (_) {}
     const ids = new Set(custom.map(d => d.id));
     const updated = [...custom, ...normalized.filter(d => !ids.has(d.id))];
     localStorage.setItem('speak_native_custom_dialogues_v2', JSON.stringify(updated));
