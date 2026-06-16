@@ -112,7 +112,10 @@ export default function SettingsView({ stats, dialogues, onImportDialogues, onDe
         if (file.name.endsWith('.json')) {
           const txt = await file.text();
           const parsed = JSON.parse(txt);
-          if (Array.isArray(parsed)) all.push(...parsed);
+          if (Array.isArray(parsed)) {
+            if (uploadLevel !== 'auto') parsed.forEach((d: any) => { d.level = uploadLevel; });
+            all.push(...parsed);
+          }
           continue;
         }
         const txt = await extractPDF(file);
