@@ -75,6 +75,24 @@ export default function TopNav({ stats, activeTab, setActiveTab }: Props) {
           <span className="hidden sm:inline text-[10px] uppercase tracking-[0.18em] text-slate-500 font-medium">
             Lv {lvl}
           </span>
+          {email ? (
+            <button
+              onClick={async () => { await supabase.auth.signOut(); }}
+              title={`Sair (${email})`}
+              className="flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.03] border border-white/5 text-slate-300 hover:text-white hover:bg-white/[0.06]"
+            >
+              <LogOut className="w-3.5 h-3.5" strokeWidth={2} />
+              <span className="hidden md:inline text-[11px] font-medium">Sair</span>
+            </button>
+          ) : (
+            <Link
+              to="/auth"
+              className="flex items-center gap-1 px-2 py-1 rounded-md bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/20"
+            >
+              <LogIn className="w-3.5 h-3.5" strokeWidth={2} />
+              <span className="hidden md:inline text-[11px] font-semibold">Login</span>
+            </Link>
+          )}
         </div>
       </div>
     </header>
