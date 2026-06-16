@@ -21,6 +21,8 @@ interface Props { dialogues: Dialogue[]; completedDialogues: string[]; onAddXp: 
 type LevelFilter = 'all' | SrsLevel;
 
 export default function PhraseRepetition({ dialogues, completedDialogues, onAddXp }: Props) {
+  const [started, setStarted] = useState(false);
+  const [preparing, setPreparing] = useState(false);
   const [phrases, setPhrases] = useState<Phrase[]>([]);
   const [idx, setIdx] = useState(0);
   const [showEn, setShowEn] = useState(false);
@@ -30,50 +32,84 @@ export default function PhraseRepetition({ dialogues, completedDialogues, onAddX
   const [srsTick, setSrsTick] = useState(0);
   const [reviewed, setReviewed] = useState(0);
   const [filter, setFilter] = useState<LevelFilter>('all');
+  const [learnedCount, setLearnedCount] = useState(0);
 
   // Build today's review queue: due (or never reviewed), ordered by nextReview
   useEffect(() => {
-    const all: Phrase[] = [];
-    const seen = new Set<string>();
-    const add = (d: Dialogue) => d.lines.forEach(l => {
-      if (seen.has(l.text)) return;
-      seen.add(l.text);
-      all.push({
-        text: l.text, translation: l.translation, pronunciationGuide: l.pronunciationGuide,
-        title: d.title, level: d.level, speaker: l.speaker,
-      });
-    });
-    dialogues.forEach(d => { if (completedDialogues.includes(d.id)) add(d); });
-    if (!all.length) dialogues.filter(d => d.level === 'A1').forEach(add);
+    if (!started) return;
+    let cancelled = false;
+    const yieldToBrowser = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
 
-    const now = Date.now();
-    const filtered = filter === 'all'
-      ? all
-      : all.filter(p => (getState(p.text).level || classifyDifficulty(p.text)) === filter);
-    const due = filtered
-      .map(p => ({ p, s: getState(p.text) }))
-      .filter(x => x.s.nextReview <= now || !x.s.learned)
-      .sort((a, b) => a.s.nextReview - b.s.nextReview)
-      .map(x => x.p);
-    setPhrases(due.length ? due : filtered);
-    setIdx(0);
-  }, [dialogues, completedDialogues, filter]);
+    const buildQueue = async () => {
+      setPreparing(true);
+      const all: Phrase[] = [];
+      const seen = new Set<string>();
+      const source = completedDialogues.length
+        ? dialogues.filter(d => completedDialogues.includes(d.id))
+        : dialogues.filter(d => d.level === 'A1');
+
+      for (let i = 0; i < source.length; i++) {
+        for (const l of source[i].lines) {
+          if (seen.has(l.text)) continue;
+          seen.add(l.text);
+          all.push({
+            text: l.text, translation: l.translation, pronunciationGuide: l.pronunciationGuide,
+            title: source[i].title, level: source[i].level, speaker: l.speaker,
+          });
+        }
+        if (i % 12 === 0) await yieldToBrowser();
+        if (cancelled) return;
+      }
+
+      const now = Date.now();
+      const evaluated: { p: Phrase; s: ReturnType<typeof getState> }[] = [];
+      for (let i = 0; i < all.length; i++) {
+        const p = all[i];
+        const s = getState(p.text);
+        const level = s.level || classifyDifficulty(p.text);
+        if (filter === 'all' || level === filter) evaluated.push({ p, s });
+        if (i % 250 === 0) await yieldToBrowser();
+        if (cancelled) return;
+      }
+
+      const due = evaluated
+        .filter(x => x.s.nextReview <= now || !x.s.learned)
+        .sort((a, b) => a.s.nextReview - b.s.nextReview);
+      const queue = due.length ? due : evaluated;
+      setPhrases(queue.map(x => x.p));
+      setLearnedCount(queue.filter(x => x.s.learned).length);
+      setIdx(0);
+      setShowEn(false);
+      setShowPt(false);
+      setPreparing(false);
+    };
+
+    buildQueue();
+    return () => {
+      cancelled = true;
+      if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+    };
+  }, [started, dialogues, completedDialogues, filter]);
+
+  useEffect(() => {
+    if (!started) {
+      setPhrases([]);
+      setIdx(0);
+      setReviewed(0);
+      setLearnedCount(0);
+    }
+  }, [started]);
 
   const cur = phrases[idx];
 
-  // Auto-play audio when new card appears
+  // Reset card reveal only. Do not auto-play: browser TTS on mount was
+  // freezing the UI until speech finished on some devices.
   useEffect(() => {
-    if (!cur) return;
     setShowEn(false);
     setShowPt(false);
-    const t = setTimeout(async () => {
-      setSpk(true);
-      try { await speakAmericanEnglish(cur.text, undefined, rate); } catch (_) {}
-      setSpk(false);
-    }, 250);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [idx, phrases.length]);
+    setSpk(false);
+    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+  }, [idx]);
 
   const replay = async () => {
     if (!cur || spk) return;
@@ -95,19 +131,49 @@ export default function PhraseRepetition({ dialogues, completedDialogues, onAddX
     setTimeout(() => setIdx(p => (p + 1) % Math.max(phrases.length, 1)), 200);
   };
 
-  if (!phrases.length) return (
-    <div className="text-center py-20 animate-fade-in">
-      <Brain className="w-10 h-10 text-slate-200 mx-auto" />
-      <p className="text-sm text-slate-300 mt-3">Complete lições para desbloquear repetição.</p>
-    </div>
-  );
-
-  const learnedCount = phrases.filter(p => getState(p.text).learned).length;
   const dots: { v: SrsLevel; c: string; t: string }[] = [
     { v: 'easy', c: 'bg-emerald-400', t: 'Fácil' },
     { v: 'medium', c: 'bg-amber-400', t: 'Médio' },
     { v: 'hard', c: 'bg-red-400', t: 'Difícil' },
   ];
+
+  if (!started) return (
+    <div className="max-w-xl mx-auto space-y-5 animate-fade-in">
+      <div>
+        <h1 className="text-2xl font-extrabold text-slate-100">Repetições do dia</h1>
+        <p className="text-xs text-slate-300 mt-1">A revisão só começa quando você tocar em iniciar.</p>
+      </div>
+      <div className="bg-slate-900/60 rounded-2xl border border-slate-800 p-8 text-center space-y-4">
+        <Brain className="w-10 h-10 text-cyan-400 mx-auto" />
+        <div>
+          <p className="text-sm font-bold text-slate-100">Preparar prática</p>
+          <p className="text-xs text-slate-400 mt-1">Nenhum áudio vai tocar automaticamente.</p>
+        </div>
+        <button onClick={() => setStarted(true)} className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-cyan-500 text-white text-sm font-bold hover:bg-cyan-600 transition">
+          <Volume2 className="w-4 h-4" /> Iniciar prática
+        </button>
+      </div>
+    </div>
+  );
+
+  if (preparing) return (
+    <div className="max-w-xl mx-auto space-y-5 animate-fade-in">
+      <h1 className="text-2xl font-extrabold text-slate-100">Repetições do dia</h1>
+      <div className="bg-slate-900/60 rounded-2xl border border-slate-800 p-8 text-center text-sm text-slate-300 animate-pulse">
+        Preparando frases…
+      </div>
+    </div>
+  );
+
+  if (!phrases.length) return (
+    <div className="text-center py-20 animate-fade-in">
+      <Brain className="w-10 h-10 text-slate-200 mx-auto" />
+      <p className="text-sm text-slate-300 mt-3">Nenhuma frase encontrada para este filtro.</p>
+      <button onClick={() => setStarted(false)} className="mt-4 px-4 py-2 rounded-lg bg-slate-900 border border-slate-800 text-xs font-bold text-slate-300">
+        Voltar
+      </button>
+    </div>
+  );
 
   return (
     <div className="max-w-xl mx-auto space-y-5 animate-fade-in">
