@@ -85,20 +85,6 @@ function normalizeImportedDialogues(value: unknown): Dialogue[] {
   return value.map((dialogue) => normalizeImportedDialogue(dialogue as Partial<Dialogue>)).filter((dialogue): dialogue is Dialogue => Boolean(dialogue));
 }
 
-// Strip heavy fields (base64 data URLs) before persisting to avoid quota errors.
-function slimForStorage(dialogues: Dialogue[]): Dialogue[] {
-  return dialogues.map((d) => {
-    const copy: Dialogue = { ...d };
-    if (typeof copy.imageUrl === 'string' && copy.imageUrl.startsWith('data:')) {
-      delete (copy as Partial<Dialogue>).imageUrl;
-    }
-    return copy;
-  });
-}
-
-const LS_CUSTOM = 'speak_native_custom_dialogues_v2';
-const LS_DELETED = 'speak_native_deleted_dialogues_v2';
-
 function LoadingPanel() {
   return (
     <div className="py-16 text-center text-sm text-slate-400 animate-pulse">
@@ -107,11 +93,6 @@ function LoadingPanel() {
   );
 }
 
-// Legacy localStorage cleanup (one-time; old shared-account remnants)
-function cleanupLegacyLocal(): void {
-  try { localStorage.removeItem('speak_native_custom_dialogues_v2'); } catch {}
-  try { localStorage.removeItem(LS_DELETED); } catch {}
-}
 
 export default function App() {
   const [dialogues, setDialogues] = useState<Dialogue[]>(defaultDialogues);
