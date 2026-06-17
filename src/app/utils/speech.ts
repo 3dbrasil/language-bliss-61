@@ -271,12 +271,7 @@ export async function generateAllAudios(
     const line = allLines[i];
     onProgress(i + 1, allLines.length, `${line.dialogueTitle} — ${line.speaker}`);
     
-    const cacheKey = `${line.text}_${config.unrealSpeechVoice}`;
-    let buffer = audioCache.get(cacheKey);
-    if (!buffer) {
-      buffer = await unrealSpeechTTS(line.text);
-      audioCache.set(cacheKey, buffer);
-    }
+    const buffer = await getOrGenerateAudio(line.text, config.unrealSpeechVoice, config.unrealSpeechApiKey);
     
     const safeName = line.dialogueTitle.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 30);
     files.push({
