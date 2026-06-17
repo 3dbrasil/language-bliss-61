@@ -343,7 +343,7 @@ function Landing() {
               className="group inline-flex items-center gap-2 px-8 py-4 rounded-full bg-white text-[#0A0F1A] text-sm font-semibold hover:scale-[1.03] active:scale-[0.98] transition-transform shadow-[0_20px_60px_-10px_rgba(255,255,255,0.4)]"
             >
               <Sparkles className="w-4 h-4" />
-              Entrar no Speak Native
+              Entrar no Dialogoo
               <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
             </Link>
           </div>
