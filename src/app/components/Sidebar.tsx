@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Map, Sparkles, Settings, Brain, Menu, X, Flame, Zap } from 'lucide-react';
 import { UserStats } from '../types';
+import logo from '@/assets/dialogoo-logo.png.asset.json';
 
 interface SidebarProps {
   stats: UserStats;
