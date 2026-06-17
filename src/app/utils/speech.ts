@@ -18,7 +18,7 @@ async function cloudPath(text: string, voice: string): Promise<string> {
   return `${voice}/${h}.mp3`;
 }
 
-async function listExistingCloudPaths(voice: string): Promise<Set<string>> {
+async function listExistingCloudPaths(voice: string): Promise<{ paths: Set<string>; checked: boolean }> {
   const existing = new Set<string>();
   try {
     const pageSize = 1000;
@@ -35,8 +35,9 @@ async function listExistingCloudPaths(voice: string): Promise<Set<string>> {
     }
   } catch (e) {
     console.warn('Cloud audio list failed; generating without bulk skip check', e);
+    return { paths: existing, checked: false };
   }
-  return existing;
+  return { paths: existing, checked: true };
 }
 
 async function downloadFromCloud(text: string, voice: string): Promise<ArrayBuffer | null> {
@@ -48,15 +49,19 @@ async function downloadFromCloud(text: string, voice: string): Promise<ArrayBuff
   } catch { return null; }
 }
 
-async function uploadToCloud(text: string, voice: string, buffer: ArrayBuffer): Promise<void> {
+async function uploadToCloud(text: string, voice: string, buffer: ArrayBuffer): Promise<'uploaded' | 'exists' | 'failed'> {
   try {
     const path = await cloudPath(text, voice);
     const blob = new Blob([buffer], { type: 'audio/mpeg' });
-    await supabase.storage.from(CLOUD_BUCKET).upload(path, blob, {
+    const { error } = await supabase.storage.from(CLOUD_BUCKET).upload(path, blob, {
       contentType: 'audio/mpeg',
       upsert: false,
     });
+    if (!error) return 'uploaded';
+    if ((error as any).statusCode === '409' || /already exists|duplicate/i.test(error.message || '')) return 'exists';
+    console.warn('Cloud audio upload failed', error);
   } catch (e) { console.warn('Cloud audio upload failed', e); }
+  return 'failed';
 }
 
 // Get audio: memory cache → cloud → generate via Unreal (and upload)
@@ -424,7 +429,7 @@ export async function pregenerateAndUploadDialogueAudios(
     line.path = await cloudPath(line.text, voice);
   }));
 
-  const existingPaths = await listExistingCloudPaths(voice);
+  const { paths: existingPaths, checked: bulkChecked } = await listExistingCloudPaths(voice);
 
   const total = allLines.length;
   let done = 0;
@@ -434,14 +439,22 @@ export async function pregenerateAndUploadDialogueAudios(
     for (let i = startIdx; i < total; i += CONCURRENCY) {
       const line = allLines[i];
       try {
-        if (existingPaths.has(line.path)) {
+        const alreadyInCloud = existingPaths.has(line.path) || (!bulkChecked && await downloadFromCloud(line.text, voice));
+        if (alreadyInCloud) {
           skipped++;
         } else {
           if (!apiKey) throw new Error('Unreal Speech API key missing');
           const buffer = await unrealSpeechTTS(line.text, { apiKey, voice, bitrate: '64k' });
-          await uploadToCloud(line.text, voice, buffer);
-          existingPaths.add(line.path);
-          success++;
+          const uploadResult = await uploadToCloud(line.text, voice, buffer);
+          if (uploadResult === 'uploaded') {
+            existingPaths.add(line.path);
+            success++;
+          } else if (uploadResult === 'exists') {
+            existingPaths.add(line.path);
+            skipped++;
+          } else {
+            failed++;
+          }
         }
       } catch (e) {
         console.warn(`Failed audio: "${line.text}"`, e);
