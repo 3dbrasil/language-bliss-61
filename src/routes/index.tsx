@@ -52,10 +52,8 @@ function Landing() {
       {/* Nav */}
       <header className="relative z-30 mx-auto max-w-7xl px-6 py-6 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#2A7FFF] to-[#00D4A0] shadow-[0_0_24px_rgba(42,127,255,0.5)] flex items-center justify-center">
-            <Waves className="w-4 h-4 text-white" strokeWidth={2.5} />
-          </div>
-          <span className="text-lg font-semibold tracking-tight">Speak Native</span>
+          <img src={logo.url} alt="Dialogoo" className="w-9 h-9 rounded-xl object-contain" />
+          <span className="text-lg font-semibold tracking-tight">Dialogoo</span>
         </div>
         <nav className="hidden md:flex items-center gap-8 text-sm text-slate-400">
           <a href="#features" className="hover:text-white transition-colors">Recursos</a>
