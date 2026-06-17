@@ -6,7 +6,7 @@ import { generateAllAudios, pregenerateAndUploadDialogueAudios } from '../utils/
 import { findCoverImage } from '../utils/imageSearch';
 import { fillMissingLineTranslations, hasMissingTranslations } from '../utils/translations';
 
-interface Props { stats: UserStats; dialogues: Dialogue[]; onImportDialogues: (d: Dialogue[]) => void; onDeleteDialogue: (id: string) => void; onResetProgress: () => void; isAdmin?: boolean; }
+interface Props { stats: UserStats; dialogues: Dialogue[]; onImportDialogues: (d: Dialogue[]) => void | Promise<void>; onDeleteDialogue: (id: string) => void; onResetProgress: () => void; isAdmin?: boolean; }
 
 // PDF extraction
 function loadPdfJs(): Promise<any> {
@@ -25,10 +25,11 @@ async function extractPDF(file: File): Promise<string> {
   const lib = await loadPdfJs();
   const buf = await file.arrayBuffer();
   const pdf = await lib.getDocument({ data: new Uint8Array(buf) }).promise;
-  let text = '';
   const yTolerance = 3;
   const columnGap = 40;
-  for (let i = 1; i <= pdf.numPages; i++) {
+
+  const pages = await Promise.all(Array.from({ length: pdf.numPages }, async (_, pageIndex) => {
+    const i = pageIndex + 1;
     const page = await pdf.getPage(i);
     const content = await page.getTextContent();
     const rowMap = new Map<number, any[]>();
@@ -60,9 +61,10 @@ async function extractPDF(file: File): Promise<string> {
       return line.replace(/\s+\|\s+/g, ' | ').trim();
     }).filter(Boolean).join('\n');
 
-    text += pt.trim() + '\n\n';
-  }
-  return text.trim();
+    return pt.trim();
+  }));
+
+  return pages.filter(Boolean).join('\n\n').trim();
 }
 
 /* Detect Portuguese line (translation) vs English (original) */
@@ -365,18 +367,28 @@ export default function SettingsView({ stats, dialogues, onImportDialogues, onDe
         if (!d.situation) d.situation = `${d.lines.length} falas`; 
       });
 
-      // 1. Translation — only call AI when the PDF/JSON did not bring translations.
+      // 1. Save the lessons first. Expensive work must not block the PDF import.
+      const needsTranslation = hasMissingTranslations(parsed);
+      const savedParsed = parsed;
+
+      setImportMsg('⏳ Salvando aulas na nuvem...');
+      void Promise.resolve().then(() => onImportDialogues(savedParsed)).catch((err) => console.warn('Background lesson save failed', err));
+
+      setImportStatus('success');
+      setImportMsg(`✅ ${savedParsed.length} aula(s) importada(s) na nuvem!${needsTranslation ? ' Traduções faltantes serão completadas em segundo plano.' : ''}`);
+      setImportText('');
+      setPdfPreview('');
+      setIsImporting(false);
+
+      // 2. Translation — run in background only when the PDF/JSON did not bring translations.
       if (hasMissingTranslations(parsed)) {
-        setImportMsg('⏳ Traduzindo falas sem português via Gemini...');
-        parsed = await fillMissingLineTranslations(parsed);
+        void fillMissingLineTranslations(parsed)
+          .then((translated) => onImportDialogues(translated))
+          .catch((err: any) => console.warn('Background translation failed', err));
       }
 
-      // 2. Database saving
-      setImportMsg('⏳ Salvando diálogos e traduções na nuvem...');
-      await onImportDialogues(parsed);
-
       let audioSummary = '';
-      // 3. Audio generation and upload
+      // 3. Audio generation and upload — background only
       if (pregenerateAudio) {
         if (!api.unrealSpeechApiKey) {
           audioSummary = ' ⚠️ Áudios não iniciados: configure a chave Unreal Speech.';
@@ -384,32 +396,31 @@ export default function SettingsView({ stats, dialogues, onImportDialogues, onDe
           saveApiConfig(api);
           backgroundAudioStarted = true;
           setPregenProg({ c: 0, t: 1, msg: 'Preparando fila de áudios...' });
-          void pregenerateAndUploadDialogueAudios(
-            parsed,
-            api.unrealSpeechVoice,
-            api.unrealSpeechApiKey,
-            (c, t, msg) => {
-              if (audioJobRef.current === audioJobId) setPregenProg({ c, t, msg });
-            }
-          ).then((res) => {
-            if (audioJobRef.current !== audioJobId) return;
-            setPregenProg(null);
-            setImportStatus('success');
-            setImportMsg(`✅ Áudios finalizados na nuvem: ${res.success} novos, ${res.skipped} já existiam, ${res.failed} falhas.`);
-          }).catch((err: any) => {
-            if (audioJobRef.current !== audioJobId) return;
-            setPregenProg(null);
-            setImportStatus('error');
-            setImportMsg(`⚠️ A aula foi salva, mas os áudios falharam: ${err.message}`);
-          });
-          audioSummary = ' 🎙️ Áudios iniciados em segundo plano com Unreal Speech; mantenha esta aba aberta até a barra terminar.';
+          setTimeout(() => {
+            void pregenerateAndUploadDialogueAudios(
+              savedParsed,
+              api.unrealSpeechVoice,
+              api.unrealSpeechApiKey,
+              (c, t, msg) => {
+                if (audioJobRef.current === audioJobId) setPregenProg({ c, t, msg });
+              }
+            ).then((res) => {
+              if (audioJobRef.current !== audioJobId) return;
+              setPregenProg(null);
+              setImportStatus('success');
+              setImportMsg(`✅ Áudios finalizados na nuvem: ${res.success} novos, ${res.skipped} já existiam, ${res.failed} falhas.`);
+            }).catch((err: any) => {
+              if (audioJobRef.current !== audioJobId) return;
+              setPregenProg(null);
+              setImportStatus('error');
+              setImportMsg(`⚠️ A aula foi salva, mas os áudios falharam: ${err.message}`);
+            });
+          }, 800);
+          audioSummary = ' 🎙️ Áudios iniciados em segundo plano com Unreal Speech.';
         }
       }
 
-      setImportStatus('success');
-      setImportMsg(`✅ ${parsed.length} diálogo(s) importado(s) com todas as traduções salvas na nuvem!${audioSummary}`);
-      setImportText('');
-      setPdfPreview('');
+      if (audioSummary) setImportMsg(`✅ ${savedParsed.length} aula(s) importada(s) na nuvem!${audioSummary}`);
     } catch (e: any) {
       setImportStatus('error');
       setImportMsg(`❌ ${e.message}`);

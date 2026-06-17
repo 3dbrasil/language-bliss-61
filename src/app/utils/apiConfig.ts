@@ -108,10 +108,11 @@ Respond ONLY with valid JSON.`;
 }
 
 // Unreal Speech TTS
-export async function unrealSpeechTTS(text: string, override?: { apiKey?: string; voice?: string }): Promise<ArrayBuffer> {
+export async function unrealSpeechTTS(text: string, override?: { apiKey?: string; voice?: string; bitrate?: string }): Promise<ArrayBuffer> {
   const config = getApiConfig();
   const apiKey = override?.apiKey || config.unrealSpeechApiKey;
   const voice = override?.voice || config.unrealSpeechVoice;
+  const bitrate = override?.bitrate || '192k';
   if (!apiKey) throw new Error('Chave Unreal Speech não configurada');
 
   const res = await fetch('https://api.v7.unrealspeech.com/stream', {
@@ -123,7 +124,7 @@ export async function unrealSpeechTTS(text: string, override?: { apiKey?: string
     body: JSON.stringify({
       Text: text,
       VoiceId: voice,
-      Bitrate: '192k',
+      Bitrate: bitrate,
       Speed: '-0.1',
       Pitch: '1.0',
       Codec: 'libmp3lame',
