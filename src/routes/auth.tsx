@@ -62,7 +62,7 @@ function AuthPage() {
       } else if (/weak password|known to be weak|pwned|password should be at least/i.test(msg)) {
         setErr("Use uma senha mais forte: pelo menos 8 caracteres, com letras, números e símbolo.");
       } else if (/email signups are disabled|email logins are disabled/i.test(msg)) {
-        setErr("Cadastro por e-mail ainda não está ativo nesta versão. Atualize/republique o app e tente novamente.");
+        setErr("Login por e-mail está desligado no backend. Ative E-mail e senha em Cloud → Usuários → Auth Settings.");
       } else {
         setErr(msg);
       }
