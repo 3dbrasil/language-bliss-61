@@ -1,8 +1,62 @@
 import { Dialogue, PronunciationFeedback } from '../types';
 import { getApiConfig, unrealSpeechTTS, playAudioBuffer, geminiPronunciationFeedback } from './apiConfig';
+import { supabase } from '@/integrations/supabase/client';
 
 // Audio cache for Unreal Speech generated audio
 const audioCache = new Map<string, ArrayBuffer>();
+
+const CLOUD_BUCKET = 'lesson-audios';
+
+async function sha1Hex(input: string): Promise<string> {
+  const data = new TextEncoder().encode(input);
+  const hash = await crypto.subtle.digest('SHA-1', data);
+  return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function cloudPath(text: string, voice: string): Promise<string> {
+  const h = await sha1Hex(`${voice}::${text}`);
+  return `${voice}/${h}.mp3`;
+}
+
+async function downloadFromCloud(text: string, voice: string): Promise<ArrayBuffer | null> {
+  try {
+    const path = await cloudPath(text, voice);
+    const { data, error } = await supabase.storage.from(CLOUD_BUCKET).download(path);
+    if (error || !data) return null;
+    return await data.arrayBuffer();
+  } catch { return null; }
+}
+
+async function uploadToCloud(text: string, voice: string, buffer: ArrayBuffer): Promise<void> {
+  try {
+    const path = await cloudPath(text, voice);
+    const blob = new Blob([buffer], { type: 'audio/mpeg' });
+    await supabase.storage.from(CLOUD_BUCKET).upload(path, blob, {
+      contentType: 'audio/mpeg',
+      upsert: false,
+    });
+  } catch (e) { console.warn('Cloud audio upload failed', e); }
+}
+
+// Get audio: memory cache → cloud → generate via Unreal (and upload)
+async function getOrGenerateAudio(text: string, voice: string, apiKey: string): Promise<ArrayBuffer> {
+  const cacheKey = `${text}_${voice}`;
+  const cached = audioCache.get(cacheKey);
+  if (cached) return cached;
+
+  const fromCloud = await downloadFromCloud(text, voice);
+  if (fromCloud) {
+    audioCache.set(cacheKey, fromCloud);
+    return fromCloud;
+  }
+
+  if (!apiKey) throw new Error('Unreal Speech API key required');
+  const buffer = await unrealSpeechTTS(text);
+  audioCache.set(cacheKey, buffer);
+  // Fire-and-forget upload so playback isn't delayed
+  uploadToCloud(text, voice, buffer);
+  return buffer;
+}
 
 const PORTUGUESE_WORD_RE = /\b(você|voce|vocês|voces|não|nao|sim|estou|está|esta|sou|ser|ter|tenho|preciso|comprar|quero|queria|gostaria|obrigad[oa]|bom|boa|dia|noite|tarde|com|para|por|que|como|onde|quando|porque|também|tambem|tudo|bem|aqui|ali|isso|isto|aquilo|fazer|tem|temos|posso|pode|ajuda|encontrar|ficar|chegar|pedido|frase|tradu[cç][aã]o|licença|licenca|café|cafe|manhã|manha|ingresso|aeroporto|voo|chuva|guarda-chuva)\b/gi;
 const ENGLISH_WORD_RE = /\b(the|is|are|you|i|i'm|i'd|i'll|we|they|he|she|have|has|do|does|can|could|will|would|should|with|for|from|that|this|what|where|when|how|why|hello|hi|thanks|thank|good|morning|please|like|need|want|going|tell|time|breakfast|ticket|driver|today)\b/gi;
