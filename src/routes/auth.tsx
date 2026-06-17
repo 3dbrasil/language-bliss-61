@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { lovable } from "@/integrations/lovable";
 import { Loader2 } from "lucide-react";
 
 export const Route = createFileRoute("/auth")({
@@ -22,6 +23,23 @@ function AuthPage() {
       if (data.session) nav({ to: "/app" });
     });
   }, [nav]);
+
+  const handleGoogleSignIn = async () => {
+    setErr("");
+    setInfo("");
+    setLoading(true);
+    try {
+      const result = await lovable.auth.signInWithOAuth("google", {
+        redirect_uri: `${window.location.origin}/app`,
+      });
+      if (result.error) throw result.error;
+      if (!result.redirected) nav({ to: "/app" });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Erro";
+      setErr(msg);
+      setLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,7 +80,7 @@ function AuthPage() {
       } else if (/weak password|known to be weak|pwned|password should be at least/i.test(msg)) {
         setErr("Use uma senha mais forte: pelo menos 8 caracteres, com letras, números e símbolo.");
       } else if (/email signups are disabled|email logins are disabled/i.test(msg)) {
-        setErr("Login por e-mail está desligado no backend. Ative E-mail e senha em Cloud → Usuários → Auth Settings.");
+        setErr("E-mail e senha ainda está desligado no Cloud. Use Google para entrar agora ou ative E-mail e senha em Cloud → Usuários → Auth Settings.");
       } else {
         setErr(msg);
       }
@@ -99,6 +117,22 @@ function AuthPage() {
           onSubmit={handleSubmit}
           className="bg-slate-900/60 backdrop-blur-xl rounded-2xl border border-white/10 p-6 space-y-4"
         >
+          <button
+            type="button"
+            onClick={handleGoogleSignIn}
+            disabled={loading}
+            className="w-full flex items-center justify-center gap-3 bg-white text-slate-950 font-semibold py-3 rounded-lg text-sm hover:bg-slate-100 disabled:opacity-50 transition"
+          >
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <span className="text-base font-bold">G</span>}
+            Continuar com Google
+          </button>
+
+          <div className="flex items-center gap-3 text-[10px] uppercase tracking-[0.18em] text-slate-500">
+            <span className="h-px flex-1 bg-white/10" />
+            <span>E-mail</span>
+            <span className="h-px flex-1 bg-white/10" />
+          </div>
+
           <div className="space-y-2">
             <label className="text-xs text-slate-400">E-mail</label>
             <input
