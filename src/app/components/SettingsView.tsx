@@ -365,18 +365,28 @@ export default function SettingsView({ stats, dialogues, onImportDialogues, onDe
         if (!d.situation) d.situation = `${d.lines.length} falas`; 
       });
 
-      // 1. Translation — only call AI when the PDF/JSON did not bring translations.
+      // 1. Save the lessons first. Expensive work must not block the PDF import.
+      const needsTranslation = hasMissingTranslations(parsed);
+      const savedParsed = parsed;
+
+      setImportMsg('⏳ Salvando aulas na nuvem...');
+      await onImportDialogues(savedParsed);
+
+      setImportStatus('success');
+      setImportMsg(`✅ ${savedParsed.length} aula(s) importada(s) na nuvem!${needsTranslation ? ' Traduções faltantes serão completadas em segundo plano.' : ''}`);
+      setImportText('');
+      setPdfPreview('');
+      setIsImporting(false);
+
+      // 2. Translation — run in background only when the PDF/JSON did not bring translations.
       if (hasMissingTranslations(parsed)) {
-        setImportMsg('⏳ Traduzindo falas sem português via Gemini...');
-        parsed = await fillMissingLineTranslations(parsed);
+        void fillMissingLineTranslations(parsed)
+          .then((translated) => onImportDialogues(translated))
+          .catch((err: any) => console.warn('Background translation failed', err));
       }
 
-      // 2. Database saving
-      setImportMsg('⏳ Salvando diálogos e traduções na nuvem...');
-      await onImportDialogues(parsed);
-
       let audioSummary = '';
-      // 3. Audio generation and upload
+      // 3. Audio generation and upload — background only
       if (pregenerateAudio) {
         if (!api.unrealSpeechApiKey) {
           audioSummary = ' ⚠️ Áudios não iniciados: configure a chave Unreal Speech.';
@@ -385,7 +395,7 @@ export default function SettingsView({ stats, dialogues, onImportDialogues, onDe
           backgroundAudioStarted = true;
           setPregenProg({ c: 0, t: 1, msg: 'Preparando fila de áudios...' });
           void pregenerateAndUploadDialogueAudios(
-            parsed,
+            savedParsed,
             api.unrealSpeechVoice,
             api.unrealSpeechApiKey,
             (c, t, msg) => {
@@ -402,14 +412,11 @@ export default function SettingsView({ stats, dialogues, onImportDialogues, onDe
             setImportStatus('error');
             setImportMsg(`⚠️ A aula foi salva, mas os áudios falharam: ${err.message}`);
           });
-          audioSummary = ' 🎙️ Áudios iniciados em segundo plano com Unreal Speech; mantenha esta aba aberta até a barra terminar.';
+          audioSummary = ' 🎙️ Áudios iniciados em segundo plano com Unreal Speech.';
         }
       }
 
-      setImportStatus('success');
-      setImportMsg(`✅ ${parsed.length} diálogo(s) importado(s) com todas as traduções salvas na nuvem!${audioSummary}`);
-      setImportText('');
-      setPdfPreview('');
+      if (audioSummary) setImportMsg(`✅ ${savedParsed.length} aula(s) importada(s) na nuvem!${audioSummary}`);
     } catch (e: any) {
       setImportStatus('error');
       setImportMsg(`❌ ${e.message}`);
