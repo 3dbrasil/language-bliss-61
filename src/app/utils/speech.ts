@@ -93,20 +93,14 @@ export async function speakAmericanEnglish(text: string, voiceName?: string, rat
   }
   const config = getApiConfig();
 
-  if (config.ttsProvider === 'unreal' && config.unrealSpeechApiKey) {
+  if (config.ttsProvider === 'unreal') {
     try {
-      const cacheKey = `${speechText}_${config.unrealSpeechVoice}`;
-      let buffer = audioCache.get(cacheKey);
-      if (!buffer) {
-        buffer = await unrealSpeechTTS(speechText);
-        audioCache.set(cacheKey, buffer);
-      }
-      // Map our rate (0.85 baseline) to playbackRate
+      const buffer = await getOrGenerateAudio(speechText, config.unrealSpeechVoice, config.unrealSpeechApiKey);
       const pbRate = rate / 0.85;
       await playAudioBuffer(buffer.slice(0), pbRate);
       return;
     } catch (e) {
-      console.warn('Unreal Speech failed, falling back to browser TTS:', e);
+      console.warn('Unreal/cloud audio failed, falling back to browser TTS:', e);
       // Fall through to browser TTS
     }
   }
