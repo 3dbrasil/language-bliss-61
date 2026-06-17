@@ -35,9 +35,9 @@ export default function TopNav({ stats, activeTab, setActiveTab }: Props) {
     <header className="sticky top-0 z-30 backdrop-blur-xl bg-[#0A0F1A]/80 border-b border-white/5">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center gap-3 sm:gap-6">
         <div className="flex items-center gap-2 shrink-0">
-          <span className="w-7 h-7 rounded-full bg-gradient-to-tr from-cyan-500 to-teal-400 shadow-[0_0_16px_rgba(6,182,212,0.45)]" />
+          <img src={logo.url} alt="Dialogoo" className="w-7 h-7 rounded-lg object-contain" />
           <h1 className="text-sm font-semibold tracking-tight text-white hidden sm:block" style={{ fontFamily: "'Playfair Display', serif" }}>
-            Speak Native
+            Dialogoo
           </h1>
         </div>
 
