@@ -54,9 +54,16 @@ function AuthPage() {
     <div className="min-h-screen flex items-center justify-center px-4 bg-[#0A0F1A]">
       <div className="w-full max-w-sm space-y-6">
         <div className="text-center">
-          <Link to="/" className="inline-flex flex-col items-center gap-2">
-            <img src="/__l5e/assets-v1/d8b936e0-4be4-4ae4-9140-29a722510457/dialogoo-logo.png" alt="Dialogoo" className="w-16 h-16 object-contain" />
-            <span className="text-2xl font-extrabold bg-gradient-to-r from-[#2A7FFF] to-[#E94B7C] bg-clip-text text-transparent">Dialogoo</span>
+          <Link to="/" className="inline-flex flex-col items-center gap-4">
+            <div className="relative">
+              <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/40 to-teal-400/30 blur-3xl rounded-full scale-110" />
+              <img
+                src="/__l5e/assets-v1/d8b936e0-4be4-4ae4-9140-29a722510457/dialogoo-logo.png"
+                alt="Dialogoo"
+                className="relative w-48 h-48 object-contain drop-shadow-[0_20px_50px_rgba(6,182,212,0.5)]"
+              />
+            </div>
+            <span className="text-4xl font-extrabold bg-gradient-to-r from-[#2A7FFF] to-[#E94B7C] bg-clip-text text-transparent drop-shadow-lg">Dialogoo</span>
           </Link>
           <p className="text-xs text-slate-400 mt-2">
             Entre com sua conta Google para começar
