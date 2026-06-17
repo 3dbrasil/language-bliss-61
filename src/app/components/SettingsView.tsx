@@ -536,7 +536,7 @@ export default function SettingsView({ stats, dialogues, onImportDialogues, onDe
               🎙️ Pré-gerar áudios na nuvem
             </label>
             <p className="text-[10px] text-slate-500 leading-normal mt-0.5">
-              Gera e salva os arquivos MP3 para cada diálogo no Supabase usando Unreal Speech. Os alunos não consomem sua cota de API ao treinar!
+              Gera e salva os arquivos MP3 para cada diálogo na nuvem usando Unreal Speech. Os alunos não consomem sua cota de API ao treinar!
             </p>
           </div>
         </div>
