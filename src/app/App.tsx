@@ -233,9 +233,11 @@ export default function App() {
     } catch {}
     
     if (userId) {
-      supabase.from('user_stats').upsert({ user_id: userId, data: s as never }, { onConflict: 'user_id' }).then(({ error }) => {
+      Promise.resolve(
+        supabase.from('user_stats').upsert({ user_id: userId, data: s as never }, { onConflict: 'user_id' })
+      ).then(({ error }) => {
         if (error) console.error('save stats', error);
-      }).catch(err => {
+      }).catch((err: unknown) => {
         console.warn("Could not save stats to Supabase (likely bypass mode RLS or connection error)", err);
       });
     }
