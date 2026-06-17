@@ -113,15 +113,6 @@ function cleanupLegacyLocal(): void {
   try { localStorage.removeItem(LS_DELETED); } catch {}
 }
 
-
-function LoadingPanel() {
-  return (
-    <div className="py-16 text-center text-sm text-slate-400 animate-pulse">
-      Carregando…
-    </div>
-  );
-}
-
 export default function App() {
   const [dialogues, setDialogues] = useState<Dialogue[]>(defaultDialogues);
   const [stats, setStats] = useState<UserStats>(INIT);
