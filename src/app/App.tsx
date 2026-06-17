@@ -278,7 +278,7 @@ export default function App() {
           ) : tab === 'map' ? <DuolingoMap dialogues={dialogues} stats={stats} onSelectDialogue={setSelected} />
             : tab === 'cumulative' ? <CumulativeArena stats={stats} learnedVocabulary={vocab} currentLevel={curLvl} onAddXp={handleAddXp} />
             : tab === 'repetition' ? <Suspense fallback={<LoadingPanel />}><PhraseRepetition dialogues={dialogues} completedDialogues={stats.completedDialogues} onAddXp={handleAddXp} /></Suspense>
-            : <Suspense fallback={<LoadingPanel />}><SettingsView stats={stats} dialogues={dialogues} onImportDialogues={handleImport} onDeleteDialogue={handleDelete} onResetProgress={handleReset} /></Suspense>}
+            : <Suspense fallback={<LoadingPanel />}><SettingsView stats={stats} dialogues={dialogues} onImportDialogues={handleImport} onDeleteDialogue={handleDelete} onResetProgress={handleReset} isAdmin={isAdmin} /></Suspense>}
         </div>
       </main>
 
