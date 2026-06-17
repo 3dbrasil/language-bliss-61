@@ -359,3 +359,59 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
   }
   return btoa(binary);
 }
+
+// Pre-generate unique dialogue line audios and upload them to Supabase Storage
+export async function pregenerateAndUploadDialogueAudios(
+  dialogues: Dialogue[],
+  voice: string,
+  apiKey: string,
+  onProgress: (current: number, total: number, label: string) => void
+): Promise<{ success: number; failed: number; skipped: number }> {
+  let success = 0;
+  let failed = 0;
+  let skipped = 0;
+  
+  const allLines: { text: string; id: string }[] = [];
+  const seenTexts = new Set<string>();
+  
+  dialogues.forEach(d => {
+    d.lines.forEach(l => {
+      const speechText = englishSpeechText(l.text);
+      if (speechText && !seenTexts.has(speechText)) {
+        seenTexts.add(speechText);
+        allLines.push({ text: speechText, id: l.id });
+      }
+    });
+  });
+
+  const total = allLines.length;
+  for (let i = 0; i < total; i++) {
+    const line = allLines[i];
+    onProgress(i + 1, total, `Pré-gerando áudio: "${line.text.substring(0, 30)}..."`);
+    try {
+      // 1. Try to download first to check if cache already has it
+      const fromCloud = await downloadFromCloud(line.text, voice);
+      if (fromCloud) {
+        skipped++;
+        continue;
+      }
+      
+      // 2. Generate if not present
+      if (!apiKey) throw new Error('Unreal Speech API key missing');
+      const buffer = await unrealSpeechTTS(line.text);
+      
+      // 3. Upload to cloud (non-blocking in standard usage, but block here to guarantee it gets saved before continuing)
+      await uploadToCloud(line.text, voice, buffer);
+      success++;
+
+      // Small delay to prevent hitting rate limits aggressively
+      await new Promise(r => setTimeout(r, 200));
+    } catch (e) {
+      console.warn(`Failed to generate/upload audio for text: "${line.text}"`, e);
+      failed++;
+    }
+  }
+  
+  return { success, failed, skipped };
+}
+

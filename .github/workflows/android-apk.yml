@@ -63,7 +63,7 @@ jobs:
       - name: Generate Android app icon
         run: |
           mkdir -p assets
-          curl -fL "https://language-bliss-61.lovable.app/__l5e/assets-v1/d8b936e0-4be4-4ae4-9140-29a722510457/dialogoo-logo.png" -o assets/logo.png
+          curl -fL "https://language-bliss-61.lovable.app/__l5e/assets-v1/1dac785e-967a-4eb3-883b-af4a59f57601/dialogoo-logo.png" -o assets/logo.png
           npx capacitor-assets generate --android --assetPath assets --iconBackgroundColor '#0A0F1A' --iconBackgroundColorDark '#0A0F1A' --splashBackgroundColor '#0A0F1A' --splashBackgroundColorDark '#0A0F1A'
 
       - name: Ensure Android permissions

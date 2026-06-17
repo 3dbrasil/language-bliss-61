@@ -52,7 +52,13 @@ function Landing() {
       {/* Nav */}
       <header className="relative z-30 mx-auto max-w-7xl px-6 py-6 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
-          <img src={logo.url} alt="Dialogoo" className="w-9 h-9 rounded-xl object-contain" />
+          <div className="w-9 h-9 rounded-xl bg-[#0F172A] border border-white/10 flex items-center justify-center shrink-0 shadow-sm overflow-hidden">
+            <img
+              src={logo.url}
+              alt="Dialogoo"
+              className="w-full h-full object-cover"
+            />
+          </div>
           <span className="text-lg font-semibold tracking-tight">Dialogoo</span>
         </div>
         <nav className="hidden md:flex items-center gap-8 text-sm text-slate-400">

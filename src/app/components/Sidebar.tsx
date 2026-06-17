@@ -7,9 +7,10 @@ interface SidebarProps {
   stats: UserStats;
   activeTab: 'map' | 'cumulative' | 'repetition' | 'settings';
   setActiveTab: (tab: 'map' | 'cumulative' | 'repetition' | 'settings') => void;
+  isAdmin?: boolean;
 }
 
-export default function Sidebar({ stats, activeTab, setActiveTab }: SidebarProps) {
+export default function Sidebar({ stats, activeTab, setActiveTab, isAdmin }: SidebarProps) {
   const [open, setOpen] = useState(false);
   const xpPct = Math.min(100, stats.xp % 100);
   const lvl = Math.floor(stats.xp / 100) + 1;
@@ -19,7 +20,7 @@ export default function Sidebar({ stats, activeTab, setActiveTab }: SidebarProps
     { id: 'map', label: 'Mapa de Lições', icon: Map },
     { id: 'repetition', label: 'Prática de Diálogo', icon: Brain },
     { id: 'cumulative', label: 'Arena Cumulativa', icon: Sparkles },
-    { id: 'settings', label: 'Configurações', icon: Settings },
+    ...(isAdmin ? [{ id: 'settings' as const, label: 'Configurações', icon: Settings }] : []),
   ];
 
   const content = (
@@ -30,7 +31,13 @@ export default function Sidebar({ stats, activeTab, setActiveTab }: SidebarProps
           className="text-[22px] font-semibold tracking-tight text-white flex items-center gap-3"
           style={{ fontFamily: "'Playfair Display', serif" }}
         >
-          <img src={logo.url} alt="Dialogoo" className="w-8 h-8 rounded-lg object-contain" />
+          <div className="w-8 h-8 rounded-lg bg-[#0F172A] border border-white/10 flex items-center justify-center shrink-0 shadow-sm overflow-hidden">
+            <img
+              src={logo.url}
+              alt="Dialogoo"
+              className="w-full h-full object-cover"
+            />
+          </div>
           Dialogoo
         </h1>
         <p className="text-[10px] uppercase tracking-[0.22em] text-cyan-500/70 font-medium mt-2 ml-11">

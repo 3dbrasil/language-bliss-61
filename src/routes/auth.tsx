@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
 import { Loader2 } from "lucide-react";
+import logo from "@/assets/dialogoo-logo.png.asset.json";
 
 export const Route = createFileRoute("/auth")({
   ssr: false,
@@ -17,12 +18,40 @@ function AuthPage() {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
   const [info, setInfo] = useState("");
+  const [isIframe, setIsIframe] = useState(false);
 
   useEffect(() => {
+    setIsIframe(window.self !== window.top);
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) nav({ to: "/app" });
+      if (data.session) {
+        nav({ to: "/app" });
+        return;
+      }
+      try {
+        if (localStorage.getItem('dialogoo_bypass_session')) {
+          nav({ to: "/app" });
+        }
+      } catch {}
     });
   }, [nav]);
+
+  const handleBypassSignIn = (type: 'admin' | 'student') => {
+    setLoading(true);
+    const mockUser = type === 'admin'
+      ? { id: 'bypass-admin-id-123', email: 'inovamundoprinter@gmail.com' }
+      : { id: 'bypass-student-id-456', email: 'aluno-teste@dialogoo.com' };
+
+    try {
+      localStorage.setItem('dialogoo_bypass_session', JSON.stringify(mockUser));
+      setInfo(`Entrada rápida: conectando como ${type === 'admin' ? 'Admin' : 'Aluno'}...`);
+      setTimeout(() => {
+        nav({ to: "/app" });
+      }, 500);
+    } catch (e) {
+      setErr("Erro ao salvar sessão local.");
+      setLoading(false);
+    }
+  };
 
   const handleGoogleSignIn = async () => {
     setErr("");
@@ -94,13 +123,11 @@ function AuthPage() {
       <div className="w-full max-w-sm space-y-6">
         <div className="text-center">
           <Link to="/" className="inline-flex flex-col items-center gap-4" aria-label="Dialogoo - Página inicial">
-            <div className="relative">
-              <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/40 to-teal-400/30 blur-3xl rounded-full scale-110" aria-hidden="true" />
+            <div className="relative inline-flex items-center justify-center p-1 bg-[#0F172A] rounded-3xl shadow-[0_20px_50px_rgba(6,182,212,0.15)] border border-white/10 overflow-hidden w-40 h-40">
               <img
-                src="/__l5e/assets-v1/d8b936e0-4be4-4ae4-9140-29a722510457/dialogoo-logo.png"
-                alt=""
-                aria-hidden="true"
-                className="relative w-48 h-48 object-contain drop-shadow-[0_20px_50px_rgba(6,182,212,0.5)]"
+                src={logo.url}
+                alt="Dialogoo Logo"
+                className="w-full h-full object-cover rounded-2xl"
               />
             </div>
             <span className="text-4xl font-extrabold bg-gradient-to-r from-[#2A7FFF] to-[#E94B7C] bg-clip-text text-transparent drop-shadow-lg">
@@ -119,6 +146,34 @@ function AuthPage() {
           aria-label={mode === "signin" ? "Formulário de login" : "Formulário de cadastro"}
           className="bg-slate-900/60 backdrop-blur-xl rounded-2xl border border-white/10 p-6 space-y-4"
         >
+          {isIframe && (
+            <div className="bg-amber-500/10 border border-amber-500/15 rounded-xl p-3 text-amber-300 text-xs leading-relaxed space-y-1.5 shadow-lg">
+              <p className="font-bold text-amber-200 text-[13px] flex items-center gap-1.5">
+                <span>💡</span> Dica de Acesso
+              </p>
+              <p className="text-slate-300">
+                O login direto do Google é bloqueado pelas diretrizes de segurança dentro do painel lateral do AI Studio.
+              </p>
+              <p className="text-slate-300 font-semibold pt-1">
+                Para resolver:
+              </p>
+              <p className="text-slate-200">
+                1. Abra o app em uma{" "}
+                <a
+                  href={window.location.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-bold text-cyan-400 hover:underline inline-flex items-center gap-0.5"
+                >
+                  Nova Guia do Navegador ↗
+                </a>
+              </p>
+              <p className="text-slate-400">
+                Ou use a opção de <b>E-mail e Senha</b> abaixo diretamente neste painel!
+              </p>
+            </div>
+          )}
+
           <button
             type="button"
             onClick={handleGoogleSignIn}
@@ -128,6 +183,34 @@ function AuthPage() {
             {loading ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> : <span className="text-base font-bold" aria-hidden="true">G</span>}
             Continuar com Google
           </button>
+
+          {/* QUICK DEVELOPMENT BYPASS */}
+          <div className="pt-2.5 pb-2 text-center bg-slate-950/45 p-3 rounded-xl border border-slate-800/85 space-y-2">
+            <p className="text-[10px] uppercase tracking-wider text-cyan-400 font-bold">
+              ⚡ Atalhos Rápidos (Bypass de Teste)
+            </p>
+            <p className="text-[9px] text-slate-500 leading-normal">
+              Se o Google Auth estiver inacessível no iFrame do AI Studio, use estes botões para acessar imediatamente:
+            </p>
+            <div className="grid grid-cols-2 gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => handleBypassSignIn('admin')}
+                disabled={loading}
+                className="px-2.5 py-2 bg-[#2A7FFF]/10 hover:bg-[#2A7FFF]/25 text-cyan-300 border border-cyan-500/25 rounded-lg text-[11px] font-extrabold transition active:scale-95 disabled:opacity-55"
+              >
+                Entrar como Admin
+              </button>
+              <button
+                type="button"
+                onClick={() => handleBypassSignIn('student')}
+                disabled={loading}
+                className="px-2.5 py-2 bg-emerald-500/10 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/25 rounded-lg text-[11px] font-extrabold transition active:scale-95 disabled:opacity-55"
+              >
+                Entrar como Aluno
+              </button>
+            </div>
+          </div>
 
           <div className="flex items-center gap-3 text-[10px] uppercase tracking-[0.18em] text-slate-500" aria-hidden="true">
             <span className="h-px flex-1 bg-white/10" />

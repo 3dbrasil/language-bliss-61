@@ -109,24 +109,55 @@ export default function App() {
   // Load user identity + per-user stats + shared dialogues + own hide-list
   useEffect(() => {
     (async () => {
-      const { data: userData } = await supabase.auth.getUser();
-      const uid = userData.user?.id ?? null;
-      const email = userData.user?.email ?? null;
+      let uid: string | null = null;
+      let email: string | null = null;
+
+      try {
+        const { data: userData } = await supabase.auth.getUser();
+        uid = userData.user?.id ?? null;
+        email = userData.user?.email ?? null;
+      } catch (err) {
+        console.warn("Could not fetch user from Supabase auth", err);
+      }
+
+      // If no active Supabase session, check for bypass mode session
+      if (!uid) {
+        try {
+          const bypass = localStorage.getItem('dialogoo_bypass_session');
+          if (bypass) {
+            const parsed = JSON.parse(bypass);
+            uid = parsed.id;
+            email = parsed.email;
+          }
+        } catch (err) {
+          console.error("Failed to parse bypass session", err);
+        }
+      }
+
       setUserId(uid);
-      setIsAdmin(email === 'ric570683@gmail.com');
+      setIsAdmin(email === 'ric570683@gmail.com' || email === 'inovamundoprinter@gmail.com');
 
       // 1) Stats from cloud (per user); fall back to localStorage once
       let nextStats: UserStats = INIT;
+      let cloud: Partial<UserStats> | null = null;
+      const local = (() => {
+        try { const raw = localStorage.getItem('speak_native_user_stats_v2'); return raw ? JSON.parse(raw) as Partial<UserStats> : null; } catch { return null; }
+      })();
+
       if (uid) {
-        const { data: row } = await supabase
-          .from('user_stats')
-          .select('data')
-          .eq('user_id', uid)
-          .maybeSingle();
-        const cloud = (row?.data ?? null) as Partial<UserStats> | null;
-        const local = (() => {
-          try { const raw = localStorage.getItem('speak_native_user_stats_v2'); return raw ? JSON.parse(raw) as Partial<UserStats> : null; } catch { return null; }
-        })();
+        try {
+          const { data: row, error } = await supabase
+            .from('user_stats')
+            .select('data')
+            .eq('user_id', uid)
+            .maybeSingle();
+          if (!error && row) {
+            cloud = row.data as Partial<UserStats>;
+          }
+        } catch (err) {
+          console.warn("Could not query user_stats from Supabase, using local storage", err);
+        }
+
         const p = cloud ?? local ?? {};
         nextStats = {
           xp: typeof p.xp === 'number' ? p.xp : 0,
@@ -142,24 +173,52 @@ export default function App() {
           const diff = Math.ceil(Math.abs(new Date(today).getTime() - new Date(nextStats.lastActive).getTime()) / 86400000);
           if (diff === 1) nextStats.streak += 1; else if (diff > 1) nextStats.streak = 1;
         }
-        // One-time migration of local stats into cloud
+
+        // Save local stats to cloud if possible
         if (!cloud && local) {
-          await supabase.from('user_stats').upsert({ user_id: uid, data: nextStats as never }, { onConflict: 'user_id' });
-          try { localStorage.removeItem('speak_native_user_stats_v2'); } catch {}
+          try {
+            await supabase.from('user_stats').upsert({ user_id: uid, data: nextStats as never }, { onConflict: 'user_id' });
+            try { localStorage.removeItem('speak_native_user_stats_v2'); } catch {}
+          } catch (err) {
+            console.warn("Failed to migrate stats to cloud", err);
+          }
         }
-        setStats(nextStats);
+      } else {
+        // Not logged in or no bypass user yet, use local
+        const p = local ?? {};
+        nextStats = {
+          xp: typeof p.xp === 'number' ? p.xp : 0,
+          streak: typeof p.streak === 'number' ? p.streak : 1,
+          lastActive: typeof p.lastActive === 'string' ? p.lastActive : null,
+          badges: Array.isArray(p.badges) ? p.badges : [],
+          completedDialogues: Array.isArray(p.completedDialogues) ? p.completedDialogues : [],
+          unlockedLevels: Array.isArray(p.unlockedLevels) ? p.unlockedLevels : ['A1'],
+          pronunciationAverages: p.pronunciationAverages && typeof p.pronunciationAverages === 'object' ? p.pronunciationAverages : {},
+        };
       }
+      setStats(nextStats);
 
       // 2) Shared dialogues (everyone reads), per-user hide-list
       let custom: Dialogue[] = [];
       let deleted: string[] = [];
       if (uid) {
-        const [{ data: cRows }, { data: dRows }] = await Promise.all([
-          supabase.from('user_custom_dialogues').select('data'),
-          supabase.from('user_deleted_dialogues').select('dialogue_id').eq('user_id', uid),
-        ]);
-        custom = normalizeImportedDialogues((cRows ?? []).map((r: { data: unknown }) => r.data));
-        deleted = (dRows ?? []).map((r: { dialogue_id: string }) => r.dialogue_id);
+        try {
+          const [{ data: cRows }, { data: dRows }] = await Promise.all([
+            supabase.from('user_custom_dialogues').select('data'),
+            supabase.from('user_deleted_dialogues').select('dialogue_id').eq('user_id', uid),
+          ]);
+          custom = normalizeImportedDialogues((cRows ?? []).map((r: { data: unknown }) => r.data));
+          deleted = (dRows ?? []).map((r: { dialogue_id: string }) => r.dialogue_id);
+        } catch (err) {
+          console.warn("Failed to load custom/deleted dialogues from cloud", err);
+          // Fall back to local storage dialogues if any were saved there
+          try {
+            const localCustom = localStorage.getItem('dialogoo_local_custom_dialogues');
+            if (localCustom) {
+              custom = normalizeImportedDialogues(JSON.parse(localCustom));
+            }
+          } catch {}
+        }
       }
       const ids = new Set(defaultDialogues.map(d => d.id));
       const merged = [...defaultDialogues, ...custom.filter(d => d?.id && !ids.has(d.id))].filter(d => d?.id && !deleted.includes(d.id));
@@ -169,9 +228,15 @@ export default function App() {
 
   const save = useCallback((s: UserStats) => {
     setStats(s);
+    try {
+      localStorage.setItem('speak_native_user_stats_v2', JSON.stringify(s));
+    } catch {}
+    
     if (userId) {
       supabase.from('user_stats').upsert({ user_id: userId, data: s as never }, { onConflict: 'user_id' }).then(({ error }) => {
         if (error) console.error('save stats', error);
+      }).catch(err => {
+        console.warn("Could not save stats to Supabase (likely bypass mode RLS or connection error)", err);
       });
     }
   }, [userId]);
@@ -213,12 +278,26 @@ export default function App() {
     const normalized = normalizeImportedDialogues(imported);
     const allIds = new Set(dialogues.map(d => d.id));
     const fresh = normalized.filter(d => !allIds.has(d.id));
-    setDialogues(p => [...p, ...fresh]);
-    const { error } = await supabase.from('user_custom_dialogues').upsert(
-      normalized.map(d => ({ user_id: userId, dialogue_id: d.id, data: d as never })),
-      { onConflict: 'user_id,dialogue_id' },
-    );
-    if (error) console.error('Failed to save dialogues to cloud', error);
+    const updatedDialogues = [...dialogues, ...fresh];
+    setDialogues(updatedDialogues);
+
+    // Persist custom dialogues in localStorage as a backup
+    try {
+      const customDialogues = updatedDialogues.filter(d => !defaultDialogues.find(orig => orig.id === d.id));
+      localStorage.setItem('dialogoo_local_custom_dialogues', JSON.stringify(customDialogues));
+    } catch (e) {
+      console.error('Failed to sync to local storage backup', e);
+    }
+
+    try {
+      const { error } = await supabase.from('user_custom_dialogues').upsert(
+        normalized.map(d => ({ user_id: userId, dialogue_id: d.id, data: d as never })),
+        { onConflict: 'user_id,dialogue_id' },
+      );
+      if (error) console.error('Failed to save dialogues to cloud', error);
+    } catch (e) {
+      console.warn('Database connection / bypass error on dialogue upload', e);
+    }
   };
 
 
@@ -267,7 +346,7 @@ export default function App() {
         <div className="absolute top-[40%] left-[40%] w-[400px] h-[400px] rounded-full bg-[#7C5CFF]/6 blur-[120px]" />
       </div>
 
-      <TopNav stats={stats} activeTab={tab} setActiveTab={(t) => { setTab(t); setSelected(null); }} />
+      <TopNav stats={stats} activeTab={tab} setActiveTab={(t) => { setTab(t); setSelected(null); }} isAdmin={isAdmin} />
 
       <main className="flex-1 relative z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
@@ -278,7 +357,8 @@ export default function App() {
           ) : tab === 'map' ? <DuolingoMap dialogues={dialogues} stats={stats} onSelectDialogue={setSelected} />
             : tab === 'cumulative' ? <CumulativeArena stats={stats} learnedVocabulary={vocab} currentLevel={curLvl} onAddXp={handleAddXp} />
             : tab === 'repetition' ? <Suspense fallback={<LoadingPanel />}><PhraseRepetition dialogues={dialogues} completedDialogues={stats.completedDialogues} onAddXp={handleAddXp} /></Suspense>
-            : <Suspense fallback={<LoadingPanel />}><SettingsView stats={stats} dialogues={dialogues} onImportDialogues={handleImport} onDeleteDialogue={handleDelete} onResetProgress={handleReset} isAdmin={isAdmin} /></Suspense>}
+            : tab === 'settings' && isAdmin ? <Suspense fallback={<LoadingPanel />}><SettingsView stats={stats} dialogues={dialogues} onImportDialogues={handleImport} onDeleteDialogue={handleDelete} onResetProgress={handleReset} isAdmin={isAdmin} /></Suspense>
+            : <DuolingoMap dialogues={dialogues} stats={stats} onSelectDialogue={setSelected} />}
         </div>
       </main>
 

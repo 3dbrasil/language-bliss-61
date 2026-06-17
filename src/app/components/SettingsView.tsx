@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Download, Upload, Trash2, CheckCircle, AlertTriangle, Key, Volume2, Brain, Cloud, Loader2, ExternalLink, Eye, EyeOff, FileText, Sparkles } from 'lucide-react';
 import { Dialogue, UserStats, Badge } from '../types';
 import { getApiConfig, saveApiConfig, ApiConfig } from '../utils/apiConfig';
-import { generateAllAudios } from '../utils/speech';
+import { generateAllAudios, pregenerateAndUploadDialogueAudios } from '../utils/speech';
 import { findCoverImage } from '../utils/imageSearch';
 import { fillMissingLineTranslations } from '../utils/translations';
 
@@ -227,6 +227,9 @@ export default function SettingsView({ stats, dialogues, onImportDialogues, onDe
   const [importStatus, setImportStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [importMsg, setImportMsg] = useState('');
   const [pdfPreview, setPdfPreview] = useState('');
+  const [pregenerateAudio, setPregenerateAudio] = useState(true);
+  const [pregenProg, setPregenProg] = useState<{ c: number; t: number; msg: string } | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
   const [parsing, setParsing] = useState(false);
   const [showDel, setShowDel] = useState<string | null>(null);
   const [resetStage, setResetStage] = useState<'idle' | 'confirming'>('idle');
@@ -342,14 +345,60 @@ export default function SettingsView({ stats, dialogues, onImportDialogues, onDe
   };
 
   const handleImport = async () => {
+    setIsImporting(true);
+    setImportStatus('idle');
+    setImportMsg('');
+    setPregenProg(null);
     try {
       let parsed: Dialogue[];
       try { parsed = JSON.parse(importText); } catch (_) { parsed = parseTextToDialogues(importText); }
       if (!Array.isArray(parsed) || !parsed.length) throw new Error('Nenhum diálogo válido');
-      parsed.forEach((d: any, i: number) => { if (!d.id) d.id = `imp-${Date.now()}-${i}`; if (!d.title) d.title = `Importado ${i + 1}`; if (!d.lines?.length) throw new Error(`"${d.title}" sem linhas`); if (!d.level) d.level = 'A1'; if (!d.order) d.order = i + 1; if (!d.situation) d.situation = `${d.lines.length} falas`; });
+      parsed.forEach((d: any, i: number) => { 
+        if (!d.id) d.id = `imp-${Date.now()}-${i}`; 
+        if (!d.title) d.title = `Importado ${i + 1}`; 
+        if (!d.lines?.length) throw new Error(`"${d.title}" sem linhas`); 
+        if (!d.level) d.level = 'A1'; 
+        if (!d.order) d.order = i + 1; 
+        if (!d.situation) d.situation = `${d.lines.length} falas`; 
+      });
+
+      // 1. Translation
+      setImportMsg('⏳ Traduzindo falas novas via Gemini...');
       parsed = await fillMissingLineTranslations(parsed);
-      onImportDialogues(parsed); setImportStatus('success'); setImportMsg(`✅ ${parsed.length} diálogo(s) importado(s)!`); setImportText(''); setPdfPreview('');
-    } catch (e: any) { setImportStatus('error'); setImportMsg(`❌ ${e.message}`); }
+
+      // 2. Database saving
+      setImportMsg('⏳ Salvando diálogos e traduções na nuvem (Supabase)...');
+      await onImportDialogues(parsed);
+
+      let audioSummary = '';
+      // 3. Audio generation and upload
+      if (pregenerateAudio) {
+        if (!api.unrealSpeechApiKey) {
+          throw new Error('Chave do Unreal Speech não configurada! Por vigência, os diálogos e as traduções foram salvos, mas configure as Chaves nas Definições para pré-gerar os áudios.');
+        }
+        setImportMsg('⏳ Iniciando pré-geração de áudios...');
+        const res = await pregenerateAndUploadDialogueAudios(
+          parsed,
+          api.unrealSpeechVoice,
+          api.unrealSpeechApiKey,
+          (c, t, msg) => {
+            setPregenProg({ c, t, msg });
+          }
+        );
+        audioSummary = ` 🎙️ Áudios na nuvem: ${res.success} novos gerados, ${res.skipped} já existentes (pulados), ${res.failed} falhas.`;
+      }
+
+      setImportStatus('success');
+      setImportMsg(`✅ ${parsed.length} diálogo(s) importado(s) com todas as traduções salvas na nuvem!${audioSummary}`);
+      setImportText('');
+      setPdfPreview('');
+    } catch (e: any) {
+      setImportStatus('error');
+      setImportMsg(`❌ ${e.message}`);
+    } finally {
+      setIsImporting(false);
+      setPregenProg(null);
+    }
   };
 
   const testApi = async (which: 'gemini' | 'unreal') => {
@@ -454,8 +503,52 @@ export default function SettingsView({ stats, dialogues, onImportDialogues, onDe
         {pdfPreview && <div><p className="text-[10px] text-slate-600 font-semibold mb-1">Prévia (primeiro PDF):</p><pre className="text-[10px] text-slate-500 bg-slate-950 rounded-lg p-2 max-h-24 overflow-y-auto font-mono border border-slate-800 whitespace-pre-wrap">{pdfPreview}</pre></div>}
 
         <textarea value={importText} onChange={e => { setImportText(e.target.value); setImportStatus('idle'); }} placeholder="Cole JSON ou faça upload acima..." className="w-full h-24 px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-xs font-mono text-slate-400 resize-none outline-none focus:border-slate-700 placeholder:text-slate-700" />
-        <button onClick={handleImport} disabled={!importText.trim() || parsing} className="flex items-center gap-1.5 px-4 py-2 bg-cyan-500 text-white rounded-lg text-xs font-bold disabled:opacity-30"><Sparkles className="w-3.5 h-3.5" />Importar</button>
-        {importStatus !== 'idle' && <div className={`flex items-start gap-1.5 p-2 rounded-lg text-[11px] ${importStatus === 'success' ? 'bg-emerald-500/5 text-emerald-400 border border-emerald-500/15' : 'bg-red-500/5 text-red-400 border border-red-500/15'}`}>{importStatus === 'success' ? <CheckCircle className="w-3 h-3 mt-0.5 shrink-0" /> : <AlertTriangle className="w-3 h-3 mt-0.5 shrink-0" />}<span>{importMsg}</span></div>}
+        
+        <div className="flex items-start gap-2.5 bg-slate-950/40 p-3 rounded-xl border border-slate-800/80">
+          <input
+            id="pregenerateAudio"
+            type="checkbox"
+            checked={pregenerateAudio}
+            onChange={e => setPregenerateAudio(e.target.checked)}
+            disabled={isImporting}
+            className="w-4 h-4 mt-0.5 text-cyan-500 rounded border-slate-850 bg-slate-950 focus:ring-cyan-500/30 accent-cyan-500"
+          />
+          <div className="min-w-0 flex-1">
+            <label htmlFor="pregenerateAudio" className="text-xs font-bold text-slate-200 cursor-pointer block select-none">
+              🎙️ Pré-gerar áudios na nuvem
+            </label>
+            <p className="text-[10px] text-slate-500 leading-normal mt-0.5">
+              Gera e salva os arquivos MP3 para cada diálogo no Supabase usando Unreal Speech. Os alunos não consomem sua cota de API ao treinar!
+            </p>
+          </div>
+        </div>
+
+        {pregenProg && (
+          <div className="space-y-2 p-3 bg-purple-500/10 text-slate-200 border border-purple-550/20 rounded-xl relative overflow-hidden">
+            <div className="absolute top-0 left-0 bottom-0 bg-purple-500/5 transition-all duration-300" style={{ width: pregenProg.t > 0 ? `${(pregenProg.c / pregenProg.t) * 100}%` : '0%' }} />
+            <div className="flex items-center justify-between text-xs font-semibold relative z-10">
+              <span className="flex items-center gap-1.5"><Loader2 className="w-3.5 h-3.5 animate-spin text-purple-400" /> Pré-gerando áudios na nuvem...</span>
+              <span className="text-purple-400 font-mono font-bold">{pregenProg.c} / {pregenProg.t} ({Math.round(pregenProg.t > 0 ? (pregenProg.c / pregenProg.t) * 100 : 0)}%)</span>
+            </div>
+            <p className="text-[10px] text-slate-400 truncate relative z-10 font-mono">{pregenProg.msg}</p>
+          </div>
+        )}
+
+        <button 
+          onClick={handleImport} 
+          disabled={!importText.trim() || parsing || isImporting} 
+          className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-cyan-600 to-teal-500 text-white rounded-lg text-xs font-bold disabled:opacity-30 hover:opacity-90 transition-all shadow-lg shadow-cyan-500/10 active:scale-95"
+        >
+          {isImporting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+          {isImporting ? 'Processando importação...' : 'Importar diálogos'}
+        </button>
+
+        {importStatus !== 'idle' && (
+          <div className={`flex items-start gap-1.5 p-3 rounded-xl border text-[11px] leading-relaxed ${importStatus === 'success' ? 'bg-emerald-500/5 text-emerald-400 border-emerald-500/10' : 'bg-red-500/5 text-red-400 border-red-500/10'}`}>
+            {importStatus === 'success' ? <CheckCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" /> : <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />}
+            <span className="whitespace-pre-wrap">{importMsg}</span>
+          </div>
+        )}
       </Section>
       )}
 

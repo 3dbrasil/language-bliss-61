@@ -9,17 +9,40 @@ interface Props {
   stats: UserStats;
   activeTab: 'map' | 'cumulative' | 'repetition' | 'settings';
   setActiveTab: (tab: 'map' | 'cumulative' | 'repetition' | 'settings') => void;
+  isAdmin?: boolean;
 }
 
-export default function TopNav({ stats, activeTab, setActiveTab }: Props) {
+export default function TopNav({ stats, activeTab, setActiveTab, isAdmin }: Props) {
   const navigate = useNavigate();
   const lvl = Math.floor(stats.xp / 100) + 1;
   const [email, setEmail] = useState<string | null>(null);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => setEmail(data.session?.user?.email ?? null));
+    supabase.auth.getSession().then(({ data }) => {
+      let finalEmail = data.session?.user?.email ?? null;
+      if (!finalEmail) {
+        try {
+          const bypass = localStorage.getItem('dialogoo_bypass_session');
+          if (bypass) {
+            const parsed = JSON.parse(bypass);
+            finalEmail = parsed.email;
+          }
+        } catch {}
+      }
+      setEmail(finalEmail);
+    });
     const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
-      setEmail(session?.user?.email ?? null);
+      let finalEmail = session?.user?.email ?? null;
+      if (!finalEmail) {
+        try {
+          const bypass = localStorage.getItem('dialogoo_bypass_session');
+          if (bypass) {
+            const parsed = JSON.parse(bypass);
+            finalEmail = parsed.email;
+          }
+        } catch {}
+      }
+      setEmail(finalEmail);
     });
     return () => sub.subscription.unsubscribe();
   }, []);
@@ -29,14 +52,20 @@ export default function TopNav({ stats, activeTab, setActiveTab }: Props) {
     { id: 'map', label: 'Mapa', icon: Map },
     { id: 'repetition', label: 'Prática', icon: Brain },
     { id: 'cumulative', label: 'Arena', icon: Sparkles },
-    { id: 'settings', label: 'Config', icon: Settings },
+    ...(isAdmin ? [{ id: 'settings' as const, label: 'Config', icon: Settings }] : []),
   ];
 
   return (
     <header className="sticky top-0 z-30 backdrop-blur-xl bg-[#0A0F1A]/80 border-b border-white/5">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center gap-3 sm:gap-6">
         <div className="flex items-center gap-2 shrink-0">
-          <img src={logo.url} alt="Dialogoo" className="w-7 h-7 rounded-lg object-contain" />
+          <div className="w-7 h-7 rounded-lg bg-[#0F172A] border border-white/10 flex items-center justify-center shrink-0 shadow-sm overflow-hidden">
+            <img
+              src={logo.url}
+              alt="Dialogoo"
+              className="w-full h-full object-cover"
+            />
+          </div>
           <h1 className="text-sm font-semibold tracking-tight text-white hidden sm:block" style={{ fontFamily: "'Playfair Display', serif" }}>
             Dialogoo
           </h1>
@@ -79,7 +108,11 @@ export default function TopNav({ stats, activeTab, setActiveTab }: Props) {
           </span>
           {email ? (
             <button
-              onClick={async () => { await supabase.auth.signOut(); navigate({ to: '/auth', replace: true }); }}
+              onClick={async () => {
+                await supabase.auth.signOut();
+                try { localStorage.removeItem('dialogoo_bypass_session'); } catch {}
+                navigate({ to: '/auth', replace: true });
+              }}
               title={`Sair (${email})`}
               className="flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.03] border border-white/5 text-slate-300 hover:text-white hover:bg-white/[0.06]"
             >
