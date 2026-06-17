@@ -272,34 +272,37 @@ export default function App() {
     }
   };
 
-  const handleImport = async (imported: Dialogue[]) => {
+  const handleImport = (imported: Dialogue[]) => {
     if (!isAdmin || !userId) {
       console.warn('Only the admin can import dialogues');
       return;
     }
     const normalized = normalizeImportedDialogues(imported);
-    const allIds = new Set(dialogues.map(d => d.id));
-    const fresh = normalized.filter(d => !allIds.has(d.id));
-    const updatedDialogues = [...dialogues, ...fresh];
-    setDialogues(updatedDialogues);
+    setDialogues((current) => {
+      const byId = new Map(current.map(d => [d.id, d]));
+      normalized.forEach((dialogue) => byId.set(dialogue.id, dialogue));
+      const updatedDialogues = Array.from(byId.values());
 
-    // Persist custom dialogues in localStorage as a backup
-    try {
-      const customDialogues = updatedDialogues.filter(d => !defaultDialogues.find(orig => orig.id === d.id));
-      localStorage.setItem('dialogoo_local_custom_dialogues', JSON.stringify(customDialogues));
-    } catch (e) {
-      console.error('Failed to sync to local storage backup', e);
-    }
+      // Persist custom dialogues in localStorage as a backup
+      try {
+        const customDialogues = updatedDialogues.filter(d => !defaultDialogues.find(orig => orig.id === d.id));
+        localStorage.setItem('dialogoo_local_custom_dialogues', JSON.stringify(customDialogues));
+      } catch (e) {
+        console.error('Failed to sync to local storage backup', e);
+      }
 
-    try {
+      return updatedDialogues;
+    });
+
+    Promise.resolve().then(async () => {
       const { error } = await supabase.from('user_custom_dialogues').upsert(
         normalized.map(d => ({ user_id: userId, dialogue_id: d.id, data: d as never })),
         { onConflict: 'user_id,dialogue_id' },
       );
       if (error) console.error('Failed to save dialogues to cloud', error);
-    } catch (e) {
+    }).catch((e) => {
       console.warn('Database connection / bypass error on dialogue upload', e);
-    }
+    });
   };
 
 
