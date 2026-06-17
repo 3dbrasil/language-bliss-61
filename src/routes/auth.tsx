@@ -35,8 +35,8 @@ function AuthPage() {
   const enterAs = (type: 'admin' | 'student') => {
     setLoading(true);
     const mockUser = type === 'admin'
-      ? { id: 'bypass-admin-id-123', email: 'inovamundoprinter@gmail.com' }
-      : { id: 'bypass-student-id-456', email: 'aluno-teste@dialogoo.com' };
+      ? { id: '00000000-0000-4000-8000-000000000001', email: 'inovamundoprinter@gmail.com' }
+      : { id: '00000000-0000-4000-8000-000000000002', email: 'aluno-teste@dialogoo.com' };
     try {
       localStorage.setItem('dialogoo_bypass_session', JSON.stringify(mockUser));
       setInfo(`Entrando como ${type === 'admin' ? 'Admin' : 'Aluno'}...`);
