@@ -201,24 +201,25 @@ export default function App() {
       // 2) Shared dialogues (everyone reads), per-user hide-list
       let custom: Dialogue[] = [];
       let deleted: string[] = [];
-      if (uid) {
+      try {
+        const customQuery = supabase.from('user_custom_dialogues').select('data');
+        const [{ data: cRows }, deletedResult] = await Promise.all([
+          customQuery,
+          uid
+            ? supabase.from('user_deleted_dialogues').select('dialogue_id').eq('user_id', uid)
+            : Promise.resolve({ data: [] as { dialogue_id: string }[] }),
+        ]);
+        custom = normalizeImportedDialogues((cRows ?? []).map((r: { data: unknown }) => r.data));
+        deleted = (deletedResult.data ?? []).map((r: { dialogue_id: string }) => r.dialogue_id);
+      } catch (err) {
+        console.warn("Failed to load custom/deleted dialogues from cloud", err);
+        // Fall back to local storage dialogues if any were saved there
         try {
-          const [{ data: cRows }, { data: dRows }] = await Promise.all([
-            supabase.from('user_custom_dialogues').select('data'),
-            supabase.from('user_deleted_dialogues').select('dialogue_id').eq('user_id', uid),
-          ]);
-          custom = normalizeImportedDialogues((cRows ?? []).map((r: { data: unknown }) => r.data));
-          deleted = (dRows ?? []).map((r: { dialogue_id: string }) => r.dialogue_id);
-        } catch (err) {
-          console.warn("Failed to load custom/deleted dialogues from cloud", err);
-          // Fall back to local storage dialogues if any were saved there
-          try {
-            const localCustom = localStorage.getItem('dialogoo_local_custom_dialogues');
-            if (localCustom) {
-              custom = normalizeImportedDialogues(JSON.parse(localCustom));
-            }
-          } catch {}
-        }
+          const localCustom = localStorage.getItem('dialogoo_local_custom_dialogues');
+          if (localCustom) {
+            custom = normalizeImportedDialogues(JSON.parse(localCustom));
+          }
+        } catch {}
       }
       const ids = new Set(defaultDialogues.map(d => d.id));
       const merged = [...defaultDialogues, ...custom.filter(d => d?.id && !ids.has(d.id))].filter(d => d?.id && !deleted.includes(d.id));
@@ -272,10 +273,10 @@ export default function App() {
     }
   };
 
-  const handleImport = (imported: Dialogue[]) => {
+  const handleImport = async (imported: Dialogue[]) => {
     if (!isAdmin || !userId) {
       console.warn('Only the admin can import dialogues');
-      return;
+      throw new Error('Entre como admin conectado para salvar aulas na nuvem.');
     }
     const normalized = normalizeImportedDialogues(imported);
     setDialogues((current) => {
@@ -294,15 +295,14 @@ export default function App() {
       return updatedDialogues;
     });
 
-    Promise.resolve().then(async () => {
-      const { error } = await supabase.from('user_custom_dialogues').upsert(
-        normalized.map(d => ({ user_id: userId, dialogue_id: d.id, data: d as never })),
-        { onConflict: 'user_id,dialogue_id' },
-      );
-      if (error) console.error('Failed to save dialogues to cloud', error);
-    }).catch((e) => {
-      console.warn('Database connection / bypass error on dialogue upload', e);
-    });
+    const { error } = await supabase.from('user_custom_dialogues').upsert(
+      normalized.map(d => ({ user_id: userId, dialogue_id: d.id, data: d as never })),
+      { onConflict: 'user_id,dialogue_id' },
+    );
+    if (error) {
+      console.error('Failed to save dialogues to cloud', error);
+      throw new Error(`Não consegui salvar as aulas na nuvem: ${error.message}`);
+    }
   };
 
 

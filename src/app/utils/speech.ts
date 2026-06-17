@@ -136,7 +136,7 @@ export async function speakAmericanEnglish(text: string, voiceName?: string, rat
     console.warn('Cloud audio fetch failed:', e);
   }
 
-  if (config.ttsProvider === 'unreal' && config.unrealSpeechApiKey) {
+  if (config.unrealSpeechApiKey) {
     try {
       const buffer = await getOrGenerateAudio(speechText, config.unrealSpeechVoice, config.unrealSpeechApiKey);
       const pbRate = rate / 0.85;
@@ -400,6 +400,27 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
     binary += String.fromCharCode(bytes[i]);
   }
   return btoa(binary);
+}
+
+// Fast import path: only check which unique line audios already exist in cloud.
+// Missing audio is generated on-demand by speakAmericanEnglish(), so PDF import
+// does not fail or wait because of hundreds of external TTS requests.
+export async function prepareDialogueAudioCache(
+  dialogues: Dialogue[],
+  voice: string,
+  onProgress: (current: number, total: number, label: string) => void
+): Promise<{ available: number; missing: number; total: number }> {
+  const uniqueTexts = Array.from(new Set(
+    dialogues.flatMap(d => d.lines.map(l => englishSpeechText(l.text)).filter((text): text is string => Boolean(text)))
+  ));
+
+  onProgress(0, Math.max(uniqueTexts.length, 1), 'Conferindo arquivos existentes...');
+  const paths = await Promise.all(uniqueTexts.map((text) => cloudPath(text, voice)));
+  const { paths: existingPaths, checked } = await listExistingCloudPaths(voice);
+  const available = checked ? paths.filter((path) => existingPaths.has(path)).length : 0;
+  const missing = uniqueTexts.length - available;
+  onProgress(uniqueTexts.length, uniqueTexts.length, `${available} prontos, ${missing} sob demanda`);
+  return { available, missing, total: uniqueTexts.length };
 }
 
 // Pre-generate unique dialogue line audios and upload them to Supabase Storage
