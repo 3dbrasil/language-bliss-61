@@ -133,70 +133,65 @@ export default function App() {
   const [selected, setSelected] = useState<Dialogue | null>(null);
   const [showCeleb, setShowCeleb] = useState(false);
   const [celeb, setCeleb] = useState<{ title: string; desc: string; xp: number } | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => { preloadVoices(); setTimeout(preloadVoices, 500); }, []);
 
+  // Load user identity + per-user stats + shared dialogues + own hide-list
   useEffect(() => {
-    const saved = localStorage.getItem('speak_native_user_stats_v2');
-    if (saved) {
-      try {
-        const p = JSON.parse(saved);
-        const s: UserStats = {
+    (async () => {
+      const { data: userData } = await supabase.auth.getUser();
+      const uid = userData.user?.id ?? null;
+      const email = userData.user?.email ?? null;
+      setUserId(uid);
+      setIsAdmin(email === 'ric570683@gmail.com');
+
+      // 1) Stats from cloud (per user); fall back to localStorage once
+      let nextStats: UserStats = INIT;
+      if (uid) {
+        const { data: row } = await supabase
+          .from('user_stats')
+          .select('data')
+          .eq('user_id', uid)
+          .maybeSingle();
+        const cloud = (row?.data ?? null) as Partial<UserStats> | null;
+        const local = (() => {
+          try { const raw = localStorage.getItem('speak_native_user_stats_v2'); return raw ? JSON.parse(raw) as Partial<UserStats> : null; } catch { return null; }
+        })();
+        const p = cloud ?? local ?? {};
+        nextStats = {
           xp: typeof p.xp === 'number' ? p.xp : 0,
           streak: typeof p.streak === 'number' ? p.streak : 1,
           lastActive: typeof p.lastActive === 'string' ? p.lastActive : null,
           badges: Array.isArray(p.badges) ? p.badges : [],
           completedDialogues: Array.isArray(p.completedDialogues) ? p.completedDialogues : [],
           unlockedLevels: Array.isArray(p.unlockedLevels) ? p.unlockedLevels : ['A1'],
-          pronunciationAverages: p.pronunciationAverages && typeof p.pronunciationAverages === 'object' ? p.pronunciationAverages : {}
+          pronunciationAverages: p.pronunciationAverages && typeof p.pronunciationAverages === 'object' ? p.pronunciationAverages : {},
         };
         const today = new Date().toISOString().split('T')[0];
-        if (s.lastActive && s.lastActive !== today) {
-          const diff = Math.ceil(Math.abs(new Date(today).getTime() - new Date(s.lastActive).getTime()) / 86400000);
-          if (diff === 1) s.streak += 1; else if (diff > 1) s.streak = 1;
+        if (nextStats.lastActive && nextStats.lastActive !== today) {
+          const diff = Math.ceil(Math.abs(new Date(today).getTime() - new Date(nextStats.lastActive).getTime()) / 86400000);
+          if (diff === 1) nextStats.streak += 1; else if (diff > 1) nextStats.streak = 1;
         }
-        setStats(s);
-      } catch (_) { setStats(INIT); }
-    }
-    // Custom + deleted dialogues — prefer Lovable Cloud, fall back to localStorage
-    (async () => {
-      const uid = await getUserId();
+        // One-time migration of local stats into cloud
+        if (!cloud && local) {
+          await supabase.from('user_stats').upsert({ user_id: uid, data: nextStats as never }, { onConflict: 'user_id' });
+          try { localStorage.removeItem('speak_native_user_stats_v2'); } catch {}
+        }
+        setStats(nextStats);
+      }
+
+      // 2) Shared dialogues (everyone reads), per-user hide-list
       let custom: Dialogue[] = [];
       let deleted: string[] = [];
       if (uid) {
         const [{ data: cRows }, { data: dRows }] = await Promise.all([
-          supabase.from('user_custom_dialogues').select('data').eq('user_id', uid),
+          supabase.from('user_custom_dialogues').select('data'),
           supabase.from('user_deleted_dialogues').select('dialogue_id').eq('user_id', uid),
         ]);
         custom = normalizeImportedDialogues((cRows ?? []).map((r: { data: unknown }) => r.data));
         deleted = (dRows ?? []).map((r: { dialogue_id: string }) => r.dialogue_id);
-        // One-time migration of any leftover localStorage data into the cloud
-        const lsCustom = lsReadCustom();
-        const lsDeleted = lsReadDeleted();
-        const haveIds = new Set(custom.map(d => d.id));
-        const toUpload = lsCustom.filter(d => !haveIds.has(d.id));
-        if (toUpload.length) {
-          await supabase.from('user_custom_dialogues').upsert(
-            toUpload.map(d => ({ user_id: uid, dialogue_id: d.id, data: d as never })),
-            { onConflict: 'user_id,dialogue_id' },
-          );
-          custom = [...custom, ...toUpload];
-        }
-        const haveDel = new Set(deleted);
-        const newDel = lsDeleted.filter(id => !haveDel.has(id));
-        if (newDel.length) {
-          await supabase.from('user_deleted_dialogues').upsert(
-            newDel.map(id => ({ user_id: uid, dialogue_id: id })),
-            { onConflict: 'user_id,dialogue_id' },
-          );
-          deleted = [...deleted, ...newDel];
-        }
-        if (toUpload.length || newDel.length) {
-          try { localStorage.removeItem(LS_CUSTOM); localStorage.removeItem(LS_DELETED); } catch {}
-        }
-      } else {
-        custom = lsReadCustom();
-        deleted = lsReadDeleted();
       }
       const ids = new Set(defaultDialogues.map(d => d.id));
       const merged = [...defaultDialogues, ...custom.filter(d => d?.id && !ids.has(d.id))].filter(d => d?.id && !deleted.includes(d.id));
@@ -204,59 +199,60 @@ export default function App() {
     })();
   }, []);
 
-  const save = useCallback((s: UserStats) => { setStats(s); localStorage.setItem('speak_native_user_stats_v2', JSON.stringify(s)); }, []);
+  const save = useCallback((s: UserStats) => {
+    setStats(s);
+    if (userId) {
+      supabase.from('user_stats').upsert({ user_id: userId, data: s as never }, { onConflict: 'user_id' }).then(({ error }) => {
+        if (error) console.error('save stats', error);
+      });
+    }
+  }, [userId]);
 
   const handleReset = async () => {
-    localStorage.removeItem('speak_native_user_stats_v2');
-    localStorage.removeItem(LS_CUSTOM);
-    localStorage.removeItem(LS_DELETED);
-    const uid = await getUserId();
-    if (uid) {
+    if (userId) {
       await Promise.all([
-        supabase.from('user_custom_dialogues').delete().eq('user_id', uid),
-        supabase.from('user_deleted_dialogues').delete().eq('user_id', uid),
+        supabase.from('user_stats').delete().eq('user_id', userId),
+        supabase.from('user_deleted_dialogues').delete().eq('user_id', userId),
       ]);
     }
-    setStats(INIT); setDialogues(defaultDialogues); setSelected(null); setTab('map');
+    setStats(INIT); setSelected(null); setTab('map');
+    // Re-fetch dialogues so admin's shared list reappears
+    const { data: cRows } = await supabase.from('user_custom_dialogues').select('data');
+    const custom = normalizeImportedDialogues((cRows ?? []).map((r: { data: unknown }) => r.data));
+    const ids = new Set(defaultDialogues.map(d => d.id));
+    setDialogues([...defaultDialogues, ...custom.filter(d => d?.id && !ids.has(d.id))]);
   };
 
   const handleDelete = async (id: string) => {
     setDialogues(p => p.filter(d => d.id !== id));
-    const uid = await getUserId();
-    if (uid) {
-      await Promise.all([
-        supabase.from('user_custom_dialogues').delete().eq('user_id', uid).eq('dialogue_id', id),
-        supabase.from('user_deleted_dialogues').upsert(
-          [{ user_id: uid, dialogue_id: id }],
-          { onConflict: 'user_id,dialogue_id' },
-        ),
-      ]);
-    } else {
-      lsWriteCustom(lsReadCustom().filter(d => d.id !== id));
-      const del = lsReadDeleted();
-      if (!del.includes(id)) del.push(id);
-      lsWriteDeleted(del);
+    if (isAdmin) {
+      // Admin removes the lesson for everyone
+      await supabase.from('user_custom_dialogues').delete().eq('dialogue_id', id);
+    } else if (userId) {
+      // Regular user just hides it for themselves
+      await supabase.from('user_deleted_dialogues').upsert(
+        [{ user_id: userId, dialogue_id: id }],
+        { onConflict: 'user_id,dialogue_id' },
+      );
     }
   };
 
   const handleImport = async (imported: Dialogue[]) => {
+    if (!isAdmin || !userId) {
+      console.warn('Only the admin can import dialogues');
+      return;
+    }
     const normalized = normalizeImportedDialogues(imported);
     const allIds = new Set(dialogues.map(d => d.id));
     const fresh = normalized.filter(d => !allIds.has(d.id));
     setDialogues(p => [...p, ...fresh]);
-    const uid = await getUserId();
-    if (uid) {
-      const { error } = await supabase.from('user_custom_dialogues').upsert(
-        normalized.map(d => ({ user_id: uid, dialogue_id: d.id, data: d as never })),
-        { onConflict: 'user_id,dialogue_id' },
-      );
-      if (error) console.error('Failed to save dialogues to cloud', error);
-    } else {
-      const current = lsReadCustom();
-      const ids = new Set(current.map(d => d.id));
-      lsWriteCustom([...current, ...normalized.filter(d => !ids.has(d.id))]);
-    }
+    const { error } = await supabase.from('user_custom_dialogues').upsert(
+      normalized.map(d => ({ user_id: userId, dialogue_id: d.id, data: d as never })),
+      { onConflict: 'user_id,dialogue_id' },
+    );
+    if (error) console.error('Failed to save dialogues to cloud', error);
   };
+
 
 
   const handleComplete = (xp: number, scores: Record<string, number>) => {
