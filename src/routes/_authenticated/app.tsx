@@ -4,7 +4,7 @@ import App from "@/app/App";
 export const Route = createFileRoute("/_authenticated/app")({
   head: () => ({
     meta: [
-      { title: "Speak Native — Praticar" },
+      { title: "Dialogoo — Praticar" },
       { name: "description", content: "Pratique inglês com diálogos reais e IA de pronúncia." },
     ],
   }),
