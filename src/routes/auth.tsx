@@ -59,8 +59,10 @@ function AuthPage() {
         setErr("E-mail ou senha incorretos.");
       } else if (/user already registered/i.test(msg)) {
         setErr("Este e-mail já está cadastrado. Faça login.");
-      } else if (/password should be at least/i.test(msg)) {
-        setErr("A senha deve ter pelo menos 6 caracteres.");
+      } else if (/weak password|known to be weak|pwned|password should be at least/i.test(msg)) {
+        setErr("Use uma senha mais forte: pelo menos 8 caracteres, com letras, números e símbolo.");
+      } else if (/email signups are disabled|email logins are disabled/i.test(msg)) {
+        setErr("Cadastro por e-mail ainda não está ativo nesta versão. Atualize/republique o app e tente novamente.");
       } else {
         setErr(msg);
       }
