@@ -90,15 +90,16 @@ function AuthPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 bg-[#0A0F1A]">
+    <main className="min-h-dvh flex items-center justify-center px-4 bg-[#0A0F1A]">
       <div className="w-full max-w-sm space-y-6">
         <div className="text-center">
-          <Link to="/" className="inline-flex flex-col items-center gap-4">
+          <Link to="/" className="inline-flex flex-col items-center gap-4" aria-label="Dialogoo - Página inicial">
             <div className="relative">
-              <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/40 to-teal-400/30 blur-3xl rounded-full scale-110" />
+              <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/40 to-teal-400/30 blur-3xl rounded-full scale-110" aria-hidden="true" />
               <img
                 src="/__l5e/assets-v1/d8b936e0-4be4-4ae4-9140-29a722510457/dialogoo-logo.png"
-                alt="Dialogoo"
+                alt=""
+                aria-hidden="true"
                 className="relative w-48 h-48 object-contain drop-shadow-[0_20px_50px_rgba(6,182,212,0.5)]"
               />
             </div>
@@ -115,6 +116,7 @@ function AuthPage() {
 
         <form
           onSubmit={handleSubmit}
+          aria-label={mode === "signin" ? "Formulário de login" : "Formulário de cadastro"}
           className="bg-slate-900/60 backdrop-blur-xl rounded-2xl border border-white/10 p-6 space-y-4"
         >
           <button
@@ -123,19 +125,20 @@ function AuthPage() {
             disabled={loading}
             className="w-full flex items-center justify-center gap-3 bg-white text-slate-950 font-semibold py-3 rounded-lg text-sm hover:bg-slate-100 disabled:opacity-50 transition"
           >
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <span className="text-base font-bold">G</span>}
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> : <span className="text-base font-bold" aria-hidden="true">G</span>}
             Continuar com Google
           </button>
 
-          <div className="flex items-center gap-3 text-[10px] uppercase tracking-[0.18em] text-slate-500">
+          <div className="flex items-center gap-3 text-[10px] uppercase tracking-[0.18em] text-slate-500" aria-hidden="true">
             <span className="h-px flex-1 bg-white/10" />
             <span>E-mail</span>
             <span className="h-px flex-1 bg-white/10" />
           </div>
 
           <div className="space-y-2">
-            <label className="text-xs text-slate-400">E-mail</label>
+            <label htmlFor="auth-email" className="block text-xs text-slate-400">E-mail</label>
             <input
+              id="auth-email"
               type="email"
               required
               autoComplete="email"
@@ -146,17 +149,24 @@ function AuthPage() {
             />
           </div>
           <div className="space-y-2">
-            <label className="text-xs text-slate-400">Senha</label>
+            <label htmlFor="auth-password" className="block text-xs text-slate-400">Senha</label>
             <input
+              id="auth-password"
               type="password"
               required
-              minLength={6}
+              minLength={mode === "signup" ? 8 : 6}
               autoComplete={mode === "signin" ? "current-password" : "new-password"}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              aria-describedby={mode === "signup" ? "auth-password-hint" : undefined}
               className="w-full bg-slate-800/60 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500/60"
               placeholder="••••••••"
             />
+            {mode === "signup" && (
+              <p id="auth-password-hint" className="text-[11px] text-slate-500">
+                Mínimo 8 caracteres com letras, números e símbolo.
+              </p>
+            )}
           </div>
 
           <button
@@ -165,7 +175,7 @@ function AuthPage() {
             className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-[#2A7FFF] to-[#E94B7C] text-white font-semibold py-3 rounded-lg text-sm hover:opacity-90 disabled:opacity-50 transition"
           >
             {loading ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
+              <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
             ) : mode === "signin" ? (
               "Entrar"
             ) : (
@@ -173,8 +183,8 @@ function AuthPage() {
             )}
           </button>
 
-          {err && <p className="text-xs text-red-400 text-center">{err}</p>}
-          {info && <p className="text-xs text-emerald-400 text-center">{info}</p>}
+          {err && <p role="alert" aria-live="assertive" className="text-xs text-red-400 text-center">{err}</p>}
+          {info && <p role="status" aria-live="polite" className="text-xs text-emerald-400 text-center">{info}</p>}
 
           <button
             type="button"
