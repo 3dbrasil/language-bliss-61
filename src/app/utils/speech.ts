@@ -93,15 +93,30 @@ export async function speakAmericanEnglish(text: string, voiceName?: string, rat
   }
   const config = getApiConfig();
 
-  if (config.ttsProvider === 'unreal') {
+  // Always try cloud first — áudios pré-gerados pelo Unreal ficam disponíveis
+  // independente do ttsProvider escolhido pelo aluno.
+  try {
+    const cacheKey = `${speechText}_${config.unrealSpeechVoice}`;
+    let buffer = audioCache.get(cacheKey) || null;
+    if (!buffer) buffer = await downloadFromCloud(speechText, config.unrealSpeechVoice);
+    if (buffer) {
+      audioCache.set(cacheKey, buffer);
+      const pbRate = rate / 0.85;
+      await playAudioBuffer(buffer.slice(0), pbRate);
+      return;
+    }
+  } catch (e) {
+    console.warn('Cloud audio fetch failed:', e);
+  }
+
+  if (config.ttsProvider === 'unreal' && config.unrealSpeechApiKey) {
     try {
       const buffer = await getOrGenerateAudio(speechText, config.unrealSpeechVoice, config.unrealSpeechApiKey);
       const pbRate = rate / 0.85;
       await playAudioBuffer(buffer.slice(0), pbRate);
       return;
     } catch (e) {
-      console.warn('Unreal/cloud audio failed, falling back to browser TTS:', e);
-      // Fall through to browser TTS
+      console.warn('Unreal audio failed, falling back to browser TTS:', e);
     }
   }
 
