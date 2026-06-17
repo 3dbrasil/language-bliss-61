@@ -18,6 +18,27 @@ async function cloudPath(text: string, voice: string): Promise<string> {
   return `${voice}/${h}.mp3`;
 }
 
+async function listExistingCloudPaths(voice: string): Promise<Set<string>> {
+  const existing = new Set<string>();
+  try {
+    const pageSize = 1000;
+    for (let offset = 0; ; offset += pageSize) {
+      const { data, error } = await supabase.storage.from(CLOUD_BUCKET).list(voice, {
+        limit: pageSize,
+        offset,
+      });
+      if (error || !data?.length) break;
+      data.forEach((file) => {
+        if (file.name) existing.add(`${voice}/${file.name}`);
+      });
+      if (data.length < pageSize) break;
+    }
+  } catch (e) {
+    console.warn('Cloud audio list failed; generating without bulk skip check', e);
+  }
+  return existing;
+}
+
 async function downloadFromCloud(text: string, voice: string): Promise<ArrayBuffer | null> {
   try {
     const path = await cloudPath(text, voice);
@@ -386,7 +407,7 @@ export async function pregenerateAndUploadDialogueAudios(
   let failed = 0;
   let skipped = 0;
   
-  const allLines: { text: string; id: string }[] = [];
+  const allLines: { text: string; id: string; path: string }[] = [];
   const seenTexts = new Set<string>();
   
   dialogues.forEach(d => {
@@ -394,26 +415,32 @@ export async function pregenerateAndUploadDialogueAudios(
       const speechText = englishSpeechText(l.text);
       if (speechText && !seenTexts.has(speechText)) {
         seenTexts.add(speechText);
-        allLines.push({ text: speechText, id: l.id });
+        allLines.push({ text: speechText, id: l.id, path: '' });
       }
     });
   });
 
+  await Promise.all(allLines.map(async (line) => {
+    line.path = await cloudPath(line.text, voice);
+  }));
+
+  const existingPaths = await listExistingCloudPaths(voice);
+
   const total = allLines.length;
   let done = 0;
-  const CONCURRENCY = 5;
+  const CONCURRENCY = 10;
 
   const worker = async (startIdx: number) => {
     for (let i = startIdx; i < total; i += CONCURRENCY) {
       const line = allLines[i];
       try {
-        const fromCloud = await downloadFromCloud(line.text, voice);
-        if (fromCloud) {
+        if (existingPaths.has(line.path)) {
           skipped++;
         } else {
           if (!apiKey) throw new Error('Unreal Speech API key missing');
-          const buffer = await unrealSpeechTTS(line.text, { apiKey, voice });
+          const buffer = await unrealSpeechTTS(line.text, { apiKey, voice, bitrate: '64k' });
           await uploadToCloud(line.text, voice, buffer);
+          existingPaths.add(line.path);
           success++;
         }
       } catch (e) {
