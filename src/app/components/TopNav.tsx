@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { supabase } from '@/integrations/supabase/client';
 import { UserStats } from '../types';
+import logo from '@/assets/dialogoo-logo.png.asset.json';
 
 interface Props {
   stats: UserStats;
