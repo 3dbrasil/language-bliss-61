@@ -126,6 +126,15 @@ export default function App() {
           const bypass = localStorage.getItem('dialogoo_bypass_session');
           if (bypass) {
             const parsed = JSON.parse(bypass);
+            // Migrate legacy non-UUID bypass ids to valid UUIDs
+            const LEGACY_MAP: Record<string, string> = {
+              'bypass-admin-id-123': '00000000-0000-4000-8000-000000000001',
+              'bypass-student-id-456': '00000000-0000-4000-8000-000000000002',
+            };
+            if (parsed.id && LEGACY_MAP[parsed.id]) {
+              parsed.id = LEGACY_MAP[parsed.id];
+              try { localStorage.setItem('dialogoo_bypass_session', JSON.stringify(parsed)); } catch {}
+            }
             uid = parsed.id;
             email = parsed.email;
           }
