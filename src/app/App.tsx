@@ -201,24 +201,25 @@ export default function App() {
       // 2) Shared dialogues (everyone reads), per-user hide-list
       let custom: Dialogue[] = [];
       let deleted: string[] = [];
-      if (uid) {
+      try {
+        const customQuery = supabase.from('user_custom_dialogues').select('data');
+        const [{ data: cRows }, deletedResult] = await Promise.all([
+          customQuery,
+          uid
+            ? supabase.from('user_deleted_dialogues').select('dialogue_id').eq('user_id', uid)
+            : Promise.resolve({ data: [] as { dialogue_id: string }[] }),
+        ]);
+        custom = normalizeImportedDialogues((cRows ?? []).map((r: { data: unknown }) => r.data));
+        deleted = (deletedResult.data ?? []).map((r: { dialogue_id: string }) => r.dialogue_id);
+      } catch (err) {
+        console.warn("Failed to load custom/deleted dialogues from cloud", err);
+        // Fall back to local storage dialogues if any were saved there
         try {
-          const [{ data: cRows }, { data: dRows }] = await Promise.all([
-            supabase.from('user_custom_dialogues').select('data'),
-            supabase.from('user_deleted_dialogues').select('dialogue_id').eq('user_id', uid),
-          ]);
-          custom = normalizeImportedDialogues((cRows ?? []).map((r: { data: unknown }) => r.data));
-          deleted = (dRows ?? []).map((r: { dialogue_id: string }) => r.dialogue_id);
-        } catch (err) {
-          console.warn("Failed to load custom/deleted dialogues from cloud", err);
-          // Fall back to local storage dialogues if any were saved there
-          try {
-            const localCustom = localStorage.getItem('dialogoo_local_custom_dialogues');
-            if (localCustom) {
-              custom = normalizeImportedDialogues(JSON.parse(localCustom));
-            }
-          } catch {}
-        }
+          const localCustom = localStorage.getItem('dialogoo_local_custom_dialogues');
+          if (localCustom) {
+            custom = normalizeImportedDialogues(JSON.parse(localCustom));
+          }
+        } catch {}
       }
       const ids = new Set(defaultDialogues.map(d => d.id));
       const merged = [...defaultDialogues, ...custom.filter(d => d?.id && !ids.has(d.id))].filter(d => d?.id && !deleted.includes(d.id));
