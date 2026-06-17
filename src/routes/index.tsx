@@ -33,7 +33,7 @@ const dialogues = [
 const testimonials = [
   { name: "Marina S.", role: "Product Designer", text: "Em 3 meses passei de gaguejar em reuniões para liderar apresentações em inglês. A IA de pronúncia mudou o jogo.", rating: 5 },
   { name: "Rafael T.", role: "Engenheiro Sênior", text: "Os diálogos são absurdamente realistas. Parece que estou conversando com um americano de verdade, não decorando frases.", rating: 5 },
-  { name: "Júlia M.", role: "Consultora", text: "Já tentei 4 apps diferentes. Speak Native é o único que me fez sentir que realmente aprendi a *conversar*.", rating: 5 },
+  { name: "Júlia M.", role: "Consultora", text: "Já tentei 4 apps diferentes. Dialogoo é o único que me fez sentir que realmente aprendi a *conversar*.", rating: 5 },
 ];
 
 function Landing() {
