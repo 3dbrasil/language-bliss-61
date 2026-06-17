@@ -24,8 +24,18 @@ function AuthPage() {
     setErr("");
     setLoading(true);
     try {
+      // No APK (WebView Capacitor) window.location.origin pode resolver
+      // pra um host estranho; força a URL pública para o broker conseguir
+      // voltar pro app sem travar.
+      const isNative =
+        typeof window !== "undefined" &&
+        /(capacitor|wv)/i.test(navigator.userAgent);
+      const origin = isNative
+        ? "https://language-bliss-61.lovable.app"
+        : window.location.origin;
       const result = await lovable.auth.signInWithOAuth("google", {
-        redirect_uri: `${window.location.origin}/app`,
+        redirect_uri: `${origin}/app`,
+        extraParams: { prompt: "select_account" },
       });
       if (result.error) {
         setErr(result.error.message ?? "Erro ao entrar com Google");
