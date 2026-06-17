@@ -208,6 +208,6 @@ function AuthPage() {
           ← Voltar para o site
         </Link>
       </div>
-    </div>
+    </main>
   );
 }
