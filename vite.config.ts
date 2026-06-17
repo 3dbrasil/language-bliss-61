@@ -12,4 +12,8 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
   },
+  nitro: {
+    // Enable Nitro for external deployments (like Vercel) and default to the Vercel preset.
+    preset: process.env.NITRO_PRESET || "vercel",
+  },
 });
