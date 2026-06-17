@@ -6,13 +6,14 @@ import {
   Check, Star, Waves, Zap, Brain, Trophy,
 } from "lucide-react";
 import heroImg from "@/assets/landing-hero.jpg";
+import logo from "@/assets/dialogoo-logo.png.asset.json";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Speak Native — Inglês de uma vez por todas" },
+      { title: "Dialogoo — Inglês de uma vez por todas" },
       { name: "description", content: "O laboratório de idiomas do futuro: domine inglês com diálogos reais, IA de pronúncia e progresso gamificado. Comece grátis." },
-      { property: "og:title", content: "Speak Native — Inglês fluente com diálogos reais" },
+      { property: "og:title", content: "Dialogoo — Inglês fluente com diálogos reais" },
       { property: "og:description", content: "Aprenda inglês como nativo. Diálogos profissionais, IA de pronúncia, do A1 ao C2." },
       { property: "og:image", content: heroImg },
       { property: "og:type", content: "website" },
@@ -33,7 +34,7 @@ const dialogues = [
 const testimonials = [
   { name: "Marina S.", role: "Product Designer", text: "Em 3 meses passei de gaguejar em reuniões para liderar apresentações em inglês. A IA de pronúncia mudou o jogo.", rating: 5 },
   { name: "Rafael T.", role: "Engenheiro Sênior", text: "Os diálogos são absurdamente realistas. Parece que estou conversando com um americano de verdade, não decorando frases.", rating: 5 },
-  { name: "Júlia M.", role: "Consultora", text: "Já tentei 4 apps diferentes. Speak Native é o único que me fez sentir que realmente aprendi a *conversar*.", rating: 5 },
+  { name: "Júlia M.", role: "Consultora", text: "Já tentei 4 apps diferentes. Dialogoo é o único que me fez sentir que realmente aprendi a *conversar*.", rating: 5 },
 ];
 
 function Landing() {
@@ -51,10 +52,8 @@ function Landing() {
       {/* Nav */}
       <header className="relative z-30 mx-auto max-w-7xl px-6 py-6 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#2A7FFF] to-[#00D4A0] shadow-[0_0_24px_rgba(42,127,255,0.5)] flex items-center justify-center">
-            <Waves className="w-4 h-4 text-white" strokeWidth={2.5} />
-          </div>
-          <span className="text-lg font-semibold tracking-tight">Speak Native</span>
+          <img src={logo.url} alt="Dialogoo" className="w-9 h-9 rounded-xl object-contain" />
+          <span className="text-lg font-semibold tracking-tight">Dialogoo</span>
         </div>
         <nav className="hidden md:flex items-center gap-8 text-sm text-slate-400">
           <a href="#features" className="hover:text-white transition-colors">Recursos</a>
@@ -125,7 +124,7 @@ function Landing() {
           <div className="relative rounded-3xl overflow-hidden border border-white/10 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.5)]">
             <img
               src={heroImg}
-              alt="App Speak Native mostrando diálogos com IA de pronúncia"
+              alt="App Dialogoo mostrando diálogos com IA de pronúncia"
               width={1536}
               height={1152}
               className="w-full h-auto"
@@ -344,7 +343,7 @@ function Landing() {
               className="group inline-flex items-center gap-2 px-8 py-4 rounded-full bg-white text-[#0A0F1A] text-sm font-semibold hover:scale-[1.03] active:scale-[0.98] transition-transform shadow-[0_20px_60px_-10px_rgba(255,255,255,0.4)]"
             >
               <Sparkles className="w-4 h-4" />
-              Entrar no Speak Native
+              Entrar no Dialogoo
               <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
             </Link>
           </div>
@@ -355,8 +354,8 @@ function Landing() {
       <footer className="relative z-10 border-t border-white/5">
         <div className="mx-auto max-w-7xl px-6 py-8 flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-slate-500">
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-[#2A7FFF] to-[#00D4A0]" />
-            <span>© 2026 Speak Native</span>
+            <img src={logo.url} alt="Dialogoo" className="w-6 h-6 rounded-md object-contain" />
+            <span>© 2026 Dialogoo</span>
           </div>
           <div className="flex items-center gap-6">
             <a href="#" className="hover:text-white transition-colors">Privacidade</a>

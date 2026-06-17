@@ -101,10 +101,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Speak Native — Inglês americano" },
+      { title: "Dialogoo — Inglês americano" },
       { name: "description", content: "Aprenda inglês americano com diálogos reais e prática de pronúncia." },
-      { property: "og:title", content: "Speak Native — Inglês americano" },
-      { name: "twitter:title", content: "Speak Native — Inglês americano" },
+      { property: "og:title", content: "Dialogoo — Inglês americano" },
+      { name: "twitter:title", content: "Dialogoo — Inglês americano" },
       { property: "og:description", content: "Aprenda inglês americano com diálogos reais e prática de pronúncia." },
       { name: "twitter:description", content: "Aprenda inglês americano com diálogos reais e prática de pronúncia." },
       { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/a51b5b96-d19b-4742-8f51-6b8962d86da7/id-preview-0d71e1d8--cc2ce60c-accb-461d-af8c-53ee6e3e11ee.lovable.app-1781570432795.png" },
@@ -113,6 +113,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:type", content: "website" },
     ],
     links: [
+      { rel: "icon", type: "image/png", href: "/__l5e/assets-v1/d8b936e0-4be4-4ae4-9140-29a722510457/dialogoo-logo.png" },
+      { rel: "apple-touch-icon", href: "/__l5e/assets-v1/d8b936e0-4be4-4ae4-9140-29a722510457/dialogoo-logo.png" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {
