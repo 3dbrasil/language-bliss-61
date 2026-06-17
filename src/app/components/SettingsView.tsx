@@ -25,10 +25,11 @@ async function extractPDF(file: File): Promise<string> {
   const lib = await loadPdfJs();
   const buf = await file.arrayBuffer();
   const pdf = await lib.getDocument({ data: new Uint8Array(buf) }).promise;
-  let text = '';
   const yTolerance = 3;
   const columnGap = 40;
-  for (let i = 1; i <= pdf.numPages; i++) {
+
+  const pages = await Promise.all(Array.from({ length: pdf.numPages }, async (_, pageIndex) => {
+    const i = pageIndex + 1;
     const page = await pdf.getPage(i);
     const content = await page.getTextContent();
     const rowMap = new Map<number, any[]>();
@@ -60,9 +61,10 @@ async function extractPDF(file: File): Promise<string> {
       return line.replace(/\s+\|\s+/g, ' | ').trim();
     }).filter(Boolean).join('\n');
 
-    text += pt.trim() + '\n\n';
-  }
-  return text.trim();
+    return pt.trim();
+  }));
+
+  return pages.filter(Boolean).join('\n\n').trim();
 }
 
 /* Detect Portuguese line (translation) vs English (original) */
