@@ -242,6 +242,7 @@ export default function SettingsView({ stats, dialogues, onImportDialogues, onDe
   const [dling, setDling] = useState(false);
   const [dlProg, setDlProg] = useState({ c: 0, t: 0, l: '' });
   const dialogueListRef = useRef<HTMLDivElement>(null);
+  const audioJobRef = useRef(0);
 
   useEffect(() => { setApi(getApiConfig()); }, []);
   const save = () => { saveApiConfig(api); setSaved(true); setTimeout(() => setSaved(false), 2000); };
@@ -345,6 +346,8 @@ export default function SettingsView({ stats, dialogues, onImportDialogues, onDe
   };
 
   const handleImport = async () => {
+    const audioJobId = ++audioJobRef.current;
+    let backgroundAudioStarted = false;
     setIsImporting(true);
     setImportStatus('idle');
     setImportMsg('');
@@ -367,25 +370,38 @@ export default function SettingsView({ stats, dialogues, onImportDialogues, onDe
       parsed = await fillMissingLineTranslations(parsed);
 
       // 2. Database saving
-      setImportMsg('⏳ Salvando diálogos e traduções na nuvem (Supabase)...');
+      setImportMsg('⏳ Salvando diálogos e traduções na nuvem...');
       await onImportDialogues(parsed);
 
       let audioSummary = '';
       // 3. Audio generation and upload
       if (pregenerateAudio) {
         if (!api.unrealSpeechApiKey) {
-          throw new Error('Chave do Unreal Speech não configurada! Por vigência, os diálogos e as traduções foram salvos, mas configure as Chaves nas Definições para pré-gerar os áudios.');
+          audioSummary = ' ⚠️ Áudios não iniciados: configure a chave Unreal Speech.';
+        } else {
+          saveApiConfig(api);
+          backgroundAudioStarted = true;
+          setPregenProg({ c: 0, t: 1, msg: 'Preparando fila de áudios...' });
+          void pregenerateAndUploadDialogueAudios(
+            parsed,
+            api.unrealSpeechVoice,
+            api.unrealSpeechApiKey,
+            (c, t, msg) => {
+              if (audioJobRef.current === audioJobId) setPregenProg({ c, t, msg });
+            }
+          ).then((res) => {
+            if (audioJobRef.current !== audioJobId) return;
+            setPregenProg(null);
+            setImportStatus('success');
+            setImportMsg(`✅ Áudios finalizados na nuvem: ${res.success} novos, ${res.skipped} já existiam, ${res.failed} falhas.`);
+          }).catch((err: any) => {
+            if (audioJobRef.current !== audioJobId) return;
+            setPregenProg(null);
+            setImportStatus('error');
+            setImportMsg(`⚠️ A aula foi salva, mas os áudios falharam: ${err.message}`);
+          });
+          audioSummary = ' 🎙️ Áudios iniciados em segundo plano com Unreal Speech; mantenha esta aba aberta até a barra terminar.';
         }
-        setImportMsg('⏳ Iniciando pré-geração de áudios...');
-        const res = await pregenerateAndUploadDialogueAudios(
-          parsed,
-          api.unrealSpeechVoice,
-          api.unrealSpeechApiKey,
-          (c, t, msg) => {
-            setPregenProg({ c, t, msg });
-          }
-        );
-        audioSummary = ` 🎙️ Áudios na nuvem: ${res.success} novos gerados, ${res.skipped} já existentes (pulados), ${res.failed} falhas.`;
       }
 
       setImportStatus('success');
@@ -397,7 +413,7 @@ export default function SettingsView({ stats, dialogues, onImportDialogues, onDe
       setImportMsg(`❌ ${e.message}`);
     } finally {
       setIsImporting(false);
-      setPregenProg(null);
+      if (!backgroundAudioStarted) setPregenProg(null);
     }
   };
 

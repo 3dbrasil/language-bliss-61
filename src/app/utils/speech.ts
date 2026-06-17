@@ -51,7 +51,7 @@ async function getOrGenerateAudio(text: string, voice: string, apiKey: string): 
   }
 
   if (!apiKey) throw new Error('Unreal Speech API key required');
-  const buffer = await unrealSpeechTTS(text);
+  const buffer = await unrealSpeechTTS(text, { apiKey, voice });
   audioCache.set(cacheKey, buffer);
   // Fire-and-forget upload so playback isn't delayed
   uploadToCloud(text, voice, buffer);
@@ -412,7 +412,7 @@ export async function pregenerateAndUploadDialogueAudios(
           skipped++;
         } else {
           if (!apiKey) throw new Error('Unreal Speech API key missing');
-          const buffer = await unrealSpeechTTS(line.text);
+          const buffer = await unrealSpeechTTS(line.text, { apiKey, voice });
           await uploadToCloud(line.text, voice, buffer);
           success++;
         }
