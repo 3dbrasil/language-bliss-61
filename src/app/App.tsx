@@ -99,22 +99,18 @@ function slimForStorage(dialogues: Dialogue[]): Dialogue[] {
 const LS_CUSTOM = 'speak_native_custom_dialogues_v2';
 const LS_DELETED = 'speak_native_deleted_dialogues_v2';
 
-function lsReadCustom(): Dialogue[] {
-  try { const c = localStorage.getItem(LS_CUSTOM); return c ? normalizeImportedDialogues(JSON.parse(c)) : []; } catch { return []; }
-}
-function lsReadDeleted(): string[] {
-  try { const d = localStorage.getItem(LS_DELETED); const p = d ? JSON.parse(d) : []; return Array.isArray(p) ? p : []; } catch { return []; }
-}
-function lsWriteCustom(custom: Dialogue[]): void {
-  try { localStorage.setItem(LS_CUSTOM, JSON.stringify(slimForStorage(custom))); }
-  catch { try { localStorage.setItem(LS_CUSTOM, JSON.stringify(custom.map(({ imageUrl: _i, ...r }) => r))); } catch (e) { console.error('LS quota', e); } }
-}
-function lsWriteDeleted(ids: string[]): void {
-  try { localStorage.setItem(LS_DELETED, JSON.stringify(ids)); } catch (e) { console.error('LS quota', e); }
+function LoadingPanel() {
+  return (
+    <div className="py-16 text-center text-sm text-slate-400 animate-pulse">
+      Carregando…
+    </div>
+  );
 }
 
-async function getUserId(): Promise<string | null> {
-  try { const { data } = await supabase.auth.getUser(); return data.user?.id ?? null; } catch { return null; }
+// Legacy localStorage cleanup (one-time; old shared-account remnants)
+function cleanupLegacyLocal(): void {
+  try { localStorage.removeItem('speak_native_custom_dialogues_v2'); } catch {}
+  try { localStorage.removeItem(LS_DELETED); } catch {}
 }
 
 
