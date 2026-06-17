@@ -10,9 +10,9 @@ import heroImg from "@/assets/landing-hero.jpg";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Speak Native — Inglês de uma vez por todas" },
+      { title: "Dialogoo — Inglês de uma vez por todas" },
       { name: "description", content: "O laboratório de idiomas do futuro: domine inglês com diálogos reais, IA de pronúncia e progresso gamificado. Comece grátis." },
-      { property: "og:title", content: "Speak Native — Inglês fluente com diálogos reais" },
+      { property: "og:title", content: "Dialogoo — Inglês fluente com diálogos reais" },
       { property: "og:description", content: "Aprenda inglês como nativo. Diálogos profissionais, IA de pronúncia, do A1 ao C2." },
       { property: "og:image", content: heroImg },
       { property: "og:type", content: "website" },
