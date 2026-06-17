@@ -27,7 +27,8 @@ async function listExistingCloudPaths(voice: string): Promise<{ paths: Set<strin
         limit: pageSize,
         offset,
       });
-      if (error || !data?.length) break;
+      if (error) return { paths: existing, checked: false };
+      if (!data?.length) break;
       data.forEach((file) => {
         if (file.name) existing.add(`${voice}/${file.name}`);
       });
