@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import App from "@/app/App";
 
-export const Route = createFileRoute("/app")({
+export const Route = createFileRoute("/_authenticated/app")({
   head: () => ({
     meta: [
       { title: "Speak Native — Praticar" },
