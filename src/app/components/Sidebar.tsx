@@ -30,8 +30,8 @@ export default function Sidebar({ stats, activeTab, setActiveTab }: SidebarProps
           className="text-[22px] font-semibold tracking-tight text-white flex items-center gap-3"
           style={{ fontFamily: "'Playfair Display', serif" }}
         >
-          <span className="w-8 h-8 rounded-full bg-gradient-to-tr from-cyan-500 to-teal-400 shadow-[0_0_20px_rgba(6,182,212,0.45)]" />
-          Speak Native
+          <img src={logo.url} alt="Dialogoo" className="w-8 h-8 rounded-lg object-contain" />
+          Dialogoo
         </h1>
         <p className="text-[10px] uppercase tracking-[0.22em] text-cyan-500/70 font-medium mt-2 ml-11">
           Ocean Premium
