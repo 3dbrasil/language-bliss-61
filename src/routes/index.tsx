@@ -124,7 +124,7 @@ function Landing() {
           <div className="relative rounded-3xl overflow-hidden border border-white/10 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.5)]">
             <img
               src={heroImg}
-              alt="App Speak Native mostrando diálogos com IA de pronúncia"
+              alt="App Dialogoo mostrando diálogos com IA de pronúncia"
               width={1536}
               height={1152}
               className="w-full h-auto"
