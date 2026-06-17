@@ -9,8 +9,8 @@ const config: CapacitorConfig = {
     // O APK funciona como wrapper do site publicado no Lovable.
     url: 'https://language-bliss-61.lovable.app',
     cleartext: true,
-    // Permite que o WebView navegue para os domínios do broker OAuth
-    // (Google + Lovable) e volte para o app sem travar.
+    // Permite que o WebView navegue pelos domínios do broker OAuth
+    // (Google + Lovable) e volte para o app sem travar na tela de "Allow".
     allowNavigation: [
       'language-bliss-61.lovable.app',
       '*.lovable.app',
@@ -18,8 +18,8 @@ const config: CapacitorConfig = {
       'accounts.google.com',
       '*.google.com',
       '*.googleusercontent.com',
-ూ      '*.supabase.co',
-    ].filter((h) => !h.includes('ూ')),
+      '*.supabase.co',
+    ],
   },
   android: {
     allowMixedContent: true,
