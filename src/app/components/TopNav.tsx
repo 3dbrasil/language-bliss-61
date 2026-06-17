@@ -1,6 +1,6 @@
 import { Map, Sparkles, Settings, Brain, Flame, Zap, LogIn, LogOut } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { Link } from '@tanstack/react-router';
+import { Link, useNavigate } from '@tanstack/react-router';
 import { supabase } from '@/integrations/supabase/client';
 import { UserStats } from '../types';
 
@@ -11,6 +11,7 @@ interface Props {
 }
 
 export default function TopNav({ stats, activeTab, setActiveTab }: Props) {
+  const navigate = useNavigate();
   const lvl = Math.floor(stats.xp / 100) + 1;
   const [email, setEmail] = useState<string | null>(null);
 
@@ -77,7 +78,7 @@ export default function TopNav({ stats, activeTab, setActiveTab }: Props) {
           </span>
           {email ? (
             <button
-              onClick={async () => { await supabase.auth.signOut(); }}
+              onClick={async () => { await supabase.auth.signOut(); navigate({ to: '/auth', replace: true }); }}
               title={`Sair (${email})`}
               className="flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.03] border border-white/5 text-slate-300 hover:text-white hover:bg-white/[0.06]"
             >
