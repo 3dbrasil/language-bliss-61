@@ -4,7 +4,7 @@ import { Dialogue, UserStats, Badge } from '../types';
 import { getApiConfig, saveApiConfig, ApiConfig } from '../utils/apiConfig';
 import { generateAllAudios, pregenerateAndUploadDialogueAudios } from '../utils/speech';
 import { findCoverImage } from '../utils/imageSearch';
-import { fillMissingLineTranslations } from '../utils/translations';
+import { fillMissingLineTranslations, hasMissingTranslations } from '../utils/translations';
 
 interface Props { stats: UserStats; dialogues: Dialogue[]; onImportDialogues: (d: Dialogue[]) => void; onDeleteDialogue: (id: string) => void; onResetProgress: () => void; isAdmin?: boolean; }
 
@@ -291,7 +291,7 @@ export default function SettingsView({ stats, dialogues, onImportDialogues, onDe
           const parsed = JSON.parse(txt);
           if (Array.isArray(parsed)) {
             if (uploadLevel !== 'auto') parsed.forEach((d: any) => { d.level = uploadLevel; });
-            all.push(...await fillMissingLineTranslations(parsed));
+            all.push(...parsed);
           }
           continue;
         }
@@ -303,7 +303,7 @@ export default function SettingsView({ stats, dialogues, onImportDialogues, onDe
             d.id = `pdf-${Date.now()}-${i}-${k}`;
             if (uploadLevel !== 'auto') d.level = uploadLevel;
           });
-          all.push(...await fillMissingLineTranslations(parsed));
+          all.push(...parsed);
         } else {
           errors.push(`${file.name}: nenhum diálogo extraído`);
         }
@@ -365,9 +365,11 @@ export default function SettingsView({ stats, dialogues, onImportDialogues, onDe
         if (!d.situation) d.situation = `${d.lines.length} falas`; 
       });
 
-      // 1. Translation
-      setImportMsg('⏳ Traduzindo falas novas via Gemini...');
-      parsed = await fillMissingLineTranslations(parsed);
+      // 1. Translation — only call AI when the PDF/JSON did not bring translations.
+      if (hasMissingTranslations(parsed)) {
+        setImportMsg('⏳ Traduzindo falas sem português via Gemini...');
+        parsed = await fillMissingLineTranslations(parsed);
+      }
 
       // 2. Database saving
       setImportMsg('⏳ Salvando diálogos e traduções na nuvem...');
