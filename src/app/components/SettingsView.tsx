@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Download, Upload, Trash2, CheckCircle, AlertTriangle, Key, Volume2, Brain, Cloud, Loader2, ExternalLink, Eye, EyeOff, FileText, Sparkles } from 'lucide-react';
 import { Dialogue, UserStats, Badge } from '../types';
 import { getApiConfig, saveApiConfig, ApiConfig } from '../utils/apiConfig';
-import { generateAllAudios, pregenerateAndUploadDialogueAudios } from '../utils/speech';
+import { generateAllAudios, prepareDialogueAudioCache } from '../utils/speech';
 import { findCoverImage } from '../utils/imageSearch';
 import { fillMissingLineTranslations, hasMissingTranslations } from '../utils/translations';
 
@@ -388,19 +388,18 @@ export default function SettingsView({ stats, dialogues, onImportDialogues, onDe
       }
 
       let audioSummary = '';
-      // 3. Audio generation and upload — background only
+      // 3. Audio cache check — do not generate hundreds of MP3s during PDF import.
       if (pregenerateAudio) {
         if (!api.unrealSpeechApiKey) {
-          audioSummary = ' ⚠️ Áudios não iniciados: configure a chave Unreal Speech.';
+          audioSummary = ' ⚠️ Unreal Speech sem chave; os áudios usarão o fallback do aparelho.';
         } else {
           saveApiConfig(api);
           backgroundAudioStarted = true;
-          setPregenProg({ c: 0, t: 1, msg: 'Preparando fila de áudios...' });
+          setPregenProg({ c: 0, t: 1, msg: 'Conferindo áudios que já estão na nuvem...' });
           setTimeout(() => {
-            void pregenerateAndUploadDialogueAudios(
+            void prepareDialogueAudioCache(
               savedParsed,
               api.unrealSpeechVoice,
-              api.unrealSpeechApiKey,
               (c, t, msg) => {
                 if (audioJobRef.current === audioJobId) setPregenProg({ c, t, msg });
               }
@@ -408,15 +407,15 @@ export default function SettingsView({ stats, dialogues, onImportDialogues, onDe
               if (audioJobRef.current !== audioJobId) return;
               setPregenProg(null);
               setImportStatus('success');
-              setImportMsg(`✅ Áudios finalizados na nuvem: ${res.success} novos, ${res.skipped} já existiam, ${res.failed} falhas.`);
+              setImportMsg(`✅ Aulas prontas: ${res.available} áudios já estão na nuvem. Os ${res.missing} restantes serão criados automaticamente pelo Unreal ao abrir/ouvir cada aula.`);
             }).catch((err: any) => {
               if (audioJobRef.current !== audioJobId) return;
               setPregenProg(null);
-              setImportStatus('error');
-              setImportMsg(`⚠️ A aula foi salva, mas os áudios falharam: ${err.message}`);
+              setImportStatus('success');
+              setImportMsg(`✅ Aulas importadas. A checagem de áudio ficou para a reprodução automática: ${err.message}`);
             });
           }, 800);
-          audioSummary = ' 🎙️ Áudios iniciados em segundo plano com Unreal Speech.';
+          audioSummary = ' 🎙️ Unreal preparado: áudio é criado automaticamente quando a aula for ouvida.';
         }
       }
 
