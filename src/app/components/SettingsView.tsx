@@ -372,7 +372,7 @@ export default function SettingsView({ stats, dialogues, onImportDialogues, onDe
       const savedParsed = parsed;
 
       setImportMsg('⏳ Salvando aulas na nuvem...');
-      void Promise.resolve(onImportDialogues(savedParsed)).catch((err) => console.warn('Background lesson save failed', err));
+      void Promise.resolve().then(() => onImportDialogues(savedParsed)).catch((err) => console.warn('Background lesson save failed', err));
 
       setImportStatus('success');
       setImportMsg(`✅ ${savedParsed.length} aula(s) importada(s) na nuvem!${needsTranslation ? ' Traduções faltantes serão completadas em segundo plano.' : ''}`);
