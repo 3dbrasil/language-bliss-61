@@ -6,7 +6,7 @@ import { generateAllAudios, pregenerateAndUploadDialogueAudios } from '../utils/
 import { findCoverImage } from '../utils/imageSearch';
 import { fillMissingLineTranslations, hasMissingTranslations } from '../utils/translations';
 
-interface Props { stats: UserStats; dialogues: Dialogue[]; onImportDialogues: (d: Dialogue[]) => void; onDeleteDialogue: (id: string) => void; onResetProgress: () => void; isAdmin?: boolean; }
+interface Props { stats: UserStats; dialogues: Dialogue[]; onImportDialogues: (d: Dialogue[]) => void | Promise<void>; onDeleteDialogue: (id: string) => void; onResetProgress: () => void; isAdmin?: boolean; }
 
 // PDF extraction
 function loadPdfJs(): Promise<any> {
@@ -370,7 +370,7 @@ export default function SettingsView({ stats, dialogues, onImportDialogues, onDe
       const savedParsed = parsed;
 
       setImportMsg('⏳ Salvando aulas na nuvem...');
-      await onImportDialogues(savedParsed);
+      void Promise.resolve(onImportDialogues(savedParsed)).catch((err) => console.warn('Background lesson save failed', err));
 
       setImportStatus('success');
       setImportMsg(`✅ ${savedParsed.length} aula(s) importada(s) na nuvem!${needsTranslation ? ' Traduções faltantes serão completadas em segundo plano.' : ''}`);
@@ -394,24 +394,26 @@ export default function SettingsView({ stats, dialogues, onImportDialogues, onDe
           saveApiConfig(api);
           backgroundAudioStarted = true;
           setPregenProg({ c: 0, t: 1, msg: 'Preparando fila de áudios...' });
-          void pregenerateAndUploadDialogueAudios(
-            savedParsed,
-            api.unrealSpeechVoice,
-            api.unrealSpeechApiKey,
-            (c, t, msg) => {
-              if (audioJobRef.current === audioJobId) setPregenProg({ c, t, msg });
-            }
-          ).then((res) => {
-            if (audioJobRef.current !== audioJobId) return;
-            setPregenProg(null);
-            setImportStatus('success');
-            setImportMsg(`✅ Áudios finalizados na nuvem: ${res.success} novos, ${res.skipped} já existiam, ${res.failed} falhas.`);
-          }).catch((err: any) => {
-            if (audioJobRef.current !== audioJobId) return;
-            setPregenProg(null);
-            setImportStatus('error');
-            setImportMsg(`⚠️ A aula foi salva, mas os áudios falharam: ${err.message}`);
-          });
+          setTimeout(() => {
+            void pregenerateAndUploadDialogueAudios(
+              savedParsed,
+              api.unrealSpeechVoice,
+              api.unrealSpeechApiKey,
+              (c, t, msg) => {
+                if (audioJobRef.current === audioJobId) setPregenProg({ c, t, msg });
+              }
+            ).then((res) => {
+              if (audioJobRef.current !== audioJobId) return;
+              setPregenProg(null);
+              setImportStatus('success');
+              setImportMsg(`✅ Áudios finalizados na nuvem: ${res.success} novos, ${res.skipped} já existiam, ${res.failed} falhas.`);
+            }).catch((err: any) => {
+              if (audioJobRef.current !== audioJobId) return;
+              setPregenProg(null);
+              setImportStatus('error');
+              setImportMsg(`⚠️ A aula foi salva, mas os áudios falharam: ${err.message}`);
+            });
+          }, 800);
           audioSummary = ' 🎙️ Áudios iniciados em segundo plano com Unreal Speech.';
         }
       }
