@@ -273,10 +273,10 @@ export default function App() {
     }
   };
 
-  const handleImport = (imported: Dialogue[]) => {
+  const handleImport = async (imported: Dialogue[]) => {
     if (!isAdmin || !userId) {
       console.warn('Only the admin can import dialogues');
-      return;
+      throw new Error('Entre como admin conectado para salvar aulas na nuvem.');
     }
     const normalized = normalizeImportedDialogues(imported);
     setDialogues((current) => {
@@ -295,15 +295,14 @@ export default function App() {
       return updatedDialogues;
     });
 
-    Promise.resolve().then(async () => {
-      const { error } = await supabase.from('user_custom_dialogues').upsert(
-        normalized.map(d => ({ user_id: userId, dialogue_id: d.id, data: d as never })),
-        { onConflict: 'user_id,dialogue_id' },
-      );
-      if (error) console.error('Failed to save dialogues to cloud', error);
-    }).catch((e) => {
-      console.warn('Database connection / bypass error on dialogue upload', e);
-    });
+    const { error } = await supabase.from('user_custom_dialogues').upsert(
+      normalized.map(d => ({ user_id: userId, dialogue_id: d.id, data: d as never })),
+      { onConflict: 'user_id,dialogue_id' },
+    );
+    if (error) {
+      console.error('Failed to save dialogues to cloud', error);
+      throw new Error(`Não consegui salvar as aulas na nuvem: ${error.message}`);
+    }
   };
 
 
