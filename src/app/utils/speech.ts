@@ -93,15 +93,30 @@ export async function speakAmericanEnglish(text: string, voiceName?: string, rat
   }
   const config = getApiConfig();
 
-  if (config.ttsProvider === 'unreal') {
+  // Always try cloud first — áudios pré-gerados pelo Unreal ficam disponíveis
+  // independente do ttsProvider escolhido pelo aluno.
+  try {
+    const cacheKey = `${speechText}_${config.unrealSpeechVoice}`;
+    let buffer = audioCache.get(cacheKey) || null;
+    if (!buffer) buffer = await downloadFromCloud(speechText, config.unrealSpeechVoice);
+    if (buffer) {
+      audioCache.set(cacheKey, buffer);
+      const pbRate = rate / 0.85;
+      await playAudioBuffer(buffer.slice(0), pbRate);
+      return;
+    }
+  } catch (e) {
+    console.warn('Cloud audio fetch failed:', e);
+  }
+
+  if (config.ttsProvider === 'unreal' && config.unrealSpeechApiKey) {
     try {
       const buffer = await getOrGenerateAudio(speechText, config.unrealSpeechVoice, config.unrealSpeechApiKey);
       const pbRate = rate / 0.85;
       await playAudioBuffer(buffer.slice(0), pbRate);
       return;
     } catch (e) {
-      console.warn('Unreal/cloud audio failed, falling back to browser TTS:', e);
-      // Fall through to browser TTS
+      console.warn('Unreal audio failed, falling back to browser TTS:', e);
     }
   }
 
@@ -385,32 +400,33 @@ export async function pregenerateAndUploadDialogueAudios(
   });
 
   const total = allLines.length;
-  for (let i = 0; i < total; i++) {
-    const line = allLines[i];
-    onProgress(i + 1, total, `Pré-gerando áudio: "${line.text.substring(0, 30)}..."`);
-    try {
-      // 1. Try to download first to check if cache already has it
-      const fromCloud = await downloadFromCloud(line.text, voice);
-      if (fromCloud) {
-        skipped++;
-        continue;
-      }
-      
-      // 2. Generate if not present
-      if (!apiKey) throw new Error('Unreal Speech API key missing');
-      const buffer = await unrealSpeechTTS(line.text);
-      
-      // 3. Upload to cloud (non-blocking in standard usage, but block here to guarantee it gets saved before continuing)
-      await uploadToCloud(line.text, voice, buffer);
-      success++;
+  let done = 0;
+  const CONCURRENCY = 5;
 
-      // Small delay to prevent hitting rate limits aggressively
-      await new Promise(r => setTimeout(r, 200));
-    } catch (e) {
-      console.warn(`Failed to generate/upload audio for text: "${line.text}"`, e);
-      failed++;
+  const worker = async (startIdx: number) => {
+    for (let i = startIdx; i < total; i += CONCURRENCY) {
+      const line = allLines[i];
+      try {
+        const fromCloud = await downloadFromCloud(line.text, voice);
+        if (fromCloud) {
+          skipped++;
+        } else {
+          if (!apiKey) throw new Error('Unreal Speech API key missing');
+          const buffer = await unrealSpeechTTS(line.text);
+          await uploadToCloud(line.text, voice, buffer);
+          success++;
+        }
+      } catch (e) {
+        console.warn(`Failed audio: "${line.text}"`, e);
+        failed++;
+      } finally {
+        done++;
+        onProgress(done, total, `Áudio ${done}/${total}: "${line.text.substring(0, 30)}..."`);
+      }
     }
-  }
+  };
+
+  await Promise.all(Array.from({ length: Math.min(CONCURRENCY, total) }, (_, k) => worker(k)));
   
   return { success, failed, skipped };
 }
