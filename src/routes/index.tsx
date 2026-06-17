@@ -6,6 +6,7 @@ import {
   Check, Star, Waves, Zap, Brain, Trophy,
 } from "lucide-react";
 import heroImg from "@/assets/landing-hero.jpg";
+import logo from "@/assets/dialogoo-logo.png.asset.json";
 
 export const Route = createFileRoute("/")({
   head: () => ({
