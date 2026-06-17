@@ -354,8 +354,8 @@ function Landing() {
       <footer className="relative z-10 border-t border-white/5">
         <div className="mx-auto max-w-7xl px-6 py-8 flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-slate-500">
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-[#2A7FFF] to-[#00D4A0]" />
-            <span>© 2026 Speak Native</span>
+            <img src={logo.url} alt="Dialogoo" className="w-6 h-6 rounded-md object-contain" />
+            <span>© 2026 Dialogoo</span>
           </div>
           <div className="flex items-center gap-6">
             <a href="#" className="hover:text-white transition-colors">Privacidade</a>
