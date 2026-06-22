@@ -212,6 +212,9 @@ export default function DialoguePractice({ dialogue, stats: _s, cumulativePhrase
           PT oculto
         </button>
         <button onClick={() => setVocab(!vocab)} className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold transition ${vocab ? 'bg-[#00D4A0] text-slate-950' : 'bg-slate-900 text-slate-300 border border-slate-800'}`}><BookOpen className="w-3 h-3" />Vocab</button>
+        <button onClick={copyEnglish} title="Copiar todas as frases em inglês" className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold transition ${copied ? 'bg-emerald-500 text-white' : 'bg-slate-900 text-slate-300 border border-slate-800 hover:border-[#2A7FFF]/40'}`}>
+          {copied ? <><Check className="w-3 h-3" />Copiado!</> : <><Copy className="w-3 h-3" />Copiar EN</>}
+        </button>
       </div>
 
       {/* Floating background words */}
