@@ -15,6 +15,63 @@ interface Props {
 const SILENT_MP3 =
   "data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQwAAAAAAAAAAAAAAAAAAAAAAASW5mbwAAAA8AAAACAAACVAA8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PP////8AAAA5TEFNRTMuMTAwAaUAAAAAAAAAABQgJAUHQQAB4AAAAlSDpf//AAAAAAAAAAAAAAAAAAAA";
 
+type BrowserSpeechRecognitionResultEvent = Event & {
+  results?: ArrayLike<{ 0?: { transcript?: string } }>;
+};
+
+type BrowserSpeechRecognition = {
+  lang: string;
+  interimResults: boolean;
+  continuous: boolean;
+  maxAlternatives: number;
+  onresult: ((event: BrowserSpeechRecognitionResultEvent) => void) | null;
+  onerror: ((event: Event & { error?: string }) => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+  abort?: () => void;
+};
+
+type BrowserSpeechRecognitionConstructor = new () => BrowserSpeechRecognition;
+
+function getBrowserSpeechRecognition() {
+  if (typeof window === "undefined") return null;
+  const win = window as typeof window & {
+    SpeechRecognition?: BrowserSpeechRecognitionConstructor;
+    webkitSpeechRecognition?: BrowserSpeechRecognitionConstructor;
+  };
+  return win.SpeechRecognition || win.webkitSpeechRecognition || null;
+}
+
+function speakWithBrowserEnglish(text: string) {
+  return new Promise<boolean>((resolve) => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) {
+      resolve(false);
+      return;
+    }
+
+    const start = () => {
+      const utterance = new SpeechSynthesisUtterance(text);
+      const voices = window.speechSynthesis.getVoices();
+      utterance.voice = voices.find((voice) => voice.lang === "en-US") || voices.find((voice) => voice.lang.startsWith("en")) || null;
+      utterance.lang = utterance.voice?.lang || "en-US";
+      utterance.rate = 0.9;
+      utterance.onend = () => resolve(true);
+      utterance.onerror = () => resolve(false);
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(utterance);
+    };
+
+    if (window.speechSynthesis.getVoices().length) {
+      start();
+      return;
+    }
+
+    window.speechSynthesis.onvoiceschanged = start;
+    setTimeout(start, 800);
+  });
+}
+
 export default function AriaChat({ dialogue, cumulativePhrases, onClose }: Props) {
   const [input, setInput] = useState("");
   const [recording, setRecording] = useState(false);
@@ -25,6 +82,7 @@ export default function AriaChat({ dialogue, cumulativePhrases, onClose }: Props
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
+  const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioUrlRef = useRef<string | null>(null);
@@ -93,7 +151,13 @@ export default function AriaChat({ dialogue, cumulativePhrases, onClose }: Props
           body: JSON.stringify({ text }),
         });
         if (!res.ok) {
-          setAudioError(`Falha no áudio (${res.status}).`);
+          const data = await res.json().catch(() => null) as { error?: string; message?: string } | null;
+          const usedBrowserVoice = await speakWithBrowserEnglish(text);
+          setAudioError(
+            usedBrowserVoice
+              ? `${data?.error === "AI_CREDITS_EXHAUSTED" ? "Créditos de IA esgotados" : `Falha no áudio online (${res.status})`}. Usei a voz do navegador.`
+              : `${data?.message || `Falha no áudio (${res.status})`}. Voz do navegador indisponível.`,
+          );
           return;
         }
         const blob = await res.blob();
@@ -112,7 +176,8 @@ export default function AriaChat({ dialogue, cumulativePhrases, onClose }: Props
         }
       } catch (e) {
         console.error("tts error", e);
-        setAudioError("Não consegui gerar o áudio agora.");
+        const usedBrowserVoice = await speakWithBrowserEnglish(text);
+        setAudioError(usedBrowserVoice ? "Falha no áudio online. Usei a voz do navegador." : "Não consegui gerar o áudio agora.");
       }
     })();
   }, [messages, status, speakOn]);
