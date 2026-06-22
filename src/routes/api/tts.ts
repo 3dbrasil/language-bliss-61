@@ -15,7 +15,8 @@ export const Route = createFileRoute("/api/tts")({
           const upstream = await fetch("https://ai.gateway.lovable.dev/v1/audio/speech", {
             method: "POST",
             headers: {
-              Authorization: `Bearer ${key}`,
+              "Lovable-API-Key": key,
+              "X-Lovable-AIG-SDK": "vercel-ai-sdk",
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
@@ -29,7 +30,15 @@ export const Route = createFileRoute("/api/tts")({
           if (!upstream.ok) {
             const msg = await upstream.text().catch(() => "");
             console.error("[tts] upstream", upstream.status, msg);
-            return new Response("TTS failed", { status: upstream.status });
+            return Response.json(
+              {
+                error: upstream.status === 402 ? "AI_CREDITS_EXHAUSTED" : "TTS_FAILED",
+                message: upstream.status === 402
+                  ? "Créditos de IA esgotados para gerar áudio."
+                  : "Não foi possível gerar o áudio online.",
+              },
+              { status: upstream.status },
+            );
           }
 
           return new Response(upstream.body, {
