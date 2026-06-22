@@ -31,14 +31,25 @@ export const Route = createFileRoute("/api/stt")({
 
           const res = await fetch("https://ai.gateway.lovable.dev/v1/audio/transcriptions", {
             method: "POST",
-            headers: { Authorization: `Bearer ${key}` },
+            headers: {
+              "Lovable-API-Key": key,
+              "X-Lovable-AIG-SDK": "vercel-ai-sdk",
+            },
             body: upstream,
           });
 
           if (!res.ok) {
             const msg = await res.text().catch(() => "");
             console.error("[stt] upstream", res.status, msg);
-            return new Response("Transcription failed", { status: res.status });
+            return Response.json(
+              {
+                error: res.status === 402 ? "AI_CREDITS_EXHAUSTED" : "TRANSCRIPTION_FAILED",
+                message: res.status === 402
+                  ? "Créditos de IA esgotados para transcrever o microfone."
+                  : "Não foi possível transcrever o áudio online.",
+              },
+              { status: res.status },
+            );
           }
 
           const data = (await res.json()) as { text?: string };
