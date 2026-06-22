@@ -242,10 +242,16 @@ export default function AriaChat({ dialogue, cumulativePhrases, onClose }: Props
       recorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
       recorder.onstop = async () => {
         recognitionRef.current?.stop();
+        await new Promise((resolve) => setTimeout(resolve, 250));
         stream.getTracks().forEach((t) => t.stop());
         setRecording(false);
+        const browserTranscript = browserTranscriptRef.current.trim();
         const blob = new Blob(chunksRef.current, { type: recorder.mimeType });
         if (blob.size < 1024) {
+          if (browserTranscript) {
+            await sendMessage({ text: browserTranscript });
+            return;
+          }
           setMicError("Gravação muito curta — segure por mais tempo.");
           return;
         }
@@ -260,11 +266,25 @@ export default function AriaChat({ dialogue, cumulativePhrases, onClose }: Props
             if (t) {
               setInput("");
               await sendMessage({ text: t });
+            } else if (browserTranscript) {
+              setInput("");
+              await sendMessage({ text: browserTranscript });
             } else {
               setMicError("Não entendi o áudio. Tente novamente.");
             }
           } else {
-            setMicError(`Falha na transcrição (${res.status}).`);
+            const data = await res.json().catch(() => null) as { error?: string; message?: string } | null;
+            if (browserTranscript) {
+              setInput("");
+              await sendMessage({ text: browserTranscript });
+              setMicError(
+                data?.error === "AI_CREDITS_EXHAUSTED"
+                  ? "Créditos de IA esgotados para transcrição online. Usei o reconhecimento do navegador."
+                  : "Transcrição online falhou. Usei o reconhecimento do navegador.",
+              );
+            } else {
+              setMicError(data?.message || `Falha na transcrição (${res.status}).`);
+            }
           }
         } catch (e) {
           console.error("stt error", e);
