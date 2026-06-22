@@ -124,6 +124,7 @@ export default function AriaChat({ dialogue, cumulativePhrases, onClose }: Props
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioUrlRef = useRef<string | null>(null);
   const spokenRef = useRef<Set<string>>(new Set());
+  const micModeRef = useRef<MicMode>("none");
 
   // Create a single <audio> element and "unlock" it inside a user gesture.
   // After this, .play() can be called later (after async fetch) without
