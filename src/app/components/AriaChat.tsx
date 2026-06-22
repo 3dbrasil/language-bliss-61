@@ -83,6 +83,7 @@ export default function AriaChat({ dialogue, cumulativePhrases, onClose }: Props
   const inputRef = useRef<HTMLInputElement>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
+  const browserTranscriptRef = useRef("");
   const chunksRef = useRef<Blob[]>([]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioUrlRef = useRef<string | null>(null);
@@ -187,6 +188,7 @@ export default function AriaChat({ dialogue, cumulativePhrases, onClose }: Props
       audioRef.current?.pause();
       if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
       recorderRef.current?.stream.getTracks().forEach((t) => t.stop());
+      recognitionRef.current?.abort?.();
     };
   }, []);
 
@@ -202,6 +204,7 @@ export default function AriaChat({ dialogue, cumulativePhrases, onClose }: Props
   const toggleMic = useCallback(async () => {
     if (recording) {
       recorderRef.current?.stop();
+      recognitionRef.current?.stop();
       return;
     }
     setMicError(null);
