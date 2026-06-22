@@ -16,7 +16,7 @@ export default function AriaChat({ dialogue, cumulativePhrases, onClose }: Props
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const { messages, sendMessage, status } = useChat({
+  const { messages, sendMessage, status, error } = useChat({
     id: `lesson-${dialogue.id}`,
     transport: new DefaultChatTransport({
       api: "/api/chat",
