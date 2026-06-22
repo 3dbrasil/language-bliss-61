@@ -219,8 +219,29 @@ export default function AriaChat({ dialogue, cumulativePhrases, onClose }: Props
       const recorder = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
       recorderRef.current = recorder;
       chunksRef.current = [];
+      browserTranscriptRef.current = "";
+      const Recognition = getBrowserSpeechRecognition();
+      if (Recognition) {
+        const recognition = new Recognition();
+        recognition.lang = "en-US";
+        recognition.interimResults = false;
+        recognition.continuous = true;
+        recognition.maxAlternatives = 1;
+        recognition.onresult = (event) => {
+          const transcript = Array.from(event.results || [])
+            .map((result) => result[0]?.transcript || "")
+            .join(" ")
+            .trim();
+          if (transcript) browserTranscriptRef.current = transcript;
+        };
+        recognition.onerror = () => { recognitionRef.current = null; };
+        recognition.onend = () => { recognitionRef.current = null; };
+        recognitionRef.current = recognition;
+        try { recognition.start(); } catch { recognitionRef.current = null; }
+      }
       recorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
       recorder.onstop = async () => {
+        recognitionRef.current?.stop();
         stream.getTracks().forEach((t) => t.stop());
         setRecording(false);
         const blob = new Blob(chunksRef.current, { type: recorder.mimeType });
