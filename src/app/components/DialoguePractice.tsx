@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { ArrowLeft, Volume2, BookOpen, Award, Sparkles, CheckCircle2, Play } from 'lucide-react';
 import { Dialogue, DialogueLine, PronunciationFeedback, UserStats } from '../types';
 import { speakAmericanEnglish } from '../utils/speech';
@@ -7,9 +7,15 @@ import { classifyDifficulty, getState, markLearned, setLevel, speakerAvatar, typ
 import AriaChat from './AriaChat';
 import { translateLessonLines } from '@/lib/translations.functions';
 
-interface Props { dialogue: Dialogue; stats: UserStats; onBack: () => void; onComplete: (xp: number, scores: Record<string, number>) => void; }
+interface Props {
+  dialogue: Dialogue;
+  stats: UserStats;
+  cumulativePhrases?: { text: string; translation?: string; lesson?: string }[];
+  onBack: () => void;
+  onComplete: (xp: number, scores: Record<string, number>) => void;
+}
 
-export default function DialoguePractice({ dialogue, stats: _s, onBack, onComplete }: Props) {
+export default function DialoguePractice({ dialogue, stats: _s, cumulativePhrases = [], onBack, onComplete }: Props) {
   const [speakingId, setSpeakingId] = useState<string | null>(null);
   const [fbs] = useState<Record<string, PronunciationFeedback>>({});
   const [listened, setListened] = useState<string[]>([]);
@@ -80,35 +86,22 @@ export default function DialoguePractice({ dialogue, stats: _s, onBack, onComple
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoplay]);
 
-  // Run translation fetch ONCE per dialogue.id — depending on generatedTranslations
-  // re-triggered the effect after every setState (re-render loop). Use a ref to track
-  // which dialogue we already translated.
-  const translatedForRef = useRef<string | null>(null);
-  useEffect(() => {
-    if (translatedForRef.current === dialogue.id) return;
-    const missing = dialogue.lines
-      .filter((line) => missingTranslation(line.translation))
-      .map((line) => ({ id: line.id, text: line.text }));
-    if (!missing.length) {
-      translatedForRef.current = dialogue.id;
-      return;
-    }
-    let cancelled = false;
-    translatedForRef.current = dialogue.id;
-    (async () => {
-      try {
-        const translated = await translateLessonLines({ data: { lines: missing.slice(0, 40) } });
-        if (!cancelled && Object.keys(translated).length) {
-          setGeneratedTranslations((current) => ({ ...current, ...translated }));
-        }
-      } catch (error) {
-        console.warn('lesson translation failed', error);
+  // Translate ONLY the line the user clicked on (on demand) — not the whole lesson.
+  const [translatingId, setTranslatingId] = useState<string | null>(null);
+  const translateOne = useCallback(async (line: DialogueLine) => {
+    if (generatedTranslations[line.id] || translatingId) return;
+    setTranslatingId(line.id);
+    try {
+      const out = await translateLessonLines({ data: { lines: [{ id: line.id, text: line.text }] } });
+      if (out[line.id]) {
+        setGeneratedTranslations((current) => ({ ...current, [line.id]: out[line.id] }));
       }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [dialogue.id, dialogue.lines, missingTranslation]);
+    } catch (error) {
+      console.warn('translation failed', error);
+    } finally {
+      setTranslatingId(null);
+    }
+  }, [generatedTranslations, translatingId]);
 
   const finish = () => {
     setCelebrate(true);
@@ -267,8 +260,18 @@ export default function DialoguePractice({ dialogue, stats: _s, onBack, onComple
                   <p className={`text-[15px] font-bold leading-relaxed tracking-wide ${stu ? 'text-white' : 'text-white'}`}>
                     {l.text}
                   </p>
-                  <p onClick={() => blurPt && setBlurPt(false)} className={`text-[12px] text-slate-100/80 mt-1.5 italic transition ${blurPt ? 'blur-sm hover:blur-none cursor-pointer select-none' : ''}`}>
-                    {missingTranslation(l.translation) ? (generatedTranslations[l.id] || 'Gerando tradução…') : l.translation}
+                  <p
+                    onClick={() => {
+                      if (blurPt) setBlurPt(false);
+                      if (missingTranslation(l.translation) && !generatedTranslations[l.id]) {
+                        translateOne(l);
+                      }
+                    }}
+                    className={`text-[12px] text-slate-100/80 mt-1.5 italic transition cursor-pointer ${blurPt ? 'blur-sm hover:blur-none select-none' : ''}`}
+                  >
+                    {missingTranslation(l.translation)
+                      ? (generatedTranslations[l.id] || (translatingId === l.id ? 'Traduzindo…' : 'Toque para traduzir'))
+                      : l.translation}
                   </p>
                   {l.pronunciationGuide && <p className="text-[10px] text-white/40 font-mono mt-1">🔊 {l.pronunciationGuide}</p>}
 
@@ -349,7 +352,7 @@ export default function DialoguePractice({ dialogue, stats: _s, onBack, onComple
         </div>
       )}
 
-      {aria && <AriaChat dialogue={dialogue} onClose={() => setAria(false)} />}
+      {aria && <AriaChat dialogue={dialogue} cumulativePhrases={cumulativePhrases} onClose={() => setAria(false)} />}
     </div>
   );
 }

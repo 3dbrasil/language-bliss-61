@@ -120,13 +120,12 @@ export default function App() {
         console.warn("Could not fetch user from Supabase auth", err);
       }
 
-      // If no active Supabase session, check for bypass mode session
+      // If no active Supabase session, check for bypass mode session OR generate a per-device UUID
       if (!uid) {
         try {
           const bypass = localStorage.getItem('dialogoo_bypass_session');
           if (bypass) {
             const parsed = JSON.parse(bypass);
-            // Migrate legacy non-UUID bypass ids to valid UUIDs
             const LEGACY_MAP: Record<string, string> = {
               'bypass-admin-id-123': '00000000-0000-4000-8000-000000000001',
               'bypass-student-id-456': '00000000-0000-4000-8000-000000000002',
@@ -140,6 +139,20 @@ export default function App() {
           }
         } catch (err) {
           console.error("Failed to parse bypass session", err);
+        }
+      }
+
+      // Cloud backup open to everyone: if still no uid, mint a per-device UUID so progress syncs to cloud.
+      if (!uid) {
+        try {
+          let deviceId = localStorage.getItem('dialogoo_device_id');
+          if (!deviceId) {
+            deviceId = (crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}-0000-4000-8000-000000000000`).slice(0, 36);
+            localStorage.setItem('dialogoo_device_id', deviceId);
+          }
+          uid = deviceId;
+        } catch (err) {
+          console.warn('Could not allocate device id for backup', err);
         }
       }
 
@@ -366,7 +379,22 @@ export default function App() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
           {selected ? (
             <Suspense fallback={<LoadingPanel />}>
-              <DialoguePractice dialogue={selected} stats={stats} onBack={() => setSelected(null)} onComplete={handleComplete} />
+              <DialoguePractice
+                dialogue={selected}
+                stats={stats}
+                cumulativePhrases={(() => {
+                  const sorted = [...dialogues].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+                  const idx = sorted.findIndex(d => d.id === selected.id);
+                  const upTo = idx >= 0 ? sorted.slice(0, idx + 1) : [selected];
+                  return upTo.flatMap(d => d.lines.map(l => ({
+                    text: l.text,
+                    translation: l.translation,
+                    lesson: d.title,
+                  })));
+                })()}
+                onBack={() => setSelected(null)}
+                onComplete={handleComplete}
+              />
             </Suspense>
           ) : tab === 'map' ? <DuolingoMap dialogues={dialogues} stats={stats} onSelectDialogue={setSelected} />
             : tab === 'cumulative' ? <CumulativeArena stats={stats} learnedVocabulary={vocab} currentLevel={curLvl} onAddXp={handleAddXp} />

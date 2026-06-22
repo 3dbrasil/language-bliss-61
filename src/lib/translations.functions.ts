@@ -2,7 +2,6 @@ import { createServerFn } from "@tanstack/react-start";
 import { generateText } from "ai";
 import { z } from "zod";
 import { createLovableAiGatewayProvider } from "./ai-gateway.server";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 const TranslationInput = z.object({
   lines: z.array(z.object({
@@ -28,8 +27,8 @@ function parseTranslations(raw: string): Record<string, string> {
   }
 }
 
+// Public translation endpoint — no auth required. Uses Lovable AI Gateway (free Gemini tier).
 export const translateLessonLines = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
   .inputValidator((input) => TranslationInput.parse(input))
   .handler(async ({ data }) => {
     const lovableKey = process.env.LOVABLE_API_KEY;
