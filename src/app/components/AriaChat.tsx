@@ -517,16 +517,9 @@ export default function AriaChat({ dialogue, cumulativePhrases, onClose }: Props
               ⚠️ {error.message || "Erro ao falar com a Aria."}
             </div>
           )}
-          {audioError && (
-            <div className="text-xs text-amber-300 bg-amber-950/40 border border-amber-500/30 rounded-lg px-3 py-2">
-              🔇 {audioError}
-            </div>
-          )}
-          {micError && (
-            <div className="text-xs text-amber-300 bg-amber-950/40 border border-amber-500/30 rounded-lg px-3 py-2">
-              🎤 {micError}
-            </div>
-          )}
+          {/* audio/mic warnings hidden por solicitação do usuário */}
+          {false && audioError}
+          {false && micError}
           <div ref={endRef} />
         </div>
 
