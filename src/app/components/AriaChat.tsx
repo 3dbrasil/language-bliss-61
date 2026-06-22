@@ -11,17 +11,43 @@ interface Props {
   onClose: () => void;
 }
 
+// Short silent mp3 used to "unlock" the audio element inside a user gesture.
+const SILENT_MP3 =
+  "data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQwAAAAAAAAAAAAAAAAAAAAAAASW5mbwAAAA8AAAACAAACVAA8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PP////8AAAA5TEFNRTMuMTAwAaUAAAAAAAAAABQgJAUHQQAB4AAAAlSDpf//AAAAAAAAAAAAAAAAAAAA";
+
 export default function AriaChat({ dialogue, cumulativePhrases, onClose }: Props) {
   const [input, setInput] = useState("");
   const [recording, setRecording] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
   const [speakOn, setSpeakOn] = useState(true);
+  const [audioError, setAudioError] = useState<string | null>(null);
+  const [micError, setMicError] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioUrlRef = useRef<string | null>(null);
   const spokenRef = useRef<Set<string>>(new Set());
+
+  // Create a single <audio> element and "unlock" it inside a user gesture.
+  // After this, .play() can be called later (after async fetch) without
+  // being rejected by the browser's autoplay policy.
+  const unlockAudio = useCallback(() => {
+    if (!audioRef.current) {
+      audioRef.current = new Audio();
+      audioRef.current.preload = "auto";
+    }
+    const a = audioRef.current;
+    try {
+      a.muted = true;
+      a.src = SILENT_MP3;
+      const p = a.play();
+      if (p && typeof p.then === "function") {
+        p.then(() => { a.pause(); a.muted = false; }).catch(() => { a.muted = false; });
+      }
+    } catch { /* ignore */ }
+  }, []);
 
   const { messages, sendMessage, status, error } = useChat({
     id: `lesson-${dialogue.id}`,
@@ -60,24 +86,33 @@ export default function AriaChat({ dialogue, cumulativePhrases, onClose }: Props
 
     (async () => {
       try {
+        setAudioError(null);
         const res = await fetch("/api/tts", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ text }),
         });
-        if (!res.ok) return;
-        const blob = await res.blob();
-        const url = URL.createObjectURL(blob);
-        if (audioRef.current) {
-          audioRef.current.pause();
-          audioRef.current.src = "";
+        if (!res.ok) {
+          setAudioError(`Falha no áudio (${res.status}).`);
+          return;
         }
-        const audio = new Audio(url);
-        audioRef.current = audio;
-        audio.onended = () => URL.revokeObjectURL(url);
-        await audio.play().catch(() => {});
+        const blob = await res.blob();
+        if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
+        const url = URL.createObjectURL(blob);
+        audioUrlRef.current = url;
+        if (!audioRef.current) audioRef.current = new Audio();
+        const a = audioRef.current;
+        a.src = url;
+        a.muted = false;
+        try {
+          await a.play();
+        } catch (err) {
+          console.error("audio play blocked", err);
+          setAudioError("Áudio bloqueado pelo navegador. Toque em enviar/microfone para liberar.");
+        }
       } catch (e) {
         console.error("tts error", e);
+        setAudioError("Não consegui gerar o áudio agora.");
       }
     })();
   }, [messages, status, speakOn]);
@@ -85,6 +120,7 @@ export default function AriaChat({ dialogue, cumulativePhrases, onClose }: Props
   useEffect(() => {
     return () => {
       audioRef.current?.pause();
+      if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
       recorderRef.current?.stream.getTracks().forEach((t) => t.stop());
     };
   }, []);
@@ -93,6 +129,7 @@ export default function AriaChat({ dialogue, cumulativePhrases, onClose }: Props
     e.preventDefault();
     const text = input.trim();
     if (!text || status === "submitted" || status === "streaming") return;
+    unlockAudio();
     setInput("");
     await sendMessage({ text });
   };
@@ -102,7 +139,13 @@ export default function AriaChat({ dialogue, cumulativePhrases, onClose }: Props
       recorderRef.current?.stop();
       return;
     }
+    setMicError(null);
+    unlockAudio();
     try {
+      if (!navigator.mediaDevices?.getUserMedia) {
+        setMicError("Microfone não disponível neste navegador.");
+        return;
+      }
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mime = ["audio/webm", "audio/mp4"].find((t) => MediaRecorder.isTypeSupported(t)) || "";
       const recorder = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
@@ -113,7 +156,10 @@ export default function AriaChat({ dialogue, cumulativePhrases, onClose }: Props
         stream.getTracks().forEach((t) => t.stop());
         setRecording(false);
         const blob = new Blob(chunksRef.current, { type: recorder.mimeType });
-        if (blob.size < 1024) return;
+        if (blob.size < 1024) {
+          setMicError("Gravação muito curta — segure por mais tempo.");
+          return;
+        }
         setTranscribing(true);
         try {
           const fd = new FormData();
@@ -125,20 +171,35 @@ export default function AriaChat({ dialogue, cumulativePhrases, onClose }: Props
             if (t) {
               setInput("");
               await sendMessage({ text: t });
+            } else {
+              setMicError("Não entendi o áudio. Tente novamente.");
             }
+          } else {
+            setMicError(`Falha na transcrição (${res.status}).`);
           }
         } catch (e) {
           console.error("stt error", e);
+          setMicError("Erro ao transcrever o áudio.");
         } finally {
           setTranscribing(false);
         }
       };
       recorder.start();
       setRecording(true);
-    } catch (e) {
-      console.error("mic error", e);
+    } catch (err) {
+      const name = (err as { name?: string })?.name;
+      if (name === "NotAllowedError") {
+        setMicError("Permissão negada. Libere o microfone nas configurações do navegador.");
+      } else if (name === "NotFoundError") {
+        setMicError("Nenhum microfone encontrado.");
+      } else if (name === "NotReadableError") {
+        setMicError("Microfone em uso por outro aplicativo.");
+      } else {
+        setMicError("Não foi possível acessar o microfone.");
+      }
+      console.error("mic error", err);
     }
-  }, [recording, sendMessage]);
+  }, [recording, sendMessage, unlockAudio]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-0 sm:p-4 animate-fade-in">
@@ -161,6 +222,7 @@ export default function AriaChat({ dialogue, cumulativePhrases, onClose }: Props
               onClick={() => {
                 setSpeakOn((v) => {
                   if (v) audioRef.current?.pause();
+                  else unlockAudio();
                   return !v;
                 });
               }}
@@ -215,6 +277,16 @@ export default function AriaChat({ dialogue, cumulativePhrases, onClose }: Props
           {error && (
             <div className="text-xs text-red-300 bg-red-950/40 border border-red-500/30 rounded-lg px-3 py-2">
               ⚠️ {error.message || "Erro ao falar com a Aria."}
+            </div>
+          )}
+          {audioError && (
+            <div className="text-xs text-amber-300 bg-amber-950/40 border border-amber-500/30 rounded-lg px-3 py-2">
+              🔇 {audioError}
+            </div>
+          )}
+          {micError && (
+            <div className="text-xs text-amber-300 bg-amber-950/40 border border-amber-500/30 rounded-lg px-3 py-2">
+              🎤 {micError}
             </div>
           )}
           <div ref={endRef} />
