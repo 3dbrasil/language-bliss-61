@@ -429,11 +429,15 @@ export default function AriaChat({ dialogue, cumulativePhrases, onClose }: Props
       } else if (name === "NotReadableError") {
         setMicError("Microfone em uso por outro aplicativo.");
       } else {
-        setMicError("Não foi possível acessar o microfone.");
+        if (startBrowserRecognitionOnly()) {
+          setMicError("Gravação do microfone falhou. Fale de novo; vou usar o reconhecimento do navegador.");
+        } else {
+          setMicError("Não foi possível acessar o microfone.");
+        }
       }
       console.error("mic error", err);
     }
-  }, [recording, sendMessage, unlockAudio]);
+  }, [recording, sendMessage, startBrowserRecognitionOnly, unlockAudio]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-0 sm:p-4 animate-fade-in">
