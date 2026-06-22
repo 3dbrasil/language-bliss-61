@@ -16,7 +16,7 @@ const SILENT_MP3 =
   "data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQwAAAAAAAAAAAAAAAAAAAAAAASW5mbwAAAA8AAAACAAACVAA8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PP////8AAAA5TEFNRTMuMTAwAaUAAAAAAAAAABQgJAUHQQAB4AAAAlSDpf//AAAAAAAAAAAAAAAAAAAA";
 
 type BrowserSpeechRecognitionResultEvent = Event & {
-  results?: ArrayLike<{ 0?: { transcript?: string } }>;
+  results?: ArrayLike<{ 0?: { transcript?: string }; isFinal?: boolean }>;
 };
 
 type BrowserSpeechRecognition = {
@@ -31,6 +31,8 @@ type BrowserSpeechRecognition = {
   stop: () => void;
   abort?: () => void;
 };
+
+type MicMode = "recording" | "browser" | "none";
 
 type BrowserSpeechRecognitionConstructor = new () => BrowserSpeechRecognition;
 
