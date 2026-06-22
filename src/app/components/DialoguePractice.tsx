@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { ArrowLeft, Volume2, BookOpen, Award, Sparkles, CheckCircle2, Play } from 'lucide-react';
+import { ArrowLeft, Volume2, BookOpen, Award, Sparkles, CheckCircle2, Play, Copy, Check } from 'lucide-react';
 import { Dialogue, DialogueLine, PronunciationFeedback, UserStats } from '../types';
 import { speakAmericanEnglish } from '../utils/speech';
 import { fallbackCoverImage, isLikelyBrokenCoverImageUrl } from '../utils/imageSearch';
