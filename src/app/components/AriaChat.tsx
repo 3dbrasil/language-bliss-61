@@ -256,10 +256,57 @@ export default function AriaChat({ dialogue, cumulativePhrases, onClose }: Props
     await sendMessage({ text });
   };
 
+  const startBrowserRecognitionOnly = useCallback(() => {
+    const Recognition = getBrowserSpeechRecognition();
+    if (!Recognition) return false;
+
+    const recognition = new Recognition();
+    recognition.lang = "en-US";
+    recognition.interimResults = true;
+    recognition.continuous = true;
+    recognition.maxAlternatives = 1;
+    recognition.onresult = (event) => {
+      const transcript = Array.from(event.results || [])
+        .map((result) => result[0]?.transcript || "")
+        .join(" ")
+        .trim();
+      if (transcript) {
+        browserTranscriptRef.current = transcript;
+        setInput(transcript);
+      }
+    };
+    recognition.onerror = (event) => {
+      recognitionRef.current = null;
+      micModeRef.current = "none";
+      setRecording(false);
+      setMicError(event.error === "not-allowed" ? "Permissão negada para reconhecimento de voz." : "Reconhecimento de voz do navegador falhou.");
+    };
+    recognition.onend = async () => {
+      recognitionRef.current = null;
+      if (micModeRef.current !== "browser") return;
+      micModeRef.current = "none";
+      setRecording(false);
+      const transcript = browserTranscriptRef.current.trim();
+      if (transcript) {
+        setInput("");
+        await sendMessage({ text: transcript });
+      } else {
+        setMicError("Não captei sua voz. Tente falar mais perto do microfone.");
+      }
+    };
+
+    browserTranscriptRef.current = "";
+    recognitionRef.current = recognition;
+    micModeRef.current = "browser";
+    recognition.start();
+    setRecording(true);
+    return true;
+  }, [sendMessage]);
+
   const toggleMic = useCallback(async () => {
     if (recording) {
-      recorderRef.current?.stop();
-      recognitionRef.current?.stop();
+      if (micModeRef.current === "recording") recorderRef.current?.stop();
+      else recognitionRef.current?.stop();
       return;
     }
     setMicError(null);
