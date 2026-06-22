@@ -11,10 +11,10 @@ export const Route = createFileRoute("/api/stt")({
           const form = await request.formData();
           const file = form.get("file");
           if (!(file instanceof File) || file.size === 0) {
-            return new Response("No audio", { status: 400 });
+            return Response.json({ error: "NO_AUDIO", message: "Nenhum áudio foi recebido." }, { status: 400 });
           }
           if (file.size > 20 * 1024 * 1024) {
-            return new Response("Audio too large", { status: 413 });
+            return Response.json({ error: "AUDIO_TOO_LARGE", message: "Áudio muito grande para transcrever." }, { status: 413 });
           }
 
           const type = file.type.split(";")[0] || "audio/webm";
@@ -48,7 +48,7 @@ export const Route = createFileRoute("/api/stt")({
                   ? "Créditos de IA esgotados para transcrever o microfone."
                   : "Não foi possível transcrever o áudio online.",
               },
-              { status: res.status },
+              { status: res.status === 402 ? 402 : 200 },
             );
           }
 

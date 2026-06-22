@@ -16,7 +16,7 @@ const SILENT_MP3 =
   "data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQwAAAAAAAAAAAAAAAAAAAAAAASW5mbwAAAA8AAAACAAACVAA8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PP////8AAAA5TEFNRTMuMTAwAaUAAAAAAAAAABQgJAUHQQAB4AAAAlSDpf//AAAAAAAAAAAAAAAAAAAA";
 
 type BrowserSpeechRecognitionResultEvent = Event & {
-  results?: ArrayLike<{ 0?: { transcript?: string } }>;
+  results?: ArrayLike<{ 0?: { transcript?: string }; isFinal?: boolean }>;
 };
 
 type BrowserSpeechRecognition = {
@@ -32,6 +32,8 @@ type BrowserSpeechRecognition = {
   abort?: () => void;
 };
 
+type MicMode = "recording" | "browser" | "none";
+
 type BrowserSpeechRecognitionConstructor = new () => BrowserSpeechRecognition;
 
 function getBrowserSpeechRecognition() {
@@ -43,32 +45,66 @@ function getBrowserSpeechRecognition() {
   return win.SpeechRecognition || win.webkitSpeechRecognition || null;
 }
 
+function selectEnglishVoice() {
+  if (typeof window === "undefined" || !("speechSynthesis" in window)) return null;
+  const voices = window.speechSynthesis.getVoices();
+  return voices.find((voice) => voice.lang === "en-US") || voices.find((voice) => voice.lang.startsWith("en")) || null;
+}
+
+function primeBrowserSpeechSynthesis() {
+  if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+  try {
+    const utterance = new SpeechSynthesisUtterance("hi");
+    utterance.lang = "en-US";
+    utterance.volume = 0;
+    window.speechSynthesis.speak(utterance);
+    window.speechSynthesis.resume();
+  } catch { /* browser does not allow priming here */ }
+}
+
 function speakWithBrowserEnglish(text: string) {
   return new Promise<boolean>((resolve) => {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) {
+    const cleanText = text.trim();
+    if (!cleanText || typeof window === "undefined" || !("speechSynthesis" in window)) {
       resolve(false);
       return;
     }
 
-    const start = () => {
-      const utterance = new SpeechSynthesisUtterance(text);
-      const voices = window.speechSynthesis.getVoices();
-      utterance.voice = voices.find((voice) => voice.lang === "en-US") || voices.find((voice) => voice.lang.startsWith("en")) || null;
-      utterance.lang = utterance.voice?.lang || "en-US";
-      utterance.rate = 0.9;
-      utterance.onend = () => resolve(true);
-      utterance.onerror = () => resolve(false);
-      window.speechSynthesis.cancel();
-      window.speechSynthesis.speak(utterance);
+    let settled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const done = (ok: boolean) => {
+      if (settled) return;
+      settled = true;
+      if (timer) clearTimeout(timer);
+      window.speechSynthesis.onvoiceschanged = null;
+      resolve(ok);
     };
 
-    if (window.speechSynthesis.getVoices().length) {
-      start();
-      return;
-    }
+    const start = () => {
+      if (settled) return;
+      const utterance = new SpeechSynthesisUtterance(cleanText);
+      utterance.voice = selectEnglishVoice();
+      utterance.lang = utterance.voice?.lang || "en-US";
+      utterance.rate = 0.9;
+      utterance.pitch = 1.03;
+      utterance.onstart = () => done(true);
+      utterance.onend = () => done(true);
+      utterance.onerror = () => done(false);
+      try {
+        window.speechSynthesis.cancel();
+        window.speechSynthesis.resume();
+        window.speechSynthesis.speak(utterance);
+        timer = setTimeout(() => done(window.speechSynthesis.speaking || window.speechSynthesis.pending), 700);
+      } catch {
+        done(false);
+      }
+    };
 
-    window.speechSynthesis.onvoiceschanged = start;
-    setTimeout(start, 800);
+    if (window.speechSynthesis.getVoices().length) start();
+    else {
+      window.speechSynthesis.onvoiceschanged = start;
+      timer = setTimeout(start, 600);
+    }
   });
 }
 
@@ -88,6 +124,7 @@ export default function AriaChat({ dialogue, cumulativePhrases, onClose }: Props
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioUrlRef = useRef<string | null>(null);
   const spokenRef = useRef<Set<string>>(new Set());
+  const micModeRef = useRef<MicMode>("none");
 
   // Create a single <audio> element and "unlock" it inside a user gesture.
   // After this, .play() can be called later (after async fetch) without
@@ -101,6 +138,7 @@ export default function AriaChat({ dialogue, cumulativePhrases, onClose }: Props
     try {
       a.muted = true;
       a.src = SILENT_MP3;
+      primeBrowserSpeechSynthesis();
       const p = a.play();
       if (p && typeof p.then === "function") {
         p.then(() => { a.pause(); a.muted = false; }).catch(() => { a.muted = false; });
@@ -161,7 +199,23 @@ export default function AriaChat({ dialogue, cumulativePhrases, onClose }: Props
           );
           return;
         }
+        const contentType = res.headers.get("Content-Type") || "";
+        if (contentType.includes("application/json")) {
+          const data = await res.json().catch(() => null) as { fallback?: boolean; message?: string } | null;
+          const usedBrowserVoice = await speakWithBrowserEnglish(text);
+          setAudioError(
+            usedBrowserVoice
+              ? `${data?.message || "Áudio online indisponível"}. Usei a voz do navegador.`
+              : `${data?.message || "Áudio online indisponível"}. Voz do navegador indisponível.`,
+          );
+          return;
+        }
         const blob = await res.blob();
+        if (!blob.size) {
+          const usedBrowserVoice = await speakWithBrowserEnglish(text);
+          setAudioError(usedBrowserVoice ? "Áudio online veio vazio. Usei a voz do navegador." : "Áudio online veio vazio.");
+          return;
+        }
         if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
         const url = URL.createObjectURL(blob);
         audioUrlRef.current = url;
@@ -173,7 +227,8 @@ export default function AriaChat({ dialogue, cumulativePhrases, onClose }: Props
           await a.play();
         } catch (err) {
           console.error("audio play blocked", err);
-          setAudioError("Áudio bloqueado pelo navegador. Toque em enviar/microfone para liberar.");
+          const usedBrowserVoice = await speakWithBrowserEnglish(text);
+          setAudioError(usedBrowserVoice ? "Player de áudio bloqueado. Usei a voz do navegador." : "Áudio bloqueado pelo navegador. Toque em enviar/microfone para liberar.");
         }
       } catch (e) {
         console.error("tts error", e);
@@ -201,10 +256,57 @@ export default function AriaChat({ dialogue, cumulativePhrases, onClose }: Props
     await sendMessage({ text });
   };
 
+  const startBrowserRecognitionOnly = useCallback(() => {
+    const Recognition = getBrowserSpeechRecognition();
+    if (!Recognition) return false;
+
+    const recognition = new Recognition();
+    recognition.lang = "en-US";
+    recognition.interimResults = true;
+    recognition.continuous = true;
+    recognition.maxAlternatives = 1;
+    recognition.onresult = (event) => {
+      const transcript = Array.from(event.results || [])
+        .map((result) => result[0]?.transcript || "")
+        .join(" ")
+        .trim();
+      if (transcript) {
+        browserTranscriptRef.current = transcript;
+        setInput(transcript);
+      }
+    };
+    recognition.onerror = (event) => {
+      recognitionRef.current = null;
+      micModeRef.current = "none";
+      setRecording(false);
+      setMicError(event.error === "not-allowed" ? "Permissão negada para reconhecimento de voz." : "Reconhecimento de voz do navegador falhou.");
+    };
+    recognition.onend = async () => {
+      recognitionRef.current = null;
+      if (micModeRef.current !== "browser") return;
+      micModeRef.current = "none";
+      setRecording(false);
+      const transcript = browserTranscriptRef.current.trim();
+      if (transcript) {
+        setInput("");
+        await sendMessage({ text: transcript });
+      } else {
+        setMicError("Não captei sua voz. Tente falar mais perto do microfone.");
+      }
+    };
+
+    browserTranscriptRef.current = "";
+    recognitionRef.current = recognition;
+    micModeRef.current = "browser";
+    recognition.start();
+    setRecording(true);
+    return true;
+  }, [sendMessage]);
+
   const toggleMic = useCallback(async () => {
     if (recording) {
-      recorderRef.current?.stop();
-      recognitionRef.current?.stop();
+      if (micModeRef.current === "recording") recorderRef.current?.stop();
+      else recognitionRef.current?.stop();
       return;
     }
     setMicError(null);
@@ -215,16 +317,22 @@ export default function AriaChat({ dialogue, cumulativePhrases, onClose }: Props
         return;
       }
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mime = ["audio/webm", "audio/mp4"].find((t) => MediaRecorder.isTypeSupported(t)) || "";
+      if (!("MediaRecorder" in window)) {
+        stream.getTracks().forEach((t) => t.stop());
+        if (!startBrowserRecognitionOnly()) setMicError("Este navegador não grava áudio para transcrição.");
+        return;
+      }
+      const mime = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"].find((t) => MediaRecorder.isTypeSupported(t)) || "";
       const recorder = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
       recorderRef.current = recorder;
       chunksRef.current = [];
       browserTranscriptRef.current = "";
+      micModeRef.current = "recording";
       const Recognition = getBrowserSpeechRecognition();
       if (Recognition) {
         const recognition = new Recognition();
         recognition.lang = "en-US";
-        recognition.interimResults = false;
+        recognition.interimResults = true;
         recognition.continuous = true;
         recognition.maxAlternatives = 1;
         recognition.onresult = (event) => {
@@ -232,7 +340,10 @@ export default function AriaChat({ dialogue, cumulativePhrases, onClose }: Props
             .map((result) => result[0]?.transcript || "")
             .join(" ")
             .trim();
-          if (transcript) browserTranscriptRef.current = transcript;
+          if (transcript) {
+            browserTranscriptRef.current = transcript;
+            setInput(transcript);
+          }
         };
         recognition.onerror = () => { recognitionRef.current = null; };
         recognition.onend = () => { recognitionRef.current = null; };
@@ -244,15 +355,21 @@ export default function AriaChat({ dialogue, cumulativePhrases, onClose }: Props
         recognitionRef.current?.stop();
         await new Promise((resolve) => setTimeout(resolve, 250));
         stream.getTracks().forEach((t) => t.stop());
+        micModeRef.current = "none";
         setRecording(false);
         const browserTranscript = browserTranscriptRef.current.trim();
         const blob = new Blob(chunksRef.current, { type: recorder.mimeType });
         if (blob.size < 1024) {
           if (browserTranscript) {
+            setInput("");
             await sendMessage({ text: browserTranscript });
             return;
           }
-          setMicError("Gravação muito curta — segure por mais tempo.");
+          if (startBrowserRecognitionOnly()) {
+            setMicError("Áudio local muito curto. Fale de novo; vou usar o reconhecimento do navegador.");
+            return;
+          }
+          setMicError("Gravação muito curta — segure por mais tempo e fale perto do microfone.");
           return;
         }
         setTranscribing(true);
@@ -288,7 +405,15 @@ export default function AriaChat({ dialogue, cumulativePhrases, onClose }: Props
           }
         } catch (e) {
           console.error("stt error", e);
-          setMicError("Erro ao transcrever o áudio.");
+          if (browserTranscript) {
+            setInput("");
+            await sendMessage({ text: browserTranscript });
+            setMicError("Transcrição online falhou. Usei o reconhecimento do navegador.");
+          } else if (startBrowserRecognitionOnly()) {
+            setMicError("Transcrição online falhou. Fale de novo; vou usar o reconhecimento do navegador.");
+          } else {
+            setMicError("Erro ao transcrever o áudio.");
+          }
         } finally {
           setTranscribing(false);
         }
@@ -304,11 +429,15 @@ export default function AriaChat({ dialogue, cumulativePhrases, onClose }: Props
       } else if (name === "NotReadableError") {
         setMicError("Microfone em uso por outro aplicativo.");
       } else {
-        setMicError("Não foi possível acessar o microfone.");
+        if (startBrowserRecognitionOnly()) {
+          setMicError("Gravação do microfone falhou. Fale de novo; vou usar o reconhecimento do navegador.");
+        } else {
+          setMicError("Não foi possível acessar o microfone.");
+        }
       }
       console.error("mic error", err);
     }
-  }, [recording, sendMessage, unlockAudio]);
+  }, [recording, sendMessage, startBrowserRecognitionOnly, unlockAudio]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-0 sm:p-4 animate-fade-in">
