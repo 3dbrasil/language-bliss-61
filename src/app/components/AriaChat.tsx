@@ -15,6 +15,63 @@ interface Props {
 const SILENT_MP3 =
   "data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQwAAAAAAAAAAAAAAAAAAAAAAASW5mbwAAAA8AAAACAAACVAA8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PP////8AAAA5TEFNRTMuMTAwAaUAAAAAAAAAABQgJAUHQQAB4AAAAlSDpf//AAAAAAAAAAAAAAAAAAAA";
 
+type BrowserSpeechRecognitionResultEvent = Event & {
+  results?: ArrayLike<{ 0?: { transcript?: string } }>;
+};
+
+type BrowserSpeechRecognition = {
+  lang: string;
+  interimResults: boolean;
+  continuous: boolean;
+  maxAlternatives: number;
+  onresult: ((event: BrowserSpeechRecognitionResultEvent) => void) | null;
+  onerror: ((event: Event & { error?: string }) => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+  abort?: () => void;
+};
+
+type BrowserSpeechRecognitionConstructor = new () => BrowserSpeechRecognition;
+
+function getBrowserSpeechRecognition() {
+  if (typeof window === "undefined") return null;
+  const win = window as typeof window & {
+    SpeechRecognition?: BrowserSpeechRecognitionConstructor;
+    webkitSpeechRecognition?: BrowserSpeechRecognitionConstructor;
+  };
+  return win.SpeechRecognition || win.webkitSpeechRecognition || null;
+}
+
+function speakWithBrowserEnglish(text: string) {
+  return new Promise<boolean>((resolve) => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) {
+      resolve(false);
+      return;
+    }
+
+    const start = () => {
+      const utterance = new SpeechSynthesisUtterance(text);
+      const voices = window.speechSynthesis.getVoices();
+      utterance.voice = voices.find((voice) => voice.lang === "en-US") || voices.find((voice) => voice.lang.startsWith("en")) || null;
+      utterance.lang = utterance.voice?.lang || "en-US";
+      utterance.rate = 0.9;
+      utterance.onend = () => resolve(true);
+      utterance.onerror = () => resolve(false);
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(utterance);
+    };
+
+    if (window.speechSynthesis.getVoices().length) {
+      start();
+      return;
+    }
+
+    window.speechSynthesis.onvoiceschanged = start;
+    setTimeout(start, 800);
+  });
+}
+
 export default function AriaChat({ dialogue, cumulativePhrases, onClose }: Props) {
   const [input, setInput] = useState("");
   const [recording, setRecording] = useState(false);
@@ -25,6 +82,8 @@ export default function AriaChat({ dialogue, cumulativePhrases, onClose }: Props
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
+  const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
+  const browserTranscriptRef = useRef("");
   const chunksRef = useRef<Blob[]>([]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioUrlRef = useRef<string | null>(null);
@@ -93,7 +152,13 @@ export default function AriaChat({ dialogue, cumulativePhrases, onClose }: Props
           body: JSON.stringify({ text }),
         });
         if (!res.ok) {
-          setAudioError(`Falha no áudio (${res.status}).`);
+          const data = await res.json().catch(() => null) as { error?: string; message?: string } | null;
+          const usedBrowserVoice = await speakWithBrowserEnglish(text);
+          setAudioError(
+            usedBrowserVoice
+              ? `${data?.error === "AI_CREDITS_EXHAUSTED" ? "Créditos de IA esgotados" : `Falha no áudio online (${res.status})`}. Usei a voz do navegador.`
+              : `${data?.message || `Falha no áudio (${res.status})`}. Voz do navegador indisponível.`,
+          );
           return;
         }
         const blob = await res.blob();
@@ -112,7 +177,8 @@ export default function AriaChat({ dialogue, cumulativePhrases, onClose }: Props
         }
       } catch (e) {
         console.error("tts error", e);
-        setAudioError("Não consegui gerar o áudio agora.");
+        const usedBrowserVoice = await speakWithBrowserEnglish(text);
+        setAudioError(usedBrowserVoice ? "Falha no áudio online. Usei a voz do navegador." : "Não consegui gerar o áudio agora.");
       }
     })();
   }, [messages, status, speakOn]);
@@ -122,6 +188,7 @@ export default function AriaChat({ dialogue, cumulativePhrases, onClose }: Props
       audioRef.current?.pause();
       if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
       recorderRef.current?.stream.getTracks().forEach((t) => t.stop());
+      recognitionRef.current?.abort?.();
     };
   }, []);
 
@@ -137,6 +204,7 @@ export default function AriaChat({ dialogue, cumulativePhrases, onClose }: Props
   const toggleMic = useCallback(async () => {
     if (recording) {
       recorderRef.current?.stop();
+      recognitionRef.current?.stop();
       return;
     }
     setMicError(null);
@@ -151,12 +219,39 @@ export default function AriaChat({ dialogue, cumulativePhrases, onClose }: Props
       const recorder = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
       recorderRef.current = recorder;
       chunksRef.current = [];
+      browserTranscriptRef.current = "";
+      const Recognition = getBrowserSpeechRecognition();
+      if (Recognition) {
+        const recognition = new Recognition();
+        recognition.lang = "en-US";
+        recognition.interimResults = false;
+        recognition.continuous = true;
+        recognition.maxAlternatives = 1;
+        recognition.onresult = (event) => {
+          const transcript = Array.from(event.results || [])
+            .map((result) => result[0]?.transcript || "")
+            .join(" ")
+            .trim();
+          if (transcript) browserTranscriptRef.current = transcript;
+        };
+        recognition.onerror = () => { recognitionRef.current = null; };
+        recognition.onend = () => { recognitionRef.current = null; };
+        recognitionRef.current = recognition;
+        try { recognition.start(); } catch { recognitionRef.current = null; }
+      }
       recorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
       recorder.onstop = async () => {
+        recognitionRef.current?.stop();
+        await new Promise((resolve) => setTimeout(resolve, 250));
         stream.getTracks().forEach((t) => t.stop());
         setRecording(false);
+        const browserTranscript = browserTranscriptRef.current.trim();
         const blob = new Blob(chunksRef.current, { type: recorder.mimeType });
         if (blob.size < 1024) {
+          if (browserTranscript) {
+            await sendMessage({ text: browserTranscript });
+            return;
+          }
           setMicError("Gravação muito curta — segure por mais tempo.");
           return;
         }
@@ -171,11 +266,25 @@ export default function AriaChat({ dialogue, cumulativePhrases, onClose }: Props
             if (t) {
               setInput("");
               await sendMessage({ text: t });
+            } else if (browserTranscript) {
+              setInput("");
+              await sendMessage({ text: browserTranscript });
             } else {
               setMicError("Não entendi o áudio. Tente novamente.");
             }
           } else {
-            setMicError(`Falha na transcrição (${res.status}).`);
+            const data = await res.json().catch(() => null) as { error?: string; message?: string } | null;
+            if (browserTranscript) {
+              setInput("");
+              await sendMessage({ text: browserTranscript });
+              setMicError(
+                data?.error === "AI_CREDITS_EXHAUSTED"
+                  ? "Créditos de IA esgotados para transcrição online. Usei o reconhecimento do navegador."
+                  : "Transcrição online falhou. Usei o reconhecimento do navegador.",
+              );
+            } else {
+              setMicError(data?.message || `Falha na transcrição (${res.status}).`);
+            }
           }
         } catch (e) {
           console.error("stt error", e);
