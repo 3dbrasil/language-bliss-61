@@ -4,7 +4,7 @@ import { Dialogue, UserStats, Badge } from '../types';
 import { getApiConfig, saveApiConfig, ApiConfig } from '../utils/apiConfig';
 import { generateAllAudios, prepareDialogueAudioCache } from '../utils/speech';
 import { findCoverImage } from '../utils/imageSearch';
-import { fillMissingLineTranslations, hasMissingTranslations } from '../utils/translations';
+// Bulk translation removed — translations are fetched per-phrase on tap in the lesson view.
 
 interface Props { stats: UserStats; dialogues: Dialogue[]; onImportDialogues: (d: Dialogue[]) => void | Promise<void>; onDeleteDialogue: (id: string) => void; onResetProgress: () => void; isAdmin?: boolean; }
 
@@ -367,25 +367,16 @@ export default function SettingsView({ stats, dialogues, onImportDialogues, onDe
         if (!d.situation) d.situation = `${d.lines.length} falas`; 
       });
 
-      // 1. Save the lessons first. Expensive work must not block the PDF import.
-      const needsTranslation = hasMissingTranslations(parsed);
-      const savedParsed = parsed;
-
+      // Save the lessons. Translations are NOT pre-filled — each phrase is translated
+      // on-demand when the student taps it in the lesson view.
       setImportMsg('⏳ Salvando aulas na nuvem...');
-      await onImportDialogues(savedParsed);
+      await onImportDialogues(parsed);
 
       setImportStatus('success');
-      setImportMsg(`✅ ${savedParsed.length} aula(s) importada(s) na nuvem!${needsTranslation ? ' Traduções faltantes serão completadas em segundo plano.' : ''}`);
+      setImportMsg(`✅ ${parsed.length} aula(s) importada(s)! Toque em cada frase para ver a tradução.`);
       setImportText('');
       setPdfPreview('');
       setIsImporting(false);
-
-      // 2. Translation — run in background only when the PDF/JSON did not bring translations.
-      if (hasMissingTranslations(parsed)) {
-        void fillMissingLineTranslations(parsed)
-          .then((translated) => onImportDialogues(translated))
-          .catch((err: any) => console.warn('Background translation failed', err));
-      }
 
       let audioSummary = '';
       // 3. Audio cache check — do not generate hundreds of MP3s during PDF import.
@@ -398,7 +389,7 @@ export default function SettingsView({ stats, dialogues, onImportDialogues, onDe
           setPregenProg({ c: 0, t: 1, msg: 'Conferindo áudios que já estão na nuvem...' });
           setTimeout(() => {
             void prepareDialogueAudioCache(
-              savedParsed,
+              parsed,
               api.unrealSpeechVoice,
               (c, t, msg) => {
                 if (audioJobRef.current === audioJobId) setPregenProg({ c, t, msg });
@@ -419,7 +410,7 @@ export default function SettingsView({ stats, dialogues, onImportDialogues, onDe
         }
       }
 
-      if (audioSummary) setImportMsg(`✅ ${savedParsed.length} aula(s) importada(s) na nuvem!${audioSummary}`);
+      if (audioSummary) setImportMsg(`✅ ${parsed.length} aula(s) importada(s) na nuvem!${audioSummary}`);
     } catch (e: any) {
       setImportStatus('error');
       setImportMsg(`❌ ${e.message}`);
