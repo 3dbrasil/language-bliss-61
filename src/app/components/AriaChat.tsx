@@ -135,6 +135,7 @@ export default function AriaChat({ dialogue, cumulativePhrases, onClose }: Props
     try {
       a.muted = true;
       a.src = SILENT_MP3;
+      primeBrowserSpeechSynthesis();
       const p = a.play();
       if (p && typeof p.then === "function") {
         p.then(() => { a.pause(); a.muted = false; }).catch(() => { a.muted = false; });
