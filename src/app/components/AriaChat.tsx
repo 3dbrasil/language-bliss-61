@@ -317,16 +317,22 @@ export default function AriaChat({ dialogue, cumulativePhrases, onClose }: Props
         return;
       }
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mime = ["audio/webm", "audio/mp4"].find((t) => MediaRecorder.isTypeSupported(t)) || "";
+      if (!("MediaRecorder" in window)) {
+        stream.getTracks().forEach((t) => t.stop());
+        if (!startBrowserRecognitionOnly()) setMicError("Este navegador não grava áudio para transcrição.");
+        return;
+      }
+      const mime = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"].find((t) => MediaRecorder.isTypeSupported(t)) || "";
       const recorder = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
       recorderRef.current = recorder;
       chunksRef.current = [];
       browserTranscriptRef.current = "";
+      micModeRef.current = "recording";
       const Recognition = getBrowserSpeechRecognition();
       if (Recognition) {
         const recognition = new Recognition();
         recognition.lang = "en-US";
-        recognition.interimResults = false;
+        recognition.interimResults = true;
         recognition.continuous = true;
         recognition.maxAlternatives = 1;
         recognition.onresult = (event) => {
@@ -334,7 +340,10 @@ export default function AriaChat({ dialogue, cumulativePhrases, onClose }: Props
             .map((result) => result[0]?.transcript || "")
             .join(" ")
             .trim();
-          if (transcript) browserTranscriptRef.current = transcript;
+          if (transcript) {
+            browserTranscriptRef.current = transcript;
+            setInput(transcript);
+          }
         };
         recognition.onerror = () => { recognitionRef.current = null; };
         recognition.onend = () => { recognitionRef.current = null; };
