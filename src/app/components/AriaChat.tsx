@@ -1,93 +1,44 @@
 import { useEffect, useRef, useState } from "react";
 import { useChat } from "@ai-sdk/react";
-import { DefaultChatTransport, type UIMessage } from "ai";
-import { supabase } from "@/integrations/supabase/client";
-import { X, Send, Sparkles, Loader2, LogIn } from "lucide-react";
+import { DefaultChatTransport } from "ai";
+import { X, Send, Sparkles } from "lucide-react";
 import ReactMarkdown from "react-markdown";
-import { Link } from "@tanstack/react-router";
 import { Dialogue } from "../types";
 
 interface Props {
   dialogue: Dialogue;
+  cumulativePhrases: { text: string; translation?: string; lesson?: string }[];
   onClose: () => void;
 }
 
-export default function AriaChat({ dialogue, onClose }: Props) {
-  const [userId, setUserId] = useState<string | null>(null);
-  const [authChecked, setAuthChecked] = useState(false);
-  const [threadId, setThreadId] = useState<string | null>(null);
-  const [initialMessages, setInitialMessages] = useState<UIMessage[]>([]);
+export default function AriaChat({ dialogue, cumulativePhrases, onClose }: Props) {
   const [input, setInput] = useState("");
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // 1. Auth check
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      setUserId(data.user?.id ?? null);
-      setAuthChecked(true);
-    });
-  }, []);
-
-  // 2. Find or create thread for this lesson
-  useEffect(() => {
-    if (!userId) return;
-    (async () => {
-      const { data: existing } = await supabase
-        .from("ai_threads").select("id")
-        .eq("user_id", userId).eq("lesson_id", dialogue.id)
-        .order("updated_at", { ascending: false }).limit(1).maybeSingle();
-
-      let id = existing?.id;
-      if (!id) {
-        const { data: created, error } = await supabase
-          .from("ai_threads")
-          .insert({ user_id: userId, lesson_id: dialogue.id, title: dialogue.title })
-          .select("id").single();
-        if (error) { console.error(error); return; }
-        id = created.id;
-      }
-      setThreadId(id);
-
-      // Load history
-      const { data: rows } = await supabase
-        .from("ai_messages").select("id, role, content")
-        .eq("thread_id", id).order("created_at");
-      const msgs: UIMessage[] = (rows ?? []).map((r) => ({
-        id: r.id,
-        role: r.role as "user" | "assistant",
-        parts: [{ type: "text", text: r.content }],
-      }));
-      setInitialMessages(msgs);
-    })();
-  }, [userId, dialogue.id, dialogue.title]);
-
-  const ready = !!threadId;
-
   const { messages, sendMessage, status } = useChat({
-    id: threadId ?? undefined,
-    messages: initialMessages,
+    id: `lesson-${dialogue.id}`,
     transport: new DefaultChatTransport({
       api: "/api/chat",
       fetch: async (url, init) => {
-        const { data } = await supabase.auth.getSession();
-        const token = data.session?.access_token;
-        const headers = new Headers(init?.headers);
-        if (token) headers.set("Authorization", `Bearer ${token}`);
-        // Inject our metadata into the body
         const original = init?.body ? JSON.parse(init.body as string) : {};
         const body = JSON.stringify({
           ...original,
-          threadId,
-          lessonContext: { id: dialogue.id, title: dialogue.title, situation: dialogue.situation, level: dialogue.level },
+          lessonContext: {
+            id: dialogue.id,
+            title: dialogue.title,
+            situation: dialogue.situation,
+            level: dialogue.level,
+          },
+          cumulativePhrases,
         });
-        return fetch(url, { ...init, headers, body });
+        return fetch(url, { ...init, body });
       },
     }),
   });
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, status]);
-  useEffect(() => { inputRef.current?.focus(); }, [ready, status]);
+  useEffect(() => { inputRef.current?.focus(); }, [status]);
 
   const onSend = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -108,7 +59,9 @@ export default function AriaChat({ dialogue, onClose }: Props) {
             </div>
             <div>
               <p className="text-sm font-bold text-white">Aria</p>
-              <p className="text-[10px] text-slate-400">Praticando: {dialogue.title}</p>
+              <p className="text-[10px] text-slate-400">
+                {dialogue.title} · {cumulativePhrases.length} frases na memória
+              </p>
             </div>
           </div>
           <button onClick={onClose} className="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 flex items-center justify-center">
@@ -118,27 +71,9 @@ export default function AriaChat({ dialogue, onClose }: Props) {
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
-          {!authChecked && (
-            <div className="text-center py-10"><Loader2 className="w-5 h-5 text-slate-500 animate-spin mx-auto" /></div>
-          )}
-
-          {authChecked && !userId && (
-            <div className="text-center py-10 space-y-3">
-              <Sparkles className="w-8 h-8 text-[#00D4A0] mx-auto" />
-              <p className="text-sm text-slate-300">Entre para conversar com a Aria e salvar suas frases.</p>
-              <Link to="/auth" className="inline-flex items-center gap-1.5 bg-gradient-to-r from-[#2A7FFF] to-[#00D4A0] text-white font-bold px-4 py-2 rounded-lg text-xs">
-                <LogIn className="w-3.5 h-3.5" /> Entrar / Cadastrar
-              </Link>
-            </div>
-          )}
-
-          {authChecked && userId && !ready && (
-            <div className="text-center py-10"><Loader2 className="w-5 h-5 text-slate-500 animate-spin mx-auto" /></div>
-          )}
-
-          {ready && messages.length === 0 && (
+          {messages.length === 0 && (
             <div className="text-center py-6 text-xs text-slate-400">
-              Diga "olá" para a Aria 👋 — ela se baseia no diálogo desta lição.
+              Diga "hi" para a Aria 👋 — ela já conhece as frases das lições anteriores e desta.
             </div>
           )}
 
@@ -175,24 +110,22 @@ export default function AriaChat({ dialogue, onClose }: Props) {
         </div>
 
         {/* Composer */}
-        {ready && (
-          <form onSubmit={onSend} className="p-3 border-t border-white/10 flex gap-2">
-            <input
-              ref={inputRef}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Type in English..."
-              className="flex-1 bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 outline-none focus:border-[#2A7FFF]/50"
-            />
-            <button
-              type="submit"
-              disabled={!input.trim() || status === "submitted" || status === "streaming"}
-              className="w-10 h-10 rounded-lg bg-gradient-to-r from-[#2A7FFF] to-[#00D4A0] text-white flex items-center justify-center disabled:opacity-40"
-            >
-              <Send className="w-4 h-4" />
-            </button>
-          </form>
-        )}
+        <form onSubmit={onSend} className="p-3 border-t border-white/10 flex gap-2">
+          <input
+            ref={inputRef}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="Type in English..."
+            className="flex-1 bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 outline-none focus:border-[#2A7FFF]/50"
+          />
+          <button
+            type="submit"
+            disabled={!input.trim() || status === "submitted" || status === "streaming"}
+            className="w-10 h-10 rounded-lg bg-gradient-to-r from-[#2A7FFF] to-[#00D4A0] text-white flex items-center justify-center disabled:opacity-40"
+          >
+            <Send className="w-4 h-4" />
+          </button>
+        </form>
       </div>
     </div>
   );
