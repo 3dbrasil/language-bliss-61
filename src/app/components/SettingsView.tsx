@@ -389,7 +389,7 @@ export default function SettingsView({ stats, dialogues, onImportDialogues, onDe
           setPregenProg({ c: 0, t: 1, msg: 'Conferindo áudios que já estão na nuvem...' });
           setTimeout(() => {
             void prepareDialogueAudioCache(
-              savedParsed,
+              parsed,
               api.unrealSpeechVoice,
               (c, t, msg) => {
                 if (audioJobRef.current === audioJobId) setPregenProg({ c, t, msg });
@@ -410,7 +410,7 @@ export default function SettingsView({ stats, dialogues, onImportDialogues, onDe
         }
       }
 
-      if (audioSummary) setImportMsg(`✅ ${savedParsed.length} aula(s) importada(s) na nuvem!${audioSummary}`);
+      if (audioSummary) setImportMsg(`✅ ${parsed.length} aula(s) importada(s) na nuvem!${audioSummary}`);
     } catch (e: any) {
       setImportStatus('error');
       setImportMsg(`❌ ${e.message}`);
