@@ -23,6 +23,7 @@ export const Route = createFileRoute("/api/tts")({
               model: "openai/gpt-4o-mini-tts",
               input,
               voice: voice || "shimmer",
+              stream_format: "audio",
               response_format: "mp3",
             }),
           });
@@ -37,7 +38,7 @@ export const Route = createFileRoute("/api/tts")({
                   ? "Créditos de IA esgotados para gerar áudio."
                   : "Não foi possível gerar o áudio online.",
               },
-              { status: upstream.status },
+              { status: upstream.status === 402 ? 402 : 200 },
             );
           }
 
