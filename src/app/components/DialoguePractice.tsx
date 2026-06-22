@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { ArrowLeft, Volume2, BookOpen, Award, Sparkles, CheckCircle2, Play } from 'lucide-react';
 import { Dialogue, DialogueLine, PronunciationFeedback, UserStats } from '../types';
 import { speakAmericanEnglish } from '../utils/speech';
@@ -260,8 +260,18 @@ export default function DialoguePractice({ dialogue, stats: _s, cumulativePhrase
                   <p className={`text-[15px] font-bold leading-relaxed tracking-wide ${stu ? 'text-white' : 'text-white'}`}>
                     {l.text}
                   </p>
-                  <p onClick={() => blurPt && setBlurPt(false)} className={`text-[12px] text-slate-100/80 mt-1.5 italic transition ${blurPt ? 'blur-sm hover:blur-none cursor-pointer select-none' : ''}`}>
-                    {missingTranslation(l.translation) ? (generatedTranslations[l.id] || 'Gerando tradução…') : l.translation}
+                  <p
+                    onClick={() => {
+                      if (blurPt) setBlurPt(false);
+                      if (missingTranslation(l.translation) && !generatedTranslations[l.id]) {
+                        translateOne(l);
+                      }
+                    }}
+                    className={`text-[12px] text-slate-100/80 mt-1.5 italic transition cursor-pointer ${blurPt ? 'blur-sm hover:blur-none select-none' : ''}`}
+                  >
+                    {missingTranslation(l.translation)
+                      ? (generatedTranslations[l.id] || (translatingId === l.id ? 'Traduzindo…' : 'Toque para traduzir'))
+                      : l.translation}
                   </p>
                   {l.pronunciationGuide && <p className="text-[10px] text-white/40 font-mono mt-1">🔊 {l.pronunciationGuide}</p>}
 
@@ -342,7 +352,7 @@ export default function DialoguePractice({ dialogue, stats: _s, cumulativePhrase
         </div>
       )}
 
-      {aria && <AriaChat dialogue={dialogue} onClose={() => setAria(false)} />}
+      {aria && <AriaChat dialogue={dialogue} cumulativePhrases={cumulativePhrases} onClose={() => setAria(false)} />}
     </div>
   );
 }
