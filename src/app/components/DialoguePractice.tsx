@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { ArrowLeft, Volume2, BookOpen, Award, Sparkles, CheckCircle2, Play } from 'lucide-react';
+import { ArrowLeft, Volume2, BookOpen, Award, Sparkles, CheckCircle2, Play, Copy, Check } from 'lucide-react';
 import { Dialogue, DialogueLine, PronunciationFeedback, UserStats } from '../types';
 import { speakAmericanEnglish } from '../utils/speech';
 import { fallbackCoverImage, isLikelyBrokenCoverImageUrl } from '../utils/imageSearch';
@@ -28,6 +28,21 @@ export default function DialoguePractice({ dialogue, stats: _s, cumulativePhrase
   const [autoplay, setAutoplay] = useState(false);
   const [celebrate, setCelebrate] = useState(false);
   const [generatedTranslations, setGeneratedTranslations] = useState<Record<string, string>>({});
+  const [copied, setCopied] = useState(false);
+
+  const copyEnglish = useCallback(async () => {
+    const text = dialogue.lines.map((l) => l.text).join('\n');
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    } catch {
+      const ta = document.createElement('textarea');
+      ta.value = text; document.body.appendChild(ta); ta.select();
+      document.execCommand('copy'); document.body.removeChild(ta);
+      setCopied(true); setTimeout(() => setCopied(false), 1800);
+    }
+  }, [dialogue.lines]);
   const [visibleCount, setVisibleCount] = useState(80);
   const coverImage = !isLikelyBrokenCoverImageUrl(dialogue.imageUrl) && dialogue.imageUrl
     ? dialogue.imageUrl
@@ -197,6 +212,9 @@ export default function DialoguePractice({ dialogue, stats: _s, cumulativePhrase
           PT oculto
         </button>
         <button onClick={() => setVocab(!vocab)} className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold transition ${vocab ? 'bg-[#00D4A0] text-slate-950' : 'bg-slate-900 text-slate-300 border border-slate-800'}`}><BookOpen className="w-3 h-3" />Vocab</button>
+        <button onClick={copyEnglish} title="Copiar todas as frases em inglês" className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold transition ${copied ? 'bg-emerald-500 text-white' : 'bg-slate-900 text-slate-300 border border-slate-800 hover:border-[#2A7FFF]/40'}`}>
+          {copied ? <><Check className="w-3 h-3" />Copiado!</> : <><Copy className="w-3 h-3" />Copiar EN</>}
+        </button>
       </div>
 
       {/* Floating background words */}
