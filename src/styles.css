@@ -204,3 +204,7 @@
 /* Slow spin for ambient deco rings */
 @keyframes ocean-spin { to { transform: rotate(360deg); } }
 .animate-ocean-spin { animation: ocean-spin 12s linear infinite; }
+
+#lovable-badge {
+  display: none !important;
+}
