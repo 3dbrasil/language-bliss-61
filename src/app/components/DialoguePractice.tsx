@@ -24,7 +24,7 @@ export default function DialoguePractice({ dialogue, stats: _s, cumulativePhrase
   const [aria, setAria] = useState(false);
   const [srsTick, setSrsTick] = useState(0);
   const [lvlFilter, setLvlFilter] = useState<'all' | SrsLevel>('all');
-  const [blurPt, setBlurPt] = useState(true);
+  const [revealedTranslationIds, setRevealedTranslationIds] = useState<string[]>([]);
   const [autoplay, setAutoplay] = useState(false);
   const [celebrate, setCelebrate] = useState(false);
   const [generatedTranslations, setGeneratedTranslations] = useState<Record<string, string>>({});
@@ -51,6 +51,7 @@ export default function DialoguePractice({ dialogue, stats: _s, cumulativePhrase
 
   useEffect(() => {
     setVisibleCount(80);
+    setRevealedTranslationIds([]);
   }, [dialogue.id, lvlFilter]);
 
   const speak = useCallback(
@@ -192,8 +193,8 @@ export default function DialoguePractice({ dialogue, stats: _s, cumulativePhrase
             <button key={o.v} onClick={() => setRate(o.v)} className={`text-[9px] font-bold px-2 py-0.5 rounded ${rate === o.v ? 'bg-[#2A7FFF] text-white' : 'text-slate-300'}`}>{o.l}</button>
           ))}
         </div>
-        <button onClick={() => setBlurPt(b => !b)} className={`text-[10px] font-bold px-2 py-1 rounded-lg transition ${blurPt ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30' : 'bg-slate-900 text-slate-300 border border-slate-800'}`}>
-          {blurPt ? 'PT oculto' : 'PT visível'}
+        <button onClick={() => setRevealedTranslationIds([])} className="text-[10px] font-bold px-2 py-1 rounded-lg transition bg-purple-500/20 text-purple-300 border border-purple-500/30">
+          PT oculto
         </button>
         <button onClick={() => setVocab(!vocab)} className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold transition ${vocab ? 'bg-[#00D4A0] text-slate-950' : 'bg-slate-900 text-slate-300 border border-slate-800'}`}><BookOpen className="w-3 h-3" />Vocab</button>
       </div>
@@ -233,6 +234,7 @@ export default function DialoguePractice({ dialogue, stats: _s, cumulativePhrase
           const hue = stu ? studentHue : speakerHues[l.speaker] || speakerHues[Object.keys(speakerHues)[0]];
           const spking = speakingId === l.id;
           const cur = getState(l.text).level || classifyDifficulty(l.text);
+          const translationRevealed = revealedTranslationIds.includes(l.id);
           void srsTick;
 
           return (
@@ -262,12 +264,12 @@ export default function DialoguePractice({ dialogue, stats: _s, cumulativePhrase
                   </p>
                   <p
                     onClick={() => {
-                      if (blurPt) setBlurPt(false);
+                      setRevealedTranslationIds((ids) => (ids.includes(l.id) ? ids : [...ids, l.id]));
                       if (missingTranslation(l.translation) && !generatedTranslations[l.id]) {
                         translateOne(l);
                       }
                     }}
-                    className={`text-[12px] text-slate-100/80 mt-1.5 italic transition cursor-pointer ${blurPt ? 'blur-sm hover:blur-none select-none' : ''}`}
+                    className={`text-[12px] text-slate-100/80 mt-1.5 italic transition cursor-pointer ${translationRevealed ? '' : 'blur-sm hover:blur-none select-none'}`}
                   >
                     {missingTranslation(l.translation)
                       ? (generatedTranslations[l.id] || (translatingId === l.id ? 'Traduzindo…' : 'Toque para traduzir'))
