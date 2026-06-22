@@ -355,15 +355,21 @@ export default function AriaChat({ dialogue, cumulativePhrases, onClose }: Props
         recognitionRef.current?.stop();
         await new Promise((resolve) => setTimeout(resolve, 250));
         stream.getTracks().forEach((t) => t.stop());
+        micModeRef.current = "none";
         setRecording(false);
         const browserTranscript = browserTranscriptRef.current.trim();
         const blob = new Blob(chunksRef.current, { type: recorder.mimeType });
         if (blob.size < 1024) {
           if (browserTranscript) {
+            setInput("");
             await sendMessage({ text: browserTranscript });
             return;
           }
-          setMicError("Gravação muito curta — segure por mais tempo.");
+          if (startBrowserRecognitionOnly()) {
+            setMicError("Áudio local muito curto. Fale de novo; vou usar o reconhecimento do navegador.");
+            return;
+          }
+          setMicError("Gravação muito curta — segure por mais tempo e fale perto do microfone.");
           return;
         }
         setTranscribing(true);
@@ -399,7 +405,15 @@ export default function AriaChat({ dialogue, cumulativePhrases, onClose }: Props
           }
         } catch (e) {
           console.error("stt error", e);
-          setMicError("Erro ao transcrever o áudio.");
+          if (browserTranscript) {
+            setInput("");
+            await sendMessage({ text: browserTranscript });
+            setMicError("Transcrição online falhou. Usei o reconhecimento do navegador.");
+          } else if (startBrowserRecognitionOnly()) {
+            setMicError("Transcrição online falhou. Fale de novo; vou usar o reconhecimento do navegador.");
+          } else {
+            setMicError("Erro ao transcrever o áudio.");
+          }
         } finally {
           setTranscribing(false);
         }
