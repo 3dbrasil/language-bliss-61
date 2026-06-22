@@ -106,6 +106,11 @@ export default function AriaChat({ dialogue, cumulativePhrases, onClose }: Props
               </div>
             </div>
           )}
+          {error && (
+            <div className="text-xs text-red-300 bg-red-950/40 border border-red-500/30 rounded-lg px-3 py-2">
+              ⚠️ {error.message || "Erro ao falar com a Aria."}
+            </div>
+          )}
           <div ref={endRef} />
         </div>
 
