@@ -35,7 +35,7 @@ export const translateLessonLines = createServerFn({ method: "POST" })
     if (!lovableKey) return {} as Record<string, string>;
 
     const gateway = createLovableAiGatewayProvider(lovableKey);
-    const model = gateway("google/gemini-3-flash-preview");
+    const model = gateway("google/gemini-2.5-flash-lite");
     const payload = data.lines.map((line) => ({ id: line.id, text: line.text }));
 
     const result = await generateText({
