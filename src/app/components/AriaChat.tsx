@@ -11,132 +11,53 @@ interface Props {
   onClose: () => void;
 }
 
+// 0.2s silent mp3 used to "unlock" the audio element inside a user gesture
+const SILENT_MP3 =
+  "data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQwAAAAAAAAAAAAAAAAAAAAAAASW5mbwAAAA8AAAACAAACVAA8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PP////8AAAA5TEFNRTMuMTAwAaUAAAAAAAAAABQgJAUHQQAB4AAAAlSDpf//AAAAAAAAAAAAAAAAAAAA";
+
 export default function AriaChat({ dialogue, cumulativePhrases, onClose }: Props) {
   const [input, setInput] = useState("");
   const [recording, setRecording] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
   const [speakOn, setSpeakOn] = useState(true);
+  const [audioError, setAudioError] = useState<string | null>(null);
+  const [micError, setMicError] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioUrlRef = useRef<string | null>(null);
   const spokenRef = useRef<Set<string>>(new Set());
 
-  const { messages, sendMessage, status, error } = useChat({
-    id: `lesson-${dialogue.id}`,
-    transport: new DefaultChatTransport({
-      api: "/api/chat",
-      fetch: async (url, init) => {
-        const original = init?.body ? JSON.parse(init.body as string) : {};
-        const body = JSON.stringify({
-          ...original,
-          lessonContext: {
-            id: dialogue.id,
-            title: dialogue.title,
-            situation: dialogue.situation,
-            level: dialogue.level,
-          },
-          cumulativePhrases,
-        });
-        return fetch(url, { ...init, body });
-      },
-    }),
-  });
-
-  useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, status]);
-  useEffect(() => { inputRef.current?.focus(); }, [status]);
-
-  // Auto-play TTS when a new assistant message finishes streaming
-  useEffect(() => {
-    if (!speakOn) return;
-    if (status === "submitted" || status === "streaming") return;
-    const last = messages[messages.length - 1];
-    if (!last || last.role !== "assistant") return;
-    if (spokenRef.current.has(last.id)) return;
-    const text = last.parts.map((p) => (p.type === "text" ? p.text : "")).join("").trim();
-    if (!text) return;
-    spokenRef.current.add(last.id);
-
-    (async () => {
-      try {
-        const res = await fetch("/api/tts", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text }),
-        });
-        if (!res.ok) return;
-        const blob = await res.blob();
-        const url = URL.createObjectURL(blob);
-        if (audioRef.current) {
-          audioRef.current.pause();
-          audioRef.current.src = "";
-        }
-        const audio = new Audio(url);
-        audioRef.current = audio;
-        audio.onended = () => URL.revokeObjectURL(url);
-        await audio.play().catch(() => {});
-      } catch (e) {
-        console.error("tts error", e);
-      }
-    })();
-  }, [messages, status, speakOn]);
-
-  useEffect(() => {
-    return () => {
-      audioRef.current?.pause();
-      recorderRef.current?.stream.getTracks().forEach((t) => t.stop());
-    };
-  }, []);
-
-  const onSend = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const text = input.trim();
-    if (!text || status === "submitted" || status === "streaming") return;
-    setInput("");
-    await sendMessage({ text });
-  };
-
-  const toggleMic = useCallback(async () => {
-    if (recording) {
-      recorderRef.current?.stop();
-      return;
+  // Create a single <audio> element and "unlock" it on a user gesture by
+  // playing a silent clip — browsers then allow subsequent .play() after
+  // async fetches without rejecting (NotAllowedError / autoplay policy).
+  const unlockAudio = useCallback(() => {
+    if (!audioRef.current) {
+      audioRef.current = new Audio();
+      audioRef.current.preload = "auto";
     }
+    const a = audioRef.current;
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mime = ["audio/webm", "audio/mp4"].find((t) => MediaRecorder.isTypeSupported(t)) || "";
-      const recorder = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
-      recorderRef.current = recorder;
-      chunksRef.current = [];
-      recorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
-      recorder.onstop = async () => {
-        stream.getTracks().forEach((t) => t.stop());
-        setRecording(false);
-        const blob = new Blob(chunksRef.current, { type: recorder.mimeType });
-        if (blob.size < 1024) return;
-        setTranscribing(true);
-        try {
-          const fd = new FormData();
-          fd.append("file", blob, `rec.${blob.type.includes("mp4") ? "mp4" : "webm"}`);
-          const res = await fetch("/api/stt", { method: "POST", body: fd });
-          if (res.ok) {
-            const { text } = (await res.json()) as { text?: string };
-            const t = (text || "").trim();
-            if (t) {
-              setInput("");
-              await sendMessage({ text: t });
-            }
-          }
-        } catch (e) {
-          console.error("stt error", e);
-        } finally {
-          setTranscribing(false);
-        }
-      };
-      recorder.start();
-      setRecording(true);
-    } catch (e) {
-      console.error("mic error", e);
+      a.muted = true;
+      a.src = SILENT_MP3;
+      a.play().then(() => { a.pause(); a.muted = false; }).catch(() => { a.muted = false; });
+    } catch { /* ignore */ }
+  }, []);
+...
+    } catch (err) {
+      const name = (err as { name?: string })?.name;
+      if (name === "NotAllowedError") {
+        setMicError("Permissão negada. Libere o microfone nas configurações do navegador.");
+      } else if (name === "NotFoundError") {
+        setMicError("Nenhum microfone encontrado.");
+      } else if (name === "NotReadableError") {
+        setMicError("Microfone em uso por outro aplicativo.");
+      } else {
+        setMicError("Não foi possível acessar o microfone.");
+      }
+      console.error("mic error", err);
     }
   }, [recording, sendMessage]);
 
