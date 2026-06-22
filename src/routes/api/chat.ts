@@ -89,9 +89,24 @@ export const Route = createFileRoute("/api/chat")({
             model,
             system,
             messages: await convertToModelMessages(body.messages),
+            onError: ({ error }) => {
+              console.error("aria streamText error", error);
+            },
           });
 
-          return result.toUIMessageStreamResponse({ originalMessages: body.messages });
+          return result.toUIMessageStreamResponse({
+            originalMessages: body.messages,
+            onError: (error: unknown) => {
+              const msg = error instanceof Error ? error.message : String(error);
+              if (/payment required/i.test(msg) || /402/.test(msg)) {
+                return "Créditos de IA esgotados no workspace. Adicione créditos para continuar conversando com a Aria.";
+              }
+              if (/rate.?limit/i.test(msg) || /429/.test(msg)) {
+                return "Muitas requisições — aguarde alguns segundos e tente de novo.";
+              }
+              return "A Aria não conseguiu responder agora. Tente novamente em instantes.";
+            },
+          });
         } catch (e) {
           console.error("chat route error", e);
           return new Response("Internal error", { status: 500 });

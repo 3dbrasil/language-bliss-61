@@ -16,7 +16,7 @@ export default function AriaChat({ dialogue, cumulativePhrases, onClose }: Props
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const { messages, sendMessage, status } = useChat({
+  const { messages, sendMessage, status, error } = useChat({
     id: `lesson-${dialogue.id}`,
     transport: new DefaultChatTransport({
       api: "/api/chat",
@@ -104,6 +104,11 @@ export default function AriaChat({ dialogue, cumulativePhrases, onClose }: Props
                 <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: "120ms" }} />
                 <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: "240ms" }} />
               </div>
+            </div>
+          )}
+          {error && (
+            <div className="text-xs text-red-300 bg-red-950/40 border border-red-500/30 rounded-lg px-3 py-2">
+              ⚠️ {error.message || "Erro ao falar com a Aria."}
             </div>
           )}
           <div ref={endRef} />
