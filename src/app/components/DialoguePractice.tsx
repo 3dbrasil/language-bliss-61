@@ -28,6 +28,21 @@ export default function DialoguePractice({ dialogue, stats: _s, cumulativePhrase
   const [autoplay, setAutoplay] = useState(false);
   const [celebrate, setCelebrate] = useState(false);
   const [generatedTranslations, setGeneratedTranslations] = useState<Record<string, string>>({});
+  const [copied, setCopied] = useState(false);
+
+  const copyEnglish = useCallback(async () => {
+    const text = dialogue.lines.map((l) => l.text).join('\n');
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    } catch {
+      const ta = document.createElement('textarea');
+      ta.value = text; document.body.appendChild(ta); ta.select();
+      document.execCommand('copy'); document.body.removeChild(ta);
+      setCopied(true); setTimeout(() => setCopied(false), 1800);
+    }
+  }, [dialogue.lines]);
   const [visibleCount, setVisibleCount] = useState(80);
   const coverImage = !isLikelyBrokenCoverImageUrl(dialogue.imageUrl) && dialogue.imageUrl
     ? dialogue.imageUrl
