@@ -196,7 +196,23 @@ export default function AriaChat({ dialogue, cumulativePhrases, onClose }: Props
           );
           return;
         }
+        const contentType = res.headers.get("Content-Type") || "";
+        if (contentType.includes("application/json")) {
+          const data = await res.json().catch(() => null) as { fallback?: boolean; message?: string } | null;
+          const usedBrowserVoice = await speakWithBrowserEnglish(text);
+          setAudioError(
+            usedBrowserVoice
+              ? `${data?.message || "Áudio online indisponível"}. Usei a voz do navegador.`
+              : `${data?.message || "Áudio online indisponível"}. Voz do navegador indisponível.`,
+          );
+          return;
+        }
         const blob = await res.blob();
+        if (!blob.size) {
+          const usedBrowserVoice = await speakWithBrowserEnglish(text);
+          setAudioError(usedBrowserVoice ? "Áudio online veio vazio. Usei a voz do navegador." : "Áudio online veio vazio.");
+          return;
+        }
         if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
         const url = URL.createObjectURL(blob);
         audioUrlRef.current = url;
@@ -208,7 +224,8 @@ export default function AriaChat({ dialogue, cumulativePhrases, onClose }: Props
           await a.play();
         } catch (err) {
           console.error("audio play blocked", err);
-          setAudioError("Áudio bloqueado pelo navegador. Toque em enviar/microfone para liberar.");
+          const usedBrowserVoice = await speakWithBrowserEnglish(text);
+          setAudioError(usedBrowserVoice ? "Player de áudio bloqueado. Usei a voz do navegador." : "Áudio bloqueado pelo navegador. Toque em enviar/microfone para liberar.");
         }
       } catch (e) {
         console.error("tts error", e);
