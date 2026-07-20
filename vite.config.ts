@@ -5,8 +5,29 @@
 //     error logger plugins, and sandbox detection (port/host/strictPort).
 // You can pass additional config via defineConfig({ vite: { ... }, etc... }) if needed.
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
+import type { Plugin } from "vite";
+
+function silenceReadonlyErrorCollector(): Plugin {
+  return {
+    name: "dialogoo:silence-readonly-error-collector",
+    enforce: "pre",
+    apply: "serve",
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        const path = (req.url ?? "").split("?", 1)[0];
+        if (req.method === "POST" && path === "/__lovable/error-collector") {
+          res.writeHead(204);
+          res.end();
+          return;
+        }
+        next();
+      });
+    },
+  };
+}
 
 export default defineConfig({
+  plugins: [silenceReadonlyErrorCollector()],
   tanstackStart: {
     // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
     // nitro/vite builds from this
