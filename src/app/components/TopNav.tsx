@@ -18,6 +18,13 @@ export default function TopNav({ stats, activeTab, setActiveTab, isAdmin }: Prop
   const [email, setEmail] = useState<string | null>(null);
 
   useEffect(() => {
+    try {
+      const bypass = localStorage.getItem('dialogoo_bypass_session');
+      if (bypass) {
+        setEmail(JSON.parse(bypass).email ?? null);
+        return;
+      }
+    } catch {}
     supabase.auth.getSession().then(({ data }) => {
       let finalEmail = data.session?.user?.email ?? null;
       if (!finalEmail) {
