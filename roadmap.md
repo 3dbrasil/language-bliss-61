@@ -1,2 +1,2 @@
-- [x] Replace Lovable AI calls for conversation, translation, voice, and microphone with independent services.
+- [ ] Replace Lovable AI calls without assuming OpenAI; confirm which OpenCode service and voice/transcription provider the user means.
 - [ ] Connect and migrate lessons, audio, and progress to a user-owned database (blocked until user provides an external database connection).
