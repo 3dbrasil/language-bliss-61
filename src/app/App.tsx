@@ -112,33 +112,33 @@ export default function App() {
       let uid: string | null = null;
       let email: string | null = null;
 
+      // Local access takes precedence: an online auth request can hang on mobile.
       try {
-        const { data: userData } = await supabase.auth.getUser();
-        uid = userData.user?.id ?? null;
-        email = userData.user?.email ?? null;
+        const bypass = localStorage.getItem('dialogoo_bypass_session');
+        if (bypass) {
+          const parsed = JSON.parse(bypass);
+          const LEGACY_MAP: Record<string, string> = {
+            'bypass-admin-id-123': '00000000-0000-4000-8000-000000000001',
+            'bypass-student-id-456': '00000000-0000-4000-8000-000000000002',
+          };
+          if (parsed.id && LEGACY_MAP[parsed.id]) {
+            parsed.id = LEGACY_MAP[parsed.id];
+            localStorage.setItem('dialogoo_bypass_session', JSON.stringify(parsed));
+          }
+          uid = parsed.id;
+          email = parsed.email;
+        }
       } catch (err) {
-        console.warn("Could not fetch user from Supabase auth", err);
+        console.error("Failed to parse bypass session", err);
       }
 
-      // If no active Supabase session, check for bypass mode session OR generate a per-device UUID
       if (!uid) {
         try {
-          const bypass = localStorage.getItem('dialogoo_bypass_session');
-          if (bypass) {
-            const parsed = JSON.parse(bypass);
-            const LEGACY_MAP: Record<string, string> = {
-              'bypass-admin-id-123': '00000000-0000-4000-8000-000000000001',
-              'bypass-student-id-456': '00000000-0000-4000-8000-000000000002',
-            };
-            if (parsed.id && LEGACY_MAP[parsed.id]) {
-              parsed.id = LEGACY_MAP[parsed.id];
-              try { localStorage.setItem('dialogoo_bypass_session', JSON.stringify(parsed)); } catch {}
-            }
-            uid = parsed.id;
-            email = parsed.email;
-          }
+          const { data: userData } = await supabase.auth.getUser();
+          uid = userData.user?.id ?? null;
+          email = userData.user?.email ?? null;
         } catch (err) {
-          console.error("Failed to parse bypass session", err);
+          console.warn("Could not fetch user from Supabase auth", err);
         }
       }
 
