@@ -1,0 +1,2 @@
+- [ ] Replace Lovable AI calls for conversation, translation, voice, and microphone with independent services.
+- [ ] Connect and migrate lessons, audio, and progress to a user-owned database (blocked until user provides an external database connection).
