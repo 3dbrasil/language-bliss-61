@@ -184,6 +184,9 @@ export default function AriaChat({ dialogue, cumulativePhrases, onClose }: Props
     (async () => {
       try {
         setAudioError(null);
+        const usedBrowserVoice = await speakWithBrowserEnglish(text);
+        if (!usedBrowserVoice) setAudioError("Voz indisponível neste aparelho. Verifique as opções de voz do navegador.");
+        return;
         const res = await fetch("/api/tts", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -311,6 +314,9 @@ export default function AriaChat({ dialogue, cumulativePhrases, onClose }: Props
     }
     setMicError(null);
     unlockAudio();
+    if (startBrowserRecognitionOnly()) return;
+    setMicError("Reconhecimento de voz indisponível neste navegador. Pode digitar a mensagem.");
+    return;
     try {
       if (!navigator.mediaDevices?.getUserMedia) {
         setMicError("Microfone não disponível neste navegador.");
