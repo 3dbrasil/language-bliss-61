@@ -9,18 +9,17 @@ export const Route = createFileRoute("/api/tts")({
           const input = (text || "").trim().slice(0, 4000);
           if (!input) return new Response("Bad request", { status: 400 });
 
-          const key = process.env.LOVABLE_API_KEY;
-          if (!key) return new Response("LOVABLE_API_KEY missing", { status: 500 });
+          const key = process.env.OPENAI_API_KEY;
+          if (!key) return Response.json({ message: "Chave de voz não configurada." }, { status: 503 });
 
-          const upstream = await fetch("https://ai.gateway.lovable.dev/v1/audio/speech", {
+          const upstream = await fetch("https://api.openai.com/v1/audio/speech", {
             method: "POST",
             headers: {
-              "Lovable-API-Key": key,
-              "X-Lovable-AIG-SDK": "vercel-ai-sdk",
+              Authorization: `Bearer ${key}`,
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              model: "openai/gpt-4o-mini-tts",
+              model: "gpt-4o-mini-tts",
               input,
               voice: voice || "shimmer",
               stream_format: "audio",
@@ -33,12 +32,10 @@ export const Route = createFileRoute("/api/tts")({
             console.error("[tts] upstream", upstream.status, msg);
             return Response.json(
               {
-                error: upstream.status === 402 ? "AI_CREDITS_EXHAUSTED" : "TTS_FAILED",
-                message: upstream.status === 402
-                  ? "Créditos de IA esgotados para gerar áudio."
-                  : "Não foi possível gerar o áudio online.",
+                error: "TTS_FAILED",
+                message: upstream.status === 429 ? "Limite de voz atingido. Tente novamente mais tarde." : "Não foi possível gerar o áudio online.",
               },
-              { status: upstream.status === 402 ? 402 : 200 },
+              { status: upstream.status },
             );
           }
 
