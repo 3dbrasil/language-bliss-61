@@ -1,2 +1,2 @@
 - Local student/admin access is read before online auth on app startup, because the existing local-entry flow must not stall when the online auth service is unavailable.
-- Conversation and translation use direct Groq/NVIDIA providers; Aria voice and transcription use direct OpenAI, so the app no longer depends on Lovable AI credits.
+- Conversation and translation use direct Groq/NVIDIA providers; Aria voice and transcription rely on browser speech capabilities because OpenCode Go is for coding agents, not language tutoring.

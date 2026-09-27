@@ -111,18 +111,14 @@ function speakWithBrowserEnglish(text: string) {
 export default function AriaChat({ dialogue, cumulativePhrases, onClose }: Props) {
   const [input, setInput] = useState("");
   const [recording, setRecording] = useState(false);
-  const [transcribing, setTranscribing] = useState(false);
   const [speakOn, setSpeakOn] = useState(true);
   const [audioError, setAudioError] = useState<string | null>(null);
   const [micError, setMicError] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const recorderRef = useRef<MediaRecorder | null>(null);
   const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
   const browserTranscriptRef = useRef("");
-  const chunksRef = useRef<Blob[]>([]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const audioUrlRef = useRef<string | null>(null);
   const spokenRef = useRef<Set<string>>(new Set());
   const micModeRef = useRef<MicMode>("none");
 
@@ -184,56 +180,12 @@ export default function AriaChat({ dialogue, cumulativePhrases, onClose }: Props
     (async () => {
       try {
         setAudioError(null);
-        const res = await fetch("/api/tts", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text }),
-        });
-        if (!res.ok) {
-          const data = await res.json().catch(() => null) as { error?: string; message?: string } | null;
-          const usedBrowserVoice = await speakWithBrowserEnglish(text);
-          setAudioError(
-            usedBrowserVoice
-              ? `${data?.error === "AI_CREDITS_EXHAUSTED" ? "Créditos de IA esgotados" : `Falha no áudio online (${res.status})`}. Usei a voz do navegador.`
-              : `${data?.message || `Falha no áudio (${res.status})`}. Voz do navegador indisponível.`,
-          );
-          return;
-        }
-        const contentType = res.headers.get("Content-Type") || "";
-        if (contentType.includes("application/json")) {
-          const data = await res.json().catch(() => null) as { fallback?: boolean; message?: string } | null;
-          const usedBrowserVoice = await speakWithBrowserEnglish(text);
-          setAudioError(
-            usedBrowserVoice
-              ? `${data?.message || "Áudio online indisponível"}. Usei a voz do navegador.`
-              : `${data?.message || "Áudio online indisponível"}. Voz do navegador indisponível.`,
-          );
-          return;
-        }
-        const blob = await res.blob();
-        if (!blob.size) {
-          const usedBrowserVoice = await speakWithBrowserEnglish(text);
-          setAudioError(usedBrowserVoice ? "Áudio online veio vazio. Usei a voz do navegador." : "Áudio online veio vazio.");
-          return;
-        }
-        if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
-        const url = URL.createObjectURL(blob);
-        audioUrlRef.current = url;
-        if (!audioRef.current) audioRef.current = new Audio();
-        const a = audioRef.current;
-        a.src = url;
-        a.muted = false;
-        try {
-          await a.play();
-        } catch (err) {
-          console.error("audio play blocked", err);
-          const usedBrowserVoice = await speakWithBrowserEnglish(text);
-          setAudioError(usedBrowserVoice ? "Player de áudio bloqueado. Usei a voz do navegador." : "Áudio bloqueado pelo navegador. Toque em enviar/microfone para liberar.");
-        }
-      } catch (e) {
-        console.error("tts error", e);
         const usedBrowserVoice = await speakWithBrowserEnglish(text);
-        setAudioError(usedBrowserVoice ? "Falha no áudio online. Usei a voz do navegador." : "Não consegui gerar o áudio agora.");
+        if (!usedBrowserVoice) setAudioError("Voz indisponível neste aparelho. Verifique as opções de voz do navegador.");
+        return;
+      } catch (e) {
+        console.error("browser speech error", e);
+        setAudioError("Não consegui reproduzir a voz neste aparelho.");
       }
     })();
   }, [messages, status, speakOn]);
@@ -241,8 +193,7 @@ export default function AriaChat({ dialogue, cumulativePhrases, onClose }: Props
   useEffect(() => {
     return () => {
       audioRef.current?.pause();
-      if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
-      recorderRef.current?.stream.getTracks().forEach((t) => t.stop());
+      window.speechSynthesis?.cancel();
       recognitionRef.current?.abort?.();
     };
   }, []);
@@ -298,146 +249,25 @@ export default function AriaChat({ dialogue, cumulativePhrases, onClose }: Props
     browserTranscriptRef.current = "";
     recognitionRef.current = recognition;
     micModeRef.current = "browser";
-    recognition.start();
+    try { recognition.start(); } catch {
+      recognitionRef.current = null;
+      micModeRef.current = "none";
+      return false;
+    }
     setRecording(true);
     return true;
   }, [sendMessage]);
 
   const toggleMic = useCallback(async () => {
     if (recording) {
-      if (micModeRef.current === "recording") recorderRef.current?.stop();
-      else recognitionRef.current?.stop();
+      recognitionRef.current?.stop();
       return;
     }
     setMicError(null);
     unlockAudio();
-    try {
-      if (!navigator.mediaDevices?.getUserMedia) {
-        setMicError("Microfone não disponível neste navegador.");
-        return;
-      }
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      if (!("MediaRecorder" in window)) {
-        stream.getTracks().forEach((t) => t.stop());
-        if (!startBrowserRecognitionOnly()) setMicError("Este navegador não grava áudio para transcrição.");
-        return;
-      }
-      const mime = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"].find((t) => MediaRecorder.isTypeSupported(t)) || "";
-      const recorder = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
-      recorderRef.current = recorder;
-      chunksRef.current = [];
-      browserTranscriptRef.current = "";
-      micModeRef.current = "recording";
-      const Recognition = getBrowserSpeechRecognition();
-      if (Recognition) {
-        const recognition = new Recognition();
-        recognition.lang = "en-US";
-        recognition.interimResults = true;
-        recognition.continuous = true;
-        recognition.maxAlternatives = 1;
-        recognition.onresult = (event) => {
-          const transcript = Array.from(event.results || [])
-            .map((result) => result[0]?.transcript || "")
-            .join(" ")
-            .trim();
-          if (transcript) {
-            browserTranscriptRef.current = transcript;
-            setInput(transcript);
-          }
-        };
-        recognition.onerror = () => { recognitionRef.current = null; };
-        recognition.onend = () => { recognitionRef.current = null; };
-        recognitionRef.current = recognition;
-        try { recognition.start(); } catch { recognitionRef.current = null; }
-      }
-      recorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
-      recorder.onstop = async () => {
-        recognitionRef.current?.stop();
-        await new Promise((resolve) => setTimeout(resolve, 250));
-        stream.getTracks().forEach((t) => t.stop());
-        micModeRef.current = "none";
-        setRecording(false);
-        const browserTranscript = browserTranscriptRef.current.trim();
-        const blob = new Blob(chunksRef.current, { type: recorder.mimeType });
-        if (blob.size < 1024) {
-          if (browserTranscript) {
-            setInput("");
-            await sendMessage({ text: browserTranscript });
-            return;
-          }
-          if (startBrowserRecognitionOnly()) {
-            setMicError("Áudio local muito curto. Fale de novo; vou usar o reconhecimento do navegador.");
-            return;
-          }
-          setMicError("Gravação muito curta — segure por mais tempo e fale perto do microfone.");
-          return;
-        }
-        setTranscribing(true);
-        try {
-          const fd = new FormData();
-          fd.append("file", blob, `rec.${blob.type.includes("mp4") ? "mp4" : "webm"}`);
-          const res = await fetch("/api/stt", { method: "POST", body: fd });
-          if (res.ok) {
-            const { text } = (await res.json()) as { text?: string };
-            const t = (text || "").trim();
-            if (t) {
-              setInput("");
-              await sendMessage({ text: t });
-            } else if (browserTranscript) {
-              setInput("");
-              await sendMessage({ text: browserTranscript });
-            } else {
-              setMicError("Não entendi o áudio. Tente novamente.");
-            }
-          } else {
-            const data = await res.json().catch(() => null) as { error?: string; message?: string } | null;
-            if (browserTranscript) {
-              setInput("");
-              await sendMessage({ text: browserTranscript });
-              setMicError(
-                data?.error === "AI_CREDITS_EXHAUSTED"
-                  ? "Créditos de IA esgotados para transcrição online. Usei o reconhecimento do navegador."
-                  : "Transcrição online falhou. Usei o reconhecimento do navegador.",
-              );
-            } else {
-              setMicError(data?.message || `Falha na transcrição (${res.status}).`);
-            }
-          }
-        } catch (e) {
-          console.error("stt error", e);
-          if (browserTranscript) {
-            setInput("");
-            await sendMessage({ text: browserTranscript });
-            setMicError("Transcrição online falhou. Usei o reconhecimento do navegador.");
-          } else if (startBrowserRecognitionOnly()) {
-            setMicError("Transcrição online falhou. Fale de novo; vou usar o reconhecimento do navegador.");
-          } else {
-            setMicError("Erro ao transcrever o áudio.");
-          }
-        } finally {
-          setTranscribing(false);
-        }
-      };
-      recorder.start();
-      setRecording(true);
-    } catch (err) {
-      const name = (err as { name?: string })?.name;
-      if (name === "NotAllowedError") {
-        setMicError("Permissão negada. Libere o microfone nas configurações do navegador.");
-      } else if (name === "NotFoundError") {
-        setMicError("Nenhum microfone encontrado.");
-      } else if (name === "NotReadableError") {
-        setMicError("Microfone em uso por outro aplicativo.");
-      } else {
-        if (startBrowserRecognitionOnly()) {
-          setMicError("Gravação do microfone falhou. Fale de novo; vou usar o reconhecimento do navegador.");
-        } else {
-          setMicError("Não foi possível acessar o microfone.");
-        }
-      }
-      console.error("mic error", err);
-    }
-  }, [recording, sendMessage, startBrowserRecognitionOnly, unlockAudio]);
+    if (startBrowserRecognitionOnly()) return;
+    setMicError("Reconhecimento de voz indisponível neste navegador. Pode digitar a mensagem.");
+  }, [recording, startBrowserRecognitionOnly, unlockAudio]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-0 sm:p-4 animate-fade-in">
@@ -528,7 +358,7 @@ export default function AriaChat({ dialogue, cumulativePhrases, onClose }: Props
           <button
             type="button"
             onClick={toggleMic}
-            disabled={transcribing || status === "submitted" || status === "streaming"}
+            disabled={status === "submitted" || status === "streaming"}
             title={recording ? "Parar gravação" : "Falar"}
             className={`w-10 h-10 shrink-0 rounded-lg flex items-center justify-center text-white disabled:opacity-40 ${
               recording ? "bg-red-500 hover:bg-red-600 animate-pulse" : "bg-slate-800 hover:bg-slate-700"
@@ -540,8 +370,7 @@ export default function AriaChat({ dialogue, cumulativePhrases, onClose }: Props
             ref={inputRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder={transcribing ? "Transcrevendo..." : "Type in English..."}
-            disabled={transcribing}
+            placeholder="Type in English..."
             className="flex-1 bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 outline-none focus:border-[#2A7FFF]/50 disabled:opacity-60"
           />
           <button
