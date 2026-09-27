@@ -1,0 +1,1 @@
+- Local student/admin access is read before online auth on app startup, because the existing local-entry flow must not stall when the online auth service is unavailable.
