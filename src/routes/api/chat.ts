@@ -9,7 +9,6 @@ import {
   type ModelMessage,
 } from "ai";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
-import { createLovableAiGatewayProvider } from "@/lib/ai-gateway.server";
 
 type CumulativePhrase = { text: string; translation?: string; lesson?: string };
 
@@ -65,14 +64,6 @@ type ProviderEntry = { name: string; build: () => LanguageModel };
 
 function buildProviders(): ProviderEntry[] {
   const list: ProviderEntry[] = [];
-
-  const lovableKey = process.env.LOVABLE_API_KEY;
-  if (lovableKey) {
-    list.push({
-      name: "lovable/gemini",
-      build: () => createLovableAiGatewayProvider(lovableKey)("google/gemini-2.5-flash-lite"),
-    });
-  }
 
   const groqKey = process.env.GROQ_API_KEY;
   if (groqKey) {

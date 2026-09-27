@@ -5,8 +5,8 @@ export const Route = createFileRoute("/api/stt")({
     handlers: {
       POST: async ({ request }) => {
         try {
-          const key = process.env.LOVABLE_API_KEY;
-          if (!key) return new Response("LOVABLE_API_KEY missing", { status: 500 });
+          const key = process.env.OPENAI_API_KEY;
+          if (!key) return Response.json({ message: "Chave de transcrição não configurada." }, { status: 503 });
 
           const form = await request.formData();
           const file = form.get("file");
@@ -26,14 +26,13 @@ export const Route = createFileRoute("/api/stt")({
 
           const upstream = new FormData();
           upstream.append("file", file, `recording.${ext}`);
-          upstream.append("model", "openai/gpt-4o-mini-transcribe");
+          upstream.append("model", "gpt-4o-mini-transcribe");
           upstream.append("language", "en");
 
-          const res = await fetch("https://ai.gateway.lovable.dev/v1/audio/transcriptions", {
+          const res = await fetch("https://api.openai.com/v1/audio/transcriptions", {
             method: "POST",
             headers: {
-              "Lovable-API-Key": key,
-              "X-Lovable-AIG-SDK": "vercel-ai-sdk",
+              Authorization: `Bearer ${key}`,
             },
             body: upstream,
           });
@@ -43,12 +42,10 @@ export const Route = createFileRoute("/api/stt")({
             console.error("[stt] upstream", res.status, msg);
             return Response.json(
               {
-                error: res.status === 402 ? "AI_CREDITS_EXHAUSTED" : "TRANSCRIPTION_FAILED",
-                message: res.status === 402
-                  ? "Créditos de IA esgotados para transcrever o microfone."
-                  : "Não foi possível transcrever o áudio online.",
+                error: "TRANSCRIPTION_FAILED",
+                message: res.status === 429 ? "Limite de transcrição atingido. Tente novamente mais tarde." : "Não foi possível transcrever o áudio online.",
               },
-              { status: res.status === 402 ? 402 : 200 },
+              { status: res.status },
             );
           }
 
