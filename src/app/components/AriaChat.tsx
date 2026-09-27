@@ -111,18 +111,14 @@ function speakWithBrowserEnglish(text: string) {
 export default function AriaChat({ dialogue, cumulativePhrases, onClose }: Props) {
   const [input, setInput] = useState("");
   const [recording, setRecording] = useState(false);
-  const [transcribing, setTranscribing] = useState(false);
   const [speakOn, setSpeakOn] = useState(true);
   const [audioError, setAudioError] = useState<string | null>(null);
   const [micError, setMicError] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const recorderRef = useRef<MediaRecorder | null>(null);
   const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
   const browserTranscriptRef = useRef("");
-  const chunksRef = useRef<Blob[]>([]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const audioUrlRef = useRef<string | null>(null);
   const spokenRef = useRef<Set<string>>(new Set());
   const micModeRef = useRef<MicMode>("none");
 
@@ -188,9 +184,8 @@ export default function AriaChat({ dialogue, cumulativePhrases, onClose }: Props
         if (!usedBrowserVoice) setAudioError("Voz indisponível neste aparelho. Verifique as opções de voz do navegador.");
         return;
       } catch (e) {
-        console.error("tts error", e);
-        const usedBrowserVoice = await speakWithBrowserEnglish(text);
-        setAudioError(usedBrowserVoice ? "Falha no áudio online. Usei a voz do navegador." : "Não consegui gerar o áudio agora.");
+        console.error("browser speech error", e);
+        setAudioError("Não consegui reproduzir a voz neste aparelho.");
       }
     })();
   }, [messages, status, speakOn]);
@@ -198,8 +193,7 @@ export default function AriaChat({ dialogue, cumulativePhrases, onClose }: Props
   useEffect(() => {
     return () => {
       audioRef.current?.pause();
-      if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
-      recorderRef.current?.stream.getTracks().forEach((t) => t.stop());
+      window.speechSynthesis?.cancel();
       recognitionRef.current?.abort?.();
     };
   }, []);
@@ -255,24 +249,25 @@ export default function AriaChat({ dialogue, cumulativePhrases, onClose }: Props
     browserTranscriptRef.current = "";
     recognitionRef.current = recognition;
     micModeRef.current = "browser";
-    recognition.start();
+    try { recognition.start(); } catch {
+      recognitionRef.current = null;
+      micModeRef.current = "none";
+      return false;
+    }
     setRecording(true);
     return true;
   }, [sendMessage]);
 
   const toggleMic = useCallback(async () => {
     if (recording) {
-      if (micModeRef.current === "recording") recorderRef.current?.stop();
-      else recognitionRef.current?.stop();
+      recognitionRef.current?.stop();
       return;
     }
     setMicError(null);
     unlockAudio();
     if (startBrowserRecognitionOnly()) return;
     setMicError("Reconhecimento de voz indisponível neste navegador. Pode digitar a mensagem.");
-    return;
-
-  }, [recording, sendMessage, startBrowserRecognitionOnly, unlockAudio]);
+  }, [recording, startBrowserRecognitionOnly, unlockAudio]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-0 sm:p-4 animate-fade-in">
@@ -363,7 +358,7 @@ export default function AriaChat({ dialogue, cumulativePhrases, onClose }: Props
           <button
             type="button"
             onClick={toggleMic}
-            disabled={transcribing || status === "submitted" || status === "streaming"}
+            disabled={status === "submitted" || status === "streaming"}
             title={recording ? "Parar gravação" : "Falar"}
             className={`w-10 h-10 shrink-0 rounded-lg flex items-center justify-center text-white disabled:opacity-40 ${
               recording ? "bg-red-500 hover:bg-red-600 animate-pulse" : "bg-slate-800 hover:bg-slate-700"
@@ -375,8 +370,7 @@ export default function AriaChat({ dialogue, cumulativePhrases, onClose }: Props
             ref={inputRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder={transcribing ? "Transcrevendo..." : "Type in English..."}
-            disabled={transcribing}
+            placeholder="Type in English..."
             className="flex-1 bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 outline-none focus:border-[#2A7FFF]/50 disabled:opacity-60"
           />
           <button
