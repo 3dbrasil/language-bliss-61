@@ -1,36 +1,43 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import logo from "@/assets/dialogoo-logo.png.asset.json";
 
 export const Route = createFileRoute("/auth")({
   ssr: false,
+  head: () => ({
+    meta: [
+      { title: "Entrar — Dialogoo" },
+      { name: "description", content: "Acesse suas aulas de inglês no Dialogoo." },
+      { property: "og:title", content: "Entrar — Dialogoo" },
+      { property: "og:description", content: "Acesse suas aulas de inglês no Dialogoo." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
   component: AuthPage,
 });
 
 const ADMIN_PASSWORD = "admin8460";
 
 function AuthPage() {
-  const nav = useNavigate();
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
-  const [info, setInfo] = useState("");
   const [showAdminPwd, setShowAdminPwd] = useState(false);
   const [adminPwd, setAdminPwd] = useState("");
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) {
-        nav({ to: "/app" });
+    // Local access must not wait for an unrelated online session check.
+    try {
+      if (localStorage.getItem('dialogoo_bypass_session')) {
+        window.location.replace('/app');
         return;
       }
-      try {
-        if (localStorage.getItem('dialogoo_bypass_session')) {
-          nav({ to: "/app" });
-        }
-      } catch {}
-    });
-  }, [nav]);
+    } catch {}
+    void supabase.auth.getSession().then(({ data }) => {
+      if (data.session) window.location.replace('/app');
+    }).catch(() => {});
+  }, []);
 
   const enterAs = (type: 'admin' | 'student') => {
     setLoading(true);
@@ -39,10 +46,9 @@ function AuthPage() {
       : { id: '00000000-0000-4000-8000-000000000002', email: 'aluno-teste@dialogoo.com' };
     try {
       localStorage.setItem('dialogoo_bypass_session', JSON.stringify(mockUser));
-      setInfo(`Entrando como ${type === 'admin' ? 'Admin' : 'Aluno'}...`);
-      setTimeout(() => nav({ to: "/app" }), 300);
+      window.location.assign('/app');
     } catch {
-      setErr("Erro ao salvar sessão local.");
+      setErr("Não foi possível entrar. Verifique se o navegador permite salvar dados do site.");
       setLoading(false);
     }
   };
@@ -127,7 +133,6 @@ function AuthPage() {
           )}
 
           {err && <p role="alert" className="text-xs text-red-400 text-center pt-1">{err}</p>}
-          {info && <p role="status" className="text-xs text-emerald-400 text-center pt-1">{info}</p>}
         </div>
 
         <Link to="/" className="block text-center text-[11px] text-slate-500 hover:text-slate-300">
